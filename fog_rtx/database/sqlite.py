@@ -8,12 +8,14 @@ class SQLite(DatabaseConnector):
     def add(self, key, value):
         pass
 
-    def query(self, key):
-        pass
+    def query(self, query):
+        self.db_connector.execute_query(query)
 
     def close(self):
         pass
 
+    def list_tables(self):
+        self.db_connector.execute_query("SELECT name FROM sqlite_master WHERE type = \"table\"")
 
 """
 # Initialize the database class

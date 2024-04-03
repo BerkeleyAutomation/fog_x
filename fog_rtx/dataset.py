@@ -33,16 +33,12 @@ class Dataset:
         self.db_manager = DatabaseManager(db_connector)
         self.storage = storage
 
-        logger.warn(
-            f"Dataset {name} created at {path} with features {features}"
-        )
-
     def new_episode(self, description: str) -> Episode:
         """
         Create a new episode / trajectory.
         """
         return Episode(
-            description=description,
+            name=description,
             features=self.features,
             enable_feature_inferrence=self.enable_feature_inferrence,
             db_manager=self.db_manager,

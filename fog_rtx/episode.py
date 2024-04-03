@@ -11,12 +11,12 @@ logger = logging.getLogger(__name__)
 class Episode:
     def __init__(
         self,
-        description: Optional[str] = None,
+        name: Optional[str] = None,
         features: Dict[str, FeatureType] = {},
         enable_feature_inferrence=True,  # whether additional FeatureTypes can be inferred
         db_manager: Optional[DatabaseManager] = None,
     ):
-        self.description = description
+        self.name = name
         self.features = features
         self.enable_feature_inferrence = enable_feature_inferrence
         self.db_manager = db_manager
@@ -35,6 +35,10 @@ class Episode:
         )
         if self.db_manager:
             self.db_manager.add(feature, value)
+    
+    def add_by_dict(self, data: Dict[str, Any]) -> None:
+        for feature, value in data.items():
+            self.add(feature, value)
 
     def close(self) -> None:
         pass
