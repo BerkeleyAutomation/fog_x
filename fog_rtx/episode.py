@@ -38,8 +38,10 @@ class Episode:
         )
         if self.db_manager:
             self.db_manager.add(feature, value, timestamp)
-        else: 
-            logger.warning("No database manager provided, data will not be saved")
+        else:
+            logger.warning(
+                "No database manager provided, data will not be saved"
+            )
 
     def add_by_dict(
         self, data: Dict[str, Any], timestamp: Optional[int] = None

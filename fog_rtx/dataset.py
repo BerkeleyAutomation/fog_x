@@ -31,7 +31,9 @@ class Dataset:
         self.features = features
         self.enable_feature_inferrence = enable_feature_inferrence
         if db_connector is None:
-            logger.error("TODO: haven't implemented db_connector generation yet")
+            logger.error(
+                "TODO: haven't implemented db_connector generation yet"
+            )
             raise NotImplementedError
         self.db_manager = DatabaseManager(db_connector)
         self.db_manager.initialize_dataset(self.name, features)
