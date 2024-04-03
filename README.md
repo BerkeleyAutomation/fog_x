@@ -3,7 +3,7 @@
 [![codecov](https://codecov.io/gh/KeplerC/fog_rtx/branch/main/graph/badge.svg?token=fog_rtx_token_here)](https://codecov.io/gh/KeplerC/fog_rtx)
 [![CI](https://github.com/KeplerC/fog_rtx/actions/workflows/main.yml/badge.svg)](https://github.com/KeplerC/fog_rtx/actions/workflows/main.yml)
 
-A Data Collection and Management Framework For Robotics Learning. Support RT-X, HuggingFace. 
+An Efficient and Scalable Data Collection and Management Framework For Robotics Learning. Support RT-X, HuggingFace. 
 
 ## Install 
 
@@ -45,4 +45,4 @@ dataset.export("/tmp/rtx_export", format="rtx")
 
 ## Development
 
-Read the [CONTRIBUTING.md](CONTRIBUTING.md) file.
+Read the [CONTRIBUTING.md](CONTRIBUTING.md) file. See [TODO](./design_doc/planning_doc.md)
