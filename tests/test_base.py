@@ -1,4 +1,4 @@
-from fog_rtx.base import NAME
+from fog_rtx.dataset import NAME
 
 
 def test_base():
