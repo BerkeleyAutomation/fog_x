@@ -1,3 +1,4 @@
+from typing import Any
 from fog_rtx.database import DatabaseConnector
 
 import logging
@@ -26,7 +27,7 @@ class SQLite(DatabaseConnector):
             table_names.append(table[0])
         return table_names
     
-    def create_table(self, table_name, columns):
+    def create_table(self, table_name:str, columns):
         """Create a table using the constructed query"""
         query = self._construct_create_table_query(table_name, columns)
         try:
@@ -37,17 +38,17 @@ class SQLite(DatabaseConnector):
             print(f"An error occurred: {e}")
         logger.info(f"Table {table_name} created with result {result}")
 
-    def insert_data(self, table_name, data):
+    def insert_data(self, table_name: str, data: Any) -> int:
         """Insert data into a table"""
         columns = data.keys()
         insert_query = self._construct_insert_query(table_name, columns)
         try:
             ret = self.cursor.execute(insert_query, tuple(data.values()))
-            result = ret.fetchall()
             self.connection.commit()
         except sqlite3.Error as e:
             print(f"An error occurred: {e}")
-        logger.info(f"Data inserted into {table_name} with result {result}")
+        logger.info(f"Data inserted into {table_name} with index {self.cursor.lastrowid}")
+        return self.cursor.lastrowid
 
     def _execute_query(self, query, params=()):
         """Execute a general SQL query"""

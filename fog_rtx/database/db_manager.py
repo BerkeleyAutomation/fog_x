@@ -13,6 +13,7 @@ class DatabaseManager:
         self.db_connector = db_connector
         self.dataset_name = dataset_name
         self._initialize_dataset(dataset_name)
+        self.current_episode_id = None 
 
     def _initialize_dataset(self, dataset_name: str):
         tables = self.db_connector.list_tables()
@@ -23,11 +24,14 @@ class DatabaseManager:
             self.db_connector.create_table(dataset_name, {"Episode_Description": "TEXT"})
             logger.info("Database initialized")  
 
-    def _initialize_episode(self, metadata: Dict[str, Any]):
+    def _initialize_episode(self, 
+                            metadata: Dict[str, Any], 
+                            ) -> int:
         # TODO: placeholder, add other metadata to the database 
         episode_description = metadata["description"]
         # insert episode information to the database
-        self.db_connector.insert_data(self.dataset_name, {"Episode_Description": episode_description})
+        self.current_episode_id = self.db_connector.insert_data(self.dataset_name, {"Episode_Description": episode_description})
+
 
     def add(self, feature, value, timestamp):
         # self.database.add(row)
