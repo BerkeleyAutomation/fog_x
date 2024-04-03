@@ -1,21 +1,61 @@
 from fog_rtx.database import DatabaseConnector
 
+import logging
+import sqlite3
+logger = logging.getLogger(__name__)
 
 class SQLite(DatabaseConnector):
     def __init__(self, path: str):
-        self.db_connector = SqliteConnector(path)
+        self.connection = sqlite3.connect(path)
+        self.cursor = self.connection.cursor()
 
     def add(self, key, value):
         pass
 
     def query(self, query):
-        self.db_connector.execute_query(query)
+        self.execute_query(query)
 
     def close(self):
         pass
 
     def list_tables(self):
-        self.db_connector.execute_query("SELECT name FROM sqlite_master WHERE type = \"table\"")
+        result = self.cursor.execute("SELECT name FROM sqlite_master WHERE type = \"table\"")
+        table_names_raw = result.fetchall()
+        table_names = []
+        for table in table_names_raw:
+            logger.info(f"Table: {table[0]}")
+            table_names.append(table[0])
+        return table_names
+    
+    def create_table(self, table_name, columns):
+        """Create a table using the constructed query"""
+        query = self._construct_create_table_query(table_name, columns)
+        try:
+            ret = self.cursor.execute(query)
+            result = ret.fetchall()
+            self.connection.commit()
+        except sqlite3.Error as e:
+            print(f"An error occurred: {e}")
+        logger.info(f"Table {table_name} created with result {result}")
+
+    def _execute_query(self, query, params=()):
+        """Execute a general SQL query"""
+        try:
+            ret = self.cursor.execute(query, params)
+            self.connection.commit()
+        except sqlite3.Error as e:
+            print(f"An error occurred: {e}")
+
+    def _construct_create_table_query(self, table_name, columns):
+        """Construct a CREATE TABLE query"""
+        columns_with_types = ", ".join(
+            [
+                f"{col_name} {data_type}"
+                for col_name, data_type in columns.items()
+            ]
+        )
+        return f"CREATE TABLE IF NOT EXISTS {table_name} (id INTEGER PRIMARY KEY, {columns_with_types})"
+
 
 """
 # Initialize the database class
