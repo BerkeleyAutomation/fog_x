@@ -31,9 +31,8 @@ class DatabaseManager:
             logger.info("Database is not empty and already initialized")
         else:
             self.db_connector.create_table(
-                dataset_name, 
-                {"Episode_Description": String, 
-                 "Compacted": Integer}
+                dataset_name,
+                {"Episode_Description": String, "Compacted": Integer},
             )
             logger.info("Database initialized")
 
@@ -47,10 +46,11 @@ class DatabaseManager:
         episode_description = metadata["description"]
         # insert episode information to the database
         self.current_episode_id = self.db_connector.insert_data(
-            self.dataset_name, {
+            self.dataset_name,
+            {
                 "Episode_Description": episode_description,
                 "Compacted": False,
-                }
+            },
         )
 
         # create tables for each feature
@@ -92,8 +92,7 @@ class DatabaseManager:
         logger.info(f"Compacting and Merging tables: {table_names}")
 
         self.db_connector.merge_tables_with_timestamp(
-            table_names, 
-            self.dataset_name + "_compacted"
+            table_names, self.dataset_name + "_compacted"
         )
 
         # update the metadata field marking the episode as compacted
