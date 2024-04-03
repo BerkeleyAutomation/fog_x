@@ -23,7 +23,6 @@ class SQLite(DatabaseConnector):
         table_names_raw = result.fetchall()
         table_names = []
         for table in table_names_raw:
-            logger.info(f"Table: {table[0]}")
             table_names.append(table[0])
         return table_names
     
@@ -37,6 +36,18 @@ class SQLite(DatabaseConnector):
         except sqlite3.Error as e:
             print(f"An error occurred: {e}")
         logger.info(f"Table {table_name} created with result {result}")
+
+    def insert_data(self, table_name, data):
+        """Insert data into a table"""
+        columns = data.keys()
+        insert_query = self._construct_insert_query(table_name, columns)
+        try:
+            ret = self.cursor.execute(insert_query, tuple(data.values()))
+            result = ret.fetchall()
+            self.connection.commit()
+        except sqlite3.Error as e:
+            print(f"An error occurred: {e}")
+        logger.info(f"Data inserted into {table_name} with result {result}")
 
     def _execute_query(self, query, params=()):
         """Execute a general SQL query"""
@@ -56,6 +67,11 @@ class SQLite(DatabaseConnector):
         )
         return f"CREATE TABLE IF NOT EXISTS {table_name} (id INTEGER PRIMARY KEY, {columns_with_types})"
 
+    def _construct_insert_query(self, table_name, columns):
+        """Construct an INSERT query"""
+        placeholders = ", ".join(["?" for _ in columns])
+        column_names = ", ".join(columns)
+        return f"INSERT INTO {table_name} ({column_names}) VALUES ({placeholders})"
 
 """
 # Initialize the database class

@@ -30,7 +30,7 @@ class Dataset:
         self.replace_existing = replace_existing
         self.features = features
         self.enable_feature_inferrence = enable_feature_inferrence
-        self.db_manager = DatabaseManager(db_connector)
+        self.db_manager = DatabaseManager(db_connector, name)
         self.storage = storage
 
     def new_episode(self, description: str) -> Episode:
@@ -38,7 +38,7 @@ class Dataset:
         Create a new episode / trajectory.
         """
         return Episode(
-            name=description,
+            description=description,
             features=self.features,
             enable_feature_inferrence=self.enable_feature_inferrence,
             db_manager=self.db_manager,
