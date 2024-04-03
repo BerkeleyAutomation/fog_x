@@ -1,11 +1,12 @@
+import logging
 import time
 from typing import Any, Dict, List, Optional
 
 from fog_rtx.database import DatabaseManager
 from fog_rtx.feature import FeatureType
 
-import logging
 logger = logging.getLogger(__name__)
+
 
 class Episode:
     def __init__(
@@ -28,13 +29,12 @@ class Episode:
     ) -> None:
         if timestamp is None:
             timestamp = time.time_ns()
-        
-        logger.info(f"Adding {feature} with value {value} at timestamp {timestamp}")
+
+        logger.info(
+            f"Adding {feature} with value {value} at timestamp {timestamp}"
+        )
         if self.db_manager:
             self.db_manager.add(feature, value)
-        
-        
-
 
     def close(self) -> None:
         pass

@@ -15,8 +15,7 @@ class SQLite(DatabaseConnector):
         pass
 
 
-
-'''
+"""
 # Initialize the database class
 db = SQLiteDB('example.db')
 
@@ -45,9 +44,11 @@ for row in rows:
 # Close the database
 db.close()
 
-'''
+"""
 import sqlite3
-class SqliteConnector():
+
+
+class SqliteConnector:
     def __init__(self, db_name):
         """Initialize the database connection"""
         self.connection = sqlite3.connect(db_name)
@@ -63,7 +64,12 @@ class SqliteConnector():
 
     def construct_create_table_query(self, table_name, columns):
         """Construct a CREATE TABLE query"""
-        columns_with_types = ', '.join([f"{col_name} {data_type}" for col_name, data_type in columns.items()])
+        columns_with_types = ", ".join(
+            [
+                f"{col_name} {data_type}"
+                for col_name, data_type in columns.items()
+            ]
+        )
         return f"CREATE TABLE IF NOT EXISTS {table_name} (id INTEGER PRIMARY KEY, {columns_with_types})"
 
     def create_table(self, table_name, columns):
@@ -73,8 +79,8 @@ class SqliteConnector():
 
     def construct_insert_query(self, table_name, columns):
         """Construct an INSERT query"""
-        placeholders = ', '.join(['?' for _ in columns])
-        column_names = ', '.join(columns)
+        placeholders = ", ".join(["?" for _ in columns])
+        column_names = ", ".join(columns)
         return f"INSERT INTO {table_name} ({column_names}) VALUES ({placeholders})"
 
     def insert_data(self, table_name, data):
@@ -90,37 +96,50 @@ class SqliteConnector():
 
     def construct_update_query(self, table_name, columns, conditions):
         """Construct an UPDATE query"""
-        set_clause = ', '.join([f"{col} = ?" for col in columns])
-        where_clause = ' AND '.join([f"{cond} = ?" for cond in conditions])
+        set_clause = ", ".join([f"{col} = ?" for col in columns])
+        where_clause = " AND ".join([f"{cond} = ?" for cond in conditions])
         return f"UPDATE {table_name} SET {set_clause} WHERE {where_clause}"
 
     def update_data(self, table_name, updates, conditions):
         """Update data in the database"""
-        update_query = self.construct_update_query(table_name, updates.keys(), conditions.keys())
-        self.execute_query(update_query, tuple(updates.values()) + tuple(conditions.values()))
+        update_query = self.construct_update_query(
+            table_name, updates.keys(), conditions.keys()
+        )
+        self.execute_query(
+            update_query, tuple(updates.values()) + tuple(conditions.values())
+        )
 
     def add_column(self, table_name, column, data_type):
         """Add a new column to a table"""
-        alter_query = f"ALTER TABLE {table_name} ADD COLUMN {column} {data_type}"
+        alter_query = (
+            f"ALTER TABLE {table_name} ADD COLUMN {column} {data_type}"
+        )
         self.execute_query(alter_query)
 
-    def construct_select_query_with_condition(self, table_name, columns, conditions, use_or=False):
+    def construct_select_query_with_condition(
+        self, table_name, columns, conditions, use_or=False
+    ):
         """Construct a SELECT query with conditions"""
-        select_columns = ', '.join(columns) if columns else '*'
+        select_columns = ", ".join(columns) if columns else "*"
         if conditions:
             operator = " OR " if use_or else " AND "
-            where_clause = operator.join([f"{column} = ?" for column in conditions])
+            where_clause = operator.join(
+                [f"{column} = ?" for column in conditions]
+            )
             query = f"SELECT {select_columns} FROM {table_name} WHERE {where_clause}"
         else:
             query = f"SELECT {select_columns} FROM {table_name}"
         return query
 
-    def query_data_with_condition(self, table_name, columns=None, conditions=None, use_or=False):
+    def query_data_with_condition(
+        self, table_name, columns=None, conditions=None, use_or=False
+    ):
         """Query data with specified conditions"""
         conditions = conditions or {}
-        query = self.construct_select_query_with_condition(table_name, columns or ['*'], conditions.keys(), use_or)
+        query = self.construct_select_query_with_condition(
+            table_name, columns or ["*"], conditions.keys(), use_or
+        )
         return self.query_data(query, tuple(conditions.values()))
-
 
     def close(self):
         """Close the database connection"""
