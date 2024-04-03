@@ -59,6 +59,11 @@ class DatabaseManager:
             {"Timestamp": timestamp, feature: value},
         )
 
+    def compact(self):
+        # create a table for the compacted data
+        # iterate through all the features and get the data
+        pass 
+
     def _initialize_feature(self, feature: str):
         # create a table for the feature
         # TODO: need to make the timestamp type as TIMESTAMPTZ
