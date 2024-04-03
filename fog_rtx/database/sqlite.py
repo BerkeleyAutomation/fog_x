@@ -1,4 +1,4 @@
-from fog_rtx.db import Database
+from fog_rtx.database import Database
 
 
 class SQLite(Database):
@@ -13,4 +13,3 @@ class SQLite(Database):
 
     def close(self):
         pass
-    

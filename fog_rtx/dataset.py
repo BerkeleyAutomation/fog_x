@@ -3,7 +3,7 @@ from typing import Dict, List, Optional, Tuple
 
 from fog_rtx.episode import Episode
 from fog_rtx.feature import FeatureType
-from fog_rtx.db import Database
+from fog_rtx.database import Database
 
 logger = logging.getLogger(__name__)
 
