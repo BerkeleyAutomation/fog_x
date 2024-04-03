@@ -1,7 +1,9 @@
-from typing import List, Tuple
+import logging
+from typing import List, Tuple, Optional
+from fog_rtx.episode import Episode
+from fog_rtx.feature import Feature 
 
-from .episode import Episode
-
+logger = logging.getLogger(__name__)
 
 class Dataset:
     """
@@ -13,10 +15,14 @@ class Dataset:
         name: str,
         path: str,
         replace_existing: bool = False,
+        features: List[Feature] = [],
+        enable_feature_inferrence = True,  # whether additional features can be inferred
     ) -> None:
         self.name = name
         self.path = path
         self.replace_existing = replace_existing
+        self.features = features
+        self.enable_feature_inferrence = enable_feature_inferrence
 
     def new_episode(self, description: str) -> Episode:
         """
