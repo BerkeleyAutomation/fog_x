@@ -56,7 +56,7 @@ class DatabaseManager:
         # insert data into the table
         self.db_connector.insert_data(
             self._get_feature_table_name(feature),
-            {"Timestamp": timestamp, "Value": value},
+            {"Timestamp": timestamp, feature: value},
         )
 
     def _initialize_feature(self, feature: str):
@@ -64,7 +64,7 @@ class DatabaseManager:
         # TODO: need to make the timestamp type as TIMESTAMPTZ
         self.db_connector.create_table(
             self._get_feature_table_name(feature),
-            {"Timestamp": "INT", "Value": "TEXT"},
+            {"Timestamp": "INT", feature: "TEXT"},
         )
 
     def _get_feature_table_name(self, feature):

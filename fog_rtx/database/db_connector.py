@@ -33,6 +33,12 @@ class DatabaseConnector(ABC):
     @abstractmethod
     def insert_data(self, table_name: str, data: Any) -> int:
         """
-        return the index of the inserted data
+        append and return the index of the inserted data
         """
         pass
+
+    # @abstractmethod
+    # def join_tables_on_timestamp(
+    #     self, table1: str, table2: str
+    # ) -> List[Dict[str, Any]]:
+    #     pass
