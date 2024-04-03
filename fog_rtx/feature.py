@@ -25,18 +25,21 @@ SUPPORTED_DTYPES = [
     "binary",
     "large_binary",
     "string",
-    "large_string"
+    "large_string",
 ]
+
 
 class FeatureType:
     """
     class for feature definition and conversions
     """
-    def __init__(self, 
-                 dtype: Optional[str] = None,
-                 dimension: Optional[Tuple[int]] = None,
-                 is_type_enforced = False,  # whether a type is enforced
-                 ) -> None:
+
+    def __init__(
+        self,
+        dtype: Optional[str] = None,
+        dimension: Optional[Tuple[int]] = None,
+        is_type_enforced=False,  # whether a type is enforced
+    ) -> None:
         self.dtype = dtype
         self.dimension = dimension
         self.enforced = is_type_enforced
