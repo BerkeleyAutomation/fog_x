@@ -9,7 +9,7 @@ dataset = fog_rtx.dataset.Dataset(
     replace_existing=False, 
     features = {
         "arm_view":  fog_rtx.feature.FeatureType(dtype="image"),
-        "camera_pose": fog_rtx.feature.FeatureType(dtype="float64", dimension=(4, 4)),
+        "camera_pose": fog_rtx.feature.FeatureType(dtype="float64", dimension=[4, 4]),
     }
 )  
 

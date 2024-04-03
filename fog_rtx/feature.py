@@ -37,7 +37,7 @@ class FeatureType:
     def __init__(
         self,
         dtype: Optional[str] = None,
-        dimension: Optional[Tuple[int]] = None,
+        dimension: Optional[List[int]] = None,
         is_type_enforced=False,  # whether a type is enforced
     ) -> None:
         self.dtype = dtype

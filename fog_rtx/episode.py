@@ -1,5 +1,5 @@
 import time
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 from fog_rtx.feature import FeatureType
 
@@ -8,11 +8,13 @@ class Episode:
     def __init__(
         self,
         description: Optional[str] = None,
-        feature: List[FeatureType] = [],
+        features: Dict[str, FeatureType] = {},
         enable_FeatureType_inferrence=True,  # whether additional FeatureTypes can be inferred
     ):
         self.description = description
-        self.feature = []
+        self.features = features
+        self.enable_FeatureType_inferrence = enable_FeatureType_inferrence
+
 
     def add(
         self,
@@ -21,7 +23,7 @@ class Episode:
         timestamp: Optional[int] = None,
     ) -> None:
         if timestamp is None:
-            timestamp = time.time()
+            timestamp = time.time_ns()
 
     def close(self) -> None:
         pass

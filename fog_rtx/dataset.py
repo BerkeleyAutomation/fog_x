@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from fog_rtx.episode import Episode
 from fog_rtx.feature import FeatureType
@@ -17,7 +17,7 @@ class Dataset:
         name: str,
         path: str,
         replace_existing: bool = False,
-        features: List[FeatureType] = [],
+        features: Dict[str, FeatureType] = {},  # features to be stored {name: FeatureType}
         enable_feature_inferrence=True,  # whether additional features can be inferred
     ) -> None:
         self.name = name
