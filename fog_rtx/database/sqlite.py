@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import Any, List
 
 from sqlalchemy import (
     Column,
@@ -13,6 +13,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker  # type: ignore
 from sqlalchemy.sql import select  # type: ignore
 
 from fog_rtx.database import DatabaseConnector
+import pandas as pd
 
 Base = declarative_base()
 logger = logging.getLogger(__name__)
@@ -57,3 +58,16 @@ class SQLite(DatabaseConnector):
             f"Data inserted into {table_name} with index {insert_result.inserted_primary_key[0]}"
         )
         return insert_result.inserted_primary_key[0]
+
+    def merge_tables_with_timestamp(self, tables: List[str], output_table: str):
+        merged_df = pd.DataFrame() 
+        # This method should be updated based on the specific use case.
+        for table in tables:
+            if merged_df.empty:
+                merged_df = pd.read_sql(f'SELECT * FROM {table}', self.engine).drop('id', axis=1)
+            else:
+                cur_df = pd.read_sql(f'SELECT * FROM {table}', self.engine).drop('id', axis=1)
+                merged_df = pd.merge_asof(cur_df, merged_df, on='Timestamp', direction='nearest')
+                logger.info(f"merged_df: {merged_df}")
+        logger.warn("currently using merge asof nearest policy on the timstamp, more policies should be expected")
+        merged_df.to_sql(output_table, self.engine, if_exists='replace')

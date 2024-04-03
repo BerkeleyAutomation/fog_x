@@ -82,8 +82,14 @@ class DatabaseManager:
         # iterate through all the features and get the data
         table_names = [
             self._get_feature_table_name(feature_name)
-            for feature_name in self.features
+            for feature_name in self.features.keys()
         ]
+        logger.info(f"Compacting and Merging tables: {table_names}")
+
+        self.db_connector.merge_tables_with_timestamp(
+            table_names, 
+            self.dataset_name + "_compacted"
+        )
 
     def _initialize_feature(self, feature_name: str):
         # create a table for the feature
@@ -104,7 +110,8 @@ class DatabaseManager:
         return table_name
 
     def query(self, key):
-        return self.database.query(key)
+        return self.db_connector.query(key)
 
     def close(self):
-        self.database.close()
+        self.compact()
+        self.db_connector.close()

@@ -58,4 +58,4 @@ class Episode:
         self.db_manager.compact()
 
     def close(self) -> None:
-        pass
+        self.db_manager.close()
