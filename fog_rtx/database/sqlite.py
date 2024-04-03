@@ -1,7 +1,7 @@
 import logging
-from sqlalchemy import create_engine, Table, Column, Integer, MetaData, inspect
-from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy.sql import select
+from sqlalchemy import create_engine, Table, Column, Integer, MetaData, inspect # type: ignore
+from sqlalchemy.orm import sessionmaker, declarative_base # type: ignore
+from sqlalchemy.sql import select # type: ignore
 from typing import Any
 
 from fog_rtx.database import DatabaseConnector
@@ -43,6 +43,6 @@ class SQLite(DatabaseConnector):
     def insert_data(self, table_name: str, data: dict) -> int:
         table = Table(table_name, MetaData(), autoload_with=self.engine)
         insert_result = self.engine.execute(table.insert(), data)
-        logger.info(f"Data inserted into {table_name} with index {insert_result.inserted_primary_key}")
+        logger.info(f"Data inserted into {table_name} with index {insert_result.inserted_primary_key[0]}")
         return insert_result.inserted_primary_key[0]
 

@@ -11,10 +11,10 @@ logger = logging.getLogger(__name__)
 class Episode:
     def __init__(
         self,
+        db_manager: DatabaseManager,
         description: Optional[str] = None,
         features: Dict[str, FeatureType] = {},
         enable_feature_inferrence=True,  # whether additional FeatureTypes can be inferred
-        db_manager: Optional[DatabaseManager] = None,
     ):
         self.description = description
         self.features = features

@@ -1,8 +1,10 @@
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from fog_rtx.database.db_connector import DatabaseConnector
-from sqlalchemy import String, Integer
+from sqlalchemy import String, Integer # type: ignore
+
+from fog_rtx.feature import FeatureType 
 
 logger = logging.getLogger(__name__)
 
@@ -14,11 +16,11 @@ class DatabaseManager:
 
     def __init__(self, db_connector: DatabaseConnector):
         self.db_connector = db_connector
-        self.dataset_name = None
-        self.current_episode_id = None
-        self.features = []
+        self.dataset_name:Optional[str] = None
+        self.current_episode_id:Optional[int] = None
+        self.features: Dict[str, FeatureType] = {}
 
-    def initialize_dataset(self, dataset_name: str, features: List[str]):
+    def initialize_dataset(self, dataset_name: str, features: Dict[str, FeatureType]):
         self.dataset_name = dataset_name
         self.features = features
         tables = self.db_connector.list_tables()
@@ -35,6 +37,8 @@ class DatabaseManager:
         self,
         metadata: Dict[str, Any],
     ) -> int:
+        if self.dataset_name is None:
+            raise ValueError("Dataset not initialized")
         # TODO: placeholder, add other metadata to the database
         episode_description = metadata["description"]
         # insert episode information to the database
@@ -43,21 +47,21 @@ class DatabaseManager:
         )
 
         # create tables for each feature
-        for feature in self.features:
-            self._initialize_feature(feature)
+        for feature_name in self.features.keys():
+            self._initialize_feature(feature_name)
 
         return self.current_episode_id
 
-    def add(self, feature, value, timestamp):
-        if feature not in self.features:
-            logger.warning(f"Feature {feature} not in the list of features")
-            self._initialize_feature(feature)
-            self.features.append(feature)
+    def add(self, feature_name, value, timestamp):
+        if feature_name not in self.features.keys():
+            logger.warning(f"Feature {feature_name} not in the list of features")
+            self._initialize_feature(feature_name)
+            self.features.append(feature_name)
 
         # insert data into the table
         self.db_connector.insert_data(
-            self._get_feature_table_name(feature),
-            {"Timestamp": timestamp, feature: value},
+            self._get_feature_table_name(feature_name),
+            {"Timestamp": timestamp, feature_name: value},
         )
 
     def compact(self):
@@ -65,20 +69,20 @@ class DatabaseManager:
         # iterate through all the features and get the data
         pass 
 
-    def _initialize_feature(self, feature: str):
+    def _initialize_feature(self, feature_name: str):
         # create a table for the feature
         # TODO: need to make the timestamp type as TIMESTAMPTZ
         self.db_connector.create_table(
-            self._get_feature_table_name(feature),
-            {"Timestamp": Integer, feature: String},
+            self._get_feature_table_name(feature_name),
+            {"Timestamp": Integer, feature_name: String},
         )
 
-    def _get_feature_table_name(self, feature):
+    def _get_feature_table_name(self, feature_name):
         if self.dataset_name is None:
             raise ValueError("Dataset not initialized")
         if self.current_episode_id is None:
             raise ValueError("Episode not initialized")
-        table_name = f"{self.dataset_name}_{self.current_episode_id}_{feature}"
+        table_name = f"{self.dataset_name}_{self.current_episode_id}_{feature_name}"
         return table_name
 
     def query(self, key):
