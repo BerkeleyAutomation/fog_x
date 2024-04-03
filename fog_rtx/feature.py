@@ -28,17 +28,15 @@ SUPPORTED_DTYPES = [
     "large_string"
 ]
 
-class Feature:
+class FeatureType:
     """
     class for feature definition and conversions
     """
     def __init__(self, 
-                 name: str, 
                  dtype: Optional[str] = None,
                  dimension: Optional[Tuple[int]] = None,
                  is_type_enforced = False,  # whether a type is enforced
                  ) -> None:
-        self.name = name
         self.dtype = dtype
         self.dimension = dimension
         self.enforced = is_type_enforced
@@ -52,4 +50,7 @@ class Feature:
             raise ValueError(f"Unsupported dtype: {dtype}")
 
     def __str__(self):
-        return f"Feature(name={self.name}, dtype={self.dtype}, dimension={self.dimension})"
+        return f"dtype={self.dtype}, dimension={self.dimension})"
+
+    def __repr__(self):
+        return self.__str__()

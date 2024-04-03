@@ -3,9 +3,9 @@
 [![codecov](https://codecov.io/gh/KeplerC/fog_rtx/branch/main/graph/badge.svg?token=fog_rtx_token_here)](https://codecov.io/gh/KeplerC/fog_rtx)
 [![CI](https://github.com/KeplerC/fog_rtx/actions/workflows/main.yml/badge.svg)](https://github.com/KeplerC/fog_rtx/actions/workflows/main.yml)
 
-Data Collection and Management Framework For RT-X.
+A Data Collection and Management Framework For Robotics Learning. Support RT-X, HuggingFace. 
 
-## Install it from PyPI
+## Install 
 
 ```bash
 pip install fog_rtx
