@@ -30,6 +30,7 @@ class SQLite(DatabaseConnector):
     def create_table(self, table_name:str, columns):
         """Create a table using the constructed query"""
         query = self._construct_create_table_query(table_name, columns)
+        logger.info(f"Creating table {table_name} with query {query}")
         try:
             ret = self.cursor.execute(query)
             result = ret.fetchall()

@@ -30,12 +30,15 @@ class Dataset:
         self.replace_existing = replace_existing
         self.features = features
         self.enable_feature_inferrence = enable_feature_inferrence
-        self.db_manager = DatabaseManager(db_connector, name)
+        self.db_manager = DatabaseManager(db_connector)
+        self.db_manager.initialize_dataset(self.name, features)
+
         self.storage = storage
 
     def new_episode(self, description: str) -> Episode:
         """
         Create a new episode / trajectory.
+        TODO: support multiple processes writing to the same episode
         """
         return Episode(
             description=description,

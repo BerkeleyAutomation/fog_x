@@ -20,7 +20,7 @@ class Episode:
         self.features = features
         self.enable_feature_inferrence = enable_feature_inferrence
         self.db_manager = db_manager
-        self.db_manager._initialize_episode(
+        self.db_manager.initialize_episode(
             metadata={"description": self.description}
         )
 
@@ -39,9 +39,14 @@ class Episode:
         if self.db_manager:
             self.db_manager.add(feature, value, timestamp)
     
-    def add_by_dict(self, data: Dict[str, Any]) -> None:
+    def add_by_dict(self, data: Dict[str, Any],  timestamp: Optional[int] = None) -> None:
+        '''
+        add the same timestamp for all features
+        '''
+        if timestamp is None:
+            timestamp = time.time_ns()
         for feature, value in data.items():
-            self.add(feature, value)
+            self.add(feature, value, timestamp)
 
     def close(self) -> None:
         pass

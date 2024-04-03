@@ -18,8 +18,9 @@ dataset = fog_rtx.dataset.Dataset(
 episode = dataset.new_episode(description="grasp teddy bear from the shelf")
 
 # populate the episode with FeatureTypes
-episode.add(feature="arm_view", value="image1.jpg")
-episode.add(feature="camera_pose", value="image1.jpg")
+for i in range(10):
+    episode.add(feature="arm_view", value="image1.jpg")
+    episode.add(feature="camera_pose", value="image1.jpg")
 
 # mark the current state as terminal state
 # and save the episode
