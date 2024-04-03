@@ -38,11 +38,13 @@ class Episode:
         )
         if self.db_manager:
             self.db_manager.add(feature, value, timestamp)
-    
-    def add_by_dict(self, data: Dict[str, Any],  timestamp: Optional[int] = None) -> None:
-        '''
+
+    def add_by_dict(
+        self, data: Dict[str, Any], timestamp: Optional[int] = None
+    ) -> None:
+        """
         add the same timestamp for all features
-        '''
+        """
         if timestamp is None:
             timestamp = time.time_ns()
         for feature, value in data.items():

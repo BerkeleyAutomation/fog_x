@@ -1,9 +1,11 @@
-from typing import Any
-from fog_rtx.database import DatabaseConnector
-
 import logging
 import sqlite3
+from typing import Any
+
+from fog_rtx.database import DatabaseConnector
+
 logger = logging.getLogger(__name__)
+
 
 class SQLite(DatabaseConnector):
     def __init__(self, path: str):
@@ -20,14 +22,16 @@ class SQLite(DatabaseConnector):
         pass
 
     def list_tables(self):
-        result = self.cursor.execute("SELECT name FROM sqlite_master WHERE type = \"table\"")
+        result = self.cursor.execute(
+            'SELECT name FROM sqlite_master WHERE type = "table"'
+        )
         table_names_raw = result.fetchall()
         table_names = []
         for table in table_names_raw:
             table_names.append(table[0])
         return table_names
-    
-    def create_table(self, table_name:str, columns):
+
+    def create_table(self, table_name: str, columns):
         """Create a table using the constructed query"""
         query = self._construct_create_table_query(table_name, columns)
         logger.info(f"Creating table {table_name} with query {query}")
@@ -48,7 +52,9 @@ class SQLite(DatabaseConnector):
             self.connection.commit()
         except sqlite3.Error as e:
             print(f"An error occurred: {e}")
-        logger.info(f"Data inserted into {table_name} with index {self.cursor.lastrowid}")
+        logger.info(
+            f"Data inserted into {table_name} with index {self.cursor.lastrowid}"
+        )
         return self.cursor.lastrowid
 
     def _execute_query(self, query, params=()):
@@ -74,6 +80,7 @@ class SQLite(DatabaseConnector):
         placeholders = ", ".join(["?" for _ in columns])
         column_names = ", ".join(columns)
         return f"INSERT INTO {table_name} ({column_names}) VALUES ({placeholders})"
+
 
 """
 # Initialize the database class

@@ -19,8 +19,8 @@ episode = dataset.new_episode(description="grasp teddy bear from the shelf")
 
 # populate the episode with FeatureTypes
 for i in range(10):
-    episode.add(feature="arm_view", value="image1.jpg")
-    episode.add(feature="camera_pose", value="image1.jpg")
+    episode.add(feature="arm_view", value=f"image{i}.jpg")
+    episode.add(feature="camera_pose", value=f"pose{i}")
 
 # mark the current state as terminal state
 # and save the episode
