@@ -29,6 +29,8 @@ fmt:              ## Format code using black & isort.
 	$(ENV_PREFIX)isort fog_rtx/
 	$(ENV_PREFIX)black -l 79 fog_rtx/
 	$(ENV_PREFIX)black -l 79 tests/
+	$(ENV_PREFIX)isort examples/
+	$(ENV_PREFIX)black -l 79 examples/
 
 .PHONY: lint
 lint:             ## Run pep8, black, mypy linters.
