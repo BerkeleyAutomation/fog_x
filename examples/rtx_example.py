@@ -10,7 +10,8 @@ dataset = fog_rtx.dataset.Dataset(
     features = {
         "arm_view":  fog_rtx.feature.FeatureType(dtype="image"),
         "camera_pose": fog_rtx.feature.FeatureType(dtype="float64", dimension=[4, 4]),
-    }
+    }, 
+    database = fog_rtx.db.SQLite("/tmp/rtx.db"), 
 )  
 
 # create a new episode / trajectory
