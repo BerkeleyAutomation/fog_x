@@ -2,6 +2,7 @@ import logging
 from typing import Any, Dict, List
 
 from fog_rtx.database.db_connector import DatabaseConnector
+from sqlalchemy import String, Integer
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ class DatabaseManager:
             logger.info("Database is not empty and already initialized")
         else:
             self.db_connector.create_table(
-                dataset_name, {"Episode_Description": "TEXT"}
+                dataset_name, {"Episode_Description": String}
             )
             logger.info("Database initialized")
 
@@ -69,7 +70,7 @@ class DatabaseManager:
         # TODO: need to make the timestamp type as TIMESTAMPTZ
         self.db_connector.create_table(
             self._get_feature_table_name(feature),
-            {"Timestamp": "INT", feature: "TEXT"},
+            {"Timestamp": Integer, feature: String},
         )
 
     def _get_feature_table_name(self, feature):
