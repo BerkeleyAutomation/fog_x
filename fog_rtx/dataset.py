@@ -56,7 +56,7 @@ class Dataset:
         """
         Query the dataset.
         """
-        return []
+        return self.db_manager.query(query)
 
     def export(self, path: str, format: str) -> None:
         """
@@ -66,3 +66,21 @@ class Dataset:
             pass
         else:
             raise ValueError("Unsupported export format")
+
+    def get_metadata_as_sql(self):
+        """
+        Return the metadata as SQL.
+        """
+        return self.db_manager.get_table(
+            self.name, 
+            "sql"
+        )
+    
+    def get_metadata_as_pandas(self):
+        """
+        Return the metadata as pandas dataframe.
+        """
+        return self.db_manager.get_table(
+            self.name, 
+            "pandas"
+        )

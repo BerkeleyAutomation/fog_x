@@ -1,7 +1,8 @@
 import logging
 from typing import Any, List
 
-import pandas as pd
+import pandas as pd # type: ignore
+import sqlalchemy  # type: ignore
 from sqlalchemy import Table  # type: ignore
 from sqlalchemy import Column, Integer, MetaData, create_engine, inspect
 from sqlalchemy.orm import declarative_base, sessionmaker  # type: ignore
@@ -72,7 +73,8 @@ class SQLite(DatabaseConnector):
                 )
                 logger.info(f"merged: {merged_df}")
         logger.warn(
-            "currently using merge asof nearest policy on the timstamp, more policies should be expected"
+            '''currently using merge asof nearest policy on the timstamp, 
+            better policies should be expected'''
         )
         # policy can be X fps timestamp, and use backward merge_asof
         merged_df.to_sql(output_table, self.engine, if_exists="replace")
@@ -83,3 +85,12 @@ class SQLite(DatabaseConnector):
             table.update().where(table.c.id == index).values(data)
         )
         logger.info(f"Data updated in {table_name} at index {index}")
+
+    def select_table(self, table_name: str, format = "sql") -> Any:
+        if format == "sql":
+            table = Table(table_name, MetaData(), autoload_with=self.engine)
+            return self.engine.execute(sqlalchemy.select([table]))
+        elif format == "pandas":
+            return pd.read_sql(f"SELECT * FROM {table_name}", self.engine)
+        else:
+            raise ValueError("Unsupported table select format")

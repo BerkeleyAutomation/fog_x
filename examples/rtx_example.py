@@ -27,7 +27,9 @@ for i in range(10):
 episode.close()
 
 # load the dataset
-episodes = dataset.query("SELECT *")
+episodes = dataset.get_metadata_as_sql()
+print(episodes)
+print(episodes.columns)
 for episode in episodes:
     print(episode)
 

@@ -102,6 +102,11 @@ class DatabaseManager:
             {"Compacted": True},
         )
 
+    def get_table(self, table_name:Optional[str] = None, format:str = "pandas"):
+        if table_name is None:
+            table_name = self.dataset_name
+        return self.db_connector.select_table(table_name, format=format)
+
     def _initialize_feature(self, feature_name: str):
         # create a table for the feature
         # TODO: need to make the timestamp type as TIMESTAMPTZ
