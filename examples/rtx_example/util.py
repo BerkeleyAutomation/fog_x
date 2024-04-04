@@ -75,3 +75,23 @@ def as_gif(images, path='temp.gif'):
   images[0].save(path, save_all=True, append_images=images[1:], duration=1000, loop=0)
   gif_bytes = open(path,'rb').read()
   return gif_bytes
+
+
+def get_dataset_info(datasets):
+    """
+    Get information about the datasets.
+
+    Args:
+      datasets (list): List of dataset names.
+
+    Returns:
+      list: List of tuples containing dataset name and dataset information.
+    """
+    ret = []
+    for name in datasets:
+        uri = dataset2path(name)
+        b = tfds.builder_from_directory(builder_dir=uri)
+        split = list(b.info.splits.keys())[0]
+        b.as_dataset(split=split)
+        ret.append((name, b.info))
+    return ret
