@@ -109,6 +109,9 @@ class DatabaseManager:
             raise ValueError("Dataset name not provided")
         return self.db_connector.select_table(table_name, format=format)
 
+    def get_metadata_table(self, format: str = "pandas"):
+        return self.get_table(self.dataset_name, format=format)
+
     def _initialize_feature(self, feature_name: str):
         # create a table for the feature
         # TODO: need to make the timestamp type as TIMESTAMPTZ

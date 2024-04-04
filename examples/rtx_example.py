@@ -27,9 +27,12 @@ for i in range(10):
 episode.close()
 
 # load the dataset
-episodes = dataset.get_metadata_as_sql()
-print(episodes)
-print(episodes.columns)
+metadata = dataset.get_metadata_as_pandas_df()
+# ... 
+# do what you want like a typical pandas dataframe
+# Example: load with shuffled the episodes in the dataset
+metadata = metadata.sample(frac = 1)
+episodes = dataset.load_from(metadata)
 for episode in episodes:
     print(episode)
 

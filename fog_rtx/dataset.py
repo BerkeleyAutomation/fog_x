@@ -71,16 +71,14 @@ class Dataset:
         """
         Return the metadata as SQL.
         """
-        return self.db_manager.get_table(
-            self.name, 
+        return self.db_manager.get_metadata_table(
             "sql"
         )
     
-    def get_metadata_as_pandas(self):
+    def get_metadata_as_pandas_df(self):
         """
         Return the metadata as pandas dataframe.
         """
-        return self.db_manager.get_table(
-            self.name, 
+        return self.db_manager.get_metadata_table(
             "pandas"
         )
