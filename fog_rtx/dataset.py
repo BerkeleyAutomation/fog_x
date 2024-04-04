@@ -82,3 +82,4 @@ class Dataset:
         return self.db_manager.get_metadata_table(
             "pandas"
         )
+    
