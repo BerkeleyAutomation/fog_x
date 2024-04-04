@@ -11,7 +11,7 @@ dataset = fog_rtx.dataset.Dataset(
             dtype="float64", dimension=[4, 4]
         ),
     },
-    db_connector=fog_rtx.database.SQLite("/tmp/rtx.db"),
+    db_connector=fog_rtx.database.DatabaseConnector("/tmp/rtx.db"),
 )
 
 # create a new episode / trajectory
