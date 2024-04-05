@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, List, Optional, Tuple, Any
+from typing import Any, Dict, List, Optional, Tuple
 
 from fog_rtx.database import DatabaseConnector, DatabaseManager
 from fog_rtx.episode import Episode
@@ -37,8 +37,9 @@ class Dataset:
 
         self.storage = storage
 
-    def new_episode(self, 
-                    metadata: Optional[Dict[str, Any]] = None) -> Episode:
+    def new_episode(
+        self, metadata: Optional[Dict[str, Any]] = None
+    ) -> Episode:
         """
         Create a new episode / trajectory.
         TODO #1: support multiple processes writing to the same episode
@@ -101,7 +102,7 @@ class Dataset:
         for tf_episode in ds:
             logger.info(tf_episode)
             fog_epsiode = self.new_episode(
-                metadata = additional_metadata, 
+                metadata=additional_metadata,
             )
             for step in tf_episode["steps"]:
                 for k, v in step.items():

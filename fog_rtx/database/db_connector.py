@@ -4,10 +4,16 @@ from typing import Any, List
 import pandas as pd  # type: ignore
 import sqlalchemy  # type: ignore
 from sqlalchemy import Table  # type: ignore
-from sqlalchemy import Column, Integer, MetaData, create_engine, inspect
+from sqlalchemy import text  # type: ignore
+from sqlalchemy import (
+    Column,
+    Integer,
+    MetaData,  # type: ignore
+    create_engine,
+    inspect,
+)
 from sqlalchemy.orm import declarative_base, sessionmaker  # type: ignore
-from sqlalchemy.sql import select
-from sqlalchemy import text
+
 from fog_rtx.database.utils import type_py2sql  # type: ignore
 
 Base = declarative_base()
@@ -49,11 +55,18 @@ class DatabaseConnector:
     def add_column(self, table_name, column):
         column_name = column.compile(dialect=self.engine.dialect)
         column_type = column.type.compile(self.engine.dialect)
-        sql = text(f'ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}')
+        sql = text(
+            f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
+        )
         self.engine.execute(sql)
         # self.engine.execute('ALTER TABLE %s ADD COLUMN %s %s' % (table_name, column_name, column_type))
 
-    def insert_data(self, table_name: str, data: dict, create_new_column_if_not_exist:bool = False) -> int:
+    def insert_data(
+        self,
+        table_name: str,
+        data: dict,
+        create_new_column_if_not_exist: bool = False,
+    ) -> int:
         metadata = MetaData()
         table = Table(table_name, metadata, autoload_with=self.engine)
 
@@ -61,8 +74,13 @@ class DatabaseConnector:
         if create_new_column_if_not_exist:
             for key, value in data.items():
                 if table.c.get(key) is None:
-                    logger.warn(f"Creating new column {key} in table {table_name} with type {type(value)}")
-                    self.add_column(table_name, Column(key, type_py2sql(type(value)), nullable=True))
+                    logger.warn(
+                        f"Creating new column {key} in table {table_name} with type {type(value)}"
+                    )
+                    self.add_column(
+                        table_name,
+                        Column(key, type_py2sql(type(value)), nullable=True),
+                    )
 
         insert_result = self.engine.execute(table.insert(), data)
         logger.warn(
@@ -98,14 +116,16 @@ class DatabaseConnector:
     def update_data(self, table_name: str, index: int, data: dict):
         table = Table(table_name, MetaData(), autoload_with=self.engine)
         self.engine.execute(
-                table.update().where(table.c.id == index).values(data)
-            )
+            table.update().where(table.c.id == index).values(data)
+        )
         logger.debug(f"Data updated in {table_name} at index {index}")
 
     def select_table(self, table_name: str, format: str = "sql") -> Any:
         if format == "sql":
             table = Table(table_name, MetaData(), autoload_with=self.engine)
-            return self.engine.execute(sqlalchemy.select([table])) # TODO: this may not work with the connection
+            return self.engine.execute(
+                sqlalchemy.select([table])
+            )  # TODO: this may not work with the connection
         elif format == "pandas":
             return pd.read_sql(f"SELECT * FROM {table_name}", self.engine)
         else:

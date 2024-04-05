@@ -38,10 +38,12 @@ class DatabaseManager:
 
     def initialize_episode(
         self,
-        metadata: Dict[str, Any],
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> int:
         if self.dataset_name is None:
             raise ValueError("Dataset not initialized")
+        if metadata is None:
+            metadata = {}
         metadata["Compacted"] = False
         # insert episode information to the database
         self.current_episode_id = self.db_connector.insert_data(
@@ -120,7 +122,7 @@ class DatabaseManager:
             f"{self.dataset_name}_{episode_id}_compacted",
             format=format,
         )
-    
+
     def _initialize_feature(self, feature_name: str):
         # create a table for the feature
         # TODO: need to make the timestamp type as TIMESTAMPTZ

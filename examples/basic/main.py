@@ -8,7 +8,7 @@ dataset = fog_rtx.dataset.Dataset(
     db_connector=fog_rtx.database.DatabaseConnector("/tmp/rtx.db"),
 )
 
-for i in range(1,10):
+for i in range(1, 10):
     # create a new episode / trajectory
     episode = dataset.new_episode(
         metadata={
