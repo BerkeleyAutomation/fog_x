@@ -109,4 +109,4 @@ class DatabaseConnector:
         elif format == "pandas":
             return pd.read_sql(f"SELECT * FROM {table_name}", self.engine)
         else:
-            raise ValueError("Unsupported table select format")
+            raise ValueError(f"Unsupported table select format {format}")

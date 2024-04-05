@@ -119,3 +119,11 @@ class Dataset:
                             feature_type=FeatureType(dtype="float64"),
                         )
             fog_epsiode.close()
+
+    def read_by(self, pandas_metadata: Any = None):
+        episode_ids = list(pandas_metadata["id"])
+        logger.info(f"Reading episodes as order: {episode_ids}")
+        episodes = []
+        for episode_id in episode_ids:
+            episodes.append(self.db_manager.get_episode_table(episode_id))
+        return episodes

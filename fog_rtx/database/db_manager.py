@@ -70,6 +70,7 @@ class DatabaseManager:
             self._initialize_feature(feature_name)
             if feature_type is None:
                 logger.error(f"Feature type not provided for {feature_name}")
+                self.features[feature_name] = FeatureType()
             else:
                 self.features[feature_name] = feature_type
 
@@ -112,6 +113,14 @@ class DatabaseManager:
     def get_metadata_table(self, format: str = "pandas"):
         return self.get_table(self.dataset_name, format=format)
 
+    def get_episode_table(self, episode_id, format: str = "pandas"):
+        if self.current_episode_id is None:
+            raise ValueError("Episode not initialized")
+        return self.get_table(
+            f"{self.dataset_name}_{episode_id}_compacted",
+            format=format,
+        )
+    
     def _initialize_feature(self, feature_name: str):
         # create a table for the feature
         # TODO: need to make the timestamp type as TIMESTAMPTZ

@@ -8,18 +8,20 @@ dataset = fog_rtx.dataset.Dataset(
     db_connector=fog_rtx.database.DatabaseConnector("/tmp/rtx.db"),
 )
 
-# create a new episode / trajectory
-episode = dataset.new_episode(
-    metadata={
-        "collector_name": "John Doe",
-        "description": "grasp teddy bear from the shelf",
-    }
-)
-
-# populate the episode with FeatureTypes
 for i in range(10):
-    episode.add(feature="arm_view", value=f"image{i}.jpg")
-    episode.add(feature="camera_pose", value=f"pose{i}")
+    # create a new episode / trajectory
+    episode = dataset.new_episode(
+        metadata={
+            "collector_name": "John Doe",
+            "description": f"description #{i}",
+        }
+    )
+
+    # populate the episode with FeatureTypes
+    for i in range(10):
+        episode.add(feature="arm_view", value=f"image{i}.jpg")
+        episode.add(feature="camera_pose", value=f"pose{i}")
+    episode.close()
 
 # mark the current state as terminal state
 # and save the episode
@@ -31,6 +33,7 @@ metadata = dataset.get_metadata_as_pandas_df()
 # do what you want like a typical pandas dataframe
 # Example: load with shuffled the episodes in the dataset
 metadata = metadata.sample(frac=1)
+print(metadata)
 episodes = dataset.read_by(metadata)
 for episode in episodes:
     print(episode)
