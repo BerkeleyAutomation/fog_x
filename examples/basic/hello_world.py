@@ -9,7 +9,7 @@ dataset = fog_rtx.Dataset(
 # create a new episode / trajectory
 trajectory = dataset.new_episode()
 trajectory.add(feature="hello", value="world")
-trajectory.te r z()
+trajectory.close()
 
 # iterate through the dataset
 for episode in dataset.load():
