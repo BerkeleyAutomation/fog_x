@@ -79,25 +79,22 @@ class Dataset:
         """
         return self.db_manager.get_metadata_table("pandas")
 
-    def load(
+    def load_rtx_episodes(
         self,
-        dataset_path: str,
-        format: str,
+        name: str,
         split: Optional[str],
         additional_metadata: Optional[Dict[str, Any]] = None,
     ):
         """
         Load the dataset.
         """
-        if format != "rtx":
-            raise ValueError("Unsupported format")
-
+        
         # this is only required if rtx format is used
         import tensorflow_datasets as tfds
 
         from fog_rtx.rlds.utils import dataset2path
 
-        b = tfds.builder_from_directory(builder_dir=dataset2path(dataset_path))
+        b = tfds.builder_from_directory(builder_dir=dataset2path(name))
         ds = b.as_dataset(split=split)
         for tf_episode in ds:
             logger.info(tf_episode)
