@@ -29,15 +29,16 @@ class Episode:
         feature: str,
         value: Any,
         timestamp: Optional[int] = None,
+        feature_type: Optional[FeatureType] = None,
     ) -> None:
         if timestamp is None:
             timestamp = time.time_ns()
 
-        logger.info(
+        logger.debug(
             f"Adding {feature} with value {value} at timestamp {timestamp}"
         )
         if self.db_manager:
-            self.db_manager.add(feature, value, timestamp)
+            self.db_manager.add(feature, value, timestamp, feature_type)
         else:
             logger.warning(
                 "No database manager provided, data will not be saved"

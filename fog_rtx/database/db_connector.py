@@ -81,7 +81,7 @@ class DatabaseConnector:
         self.engine.execute(
             table.update().where(table.c.id == index).values(data)
         )
-        logger.info(f"Data updated in {table_name} at index {index}")
+        logger.debug(f"Data updated in {table_name} at index {index}")
 
     def select_table(self, table_name: str, format:str = "sql") -> Any:
         if format == "sql":

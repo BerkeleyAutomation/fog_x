@@ -31,10 +31,7 @@ class Dataset:
         self.features = features
         self.enable_feature_inferrence = enable_feature_inferrence
         if db_connector is None:
-            logger.error(
-                "TODO: haven't implemented db_connector generation yet"
-            )
-            raise NotImplementedError
+            db_connector = DatabaseConnector(f"{path}/rtx.db")
         self.db_manager = DatabaseManager(db_connector)
         self.db_manager.initialize_dataset(self.name, features)
 
@@ -83,3 +80,29 @@ class Dataset:
             "pandas"
         )
     
+    def load(self, 
+             dataset_path: str,
+             format: str,
+             split: Optional[str],):
+        """
+        Load the dataset.
+        """
+        if format != "rtx":
+            raise ValueError("Unsupported format")
+        
+        # this is only required if rtx format is used 
+        import tensorflow_datasets as tfds
+        from fog_rtx.rlds.utils import dataset2path
+        b = tfds.builder_from_directory(builder_dir=dataset2path(dataset_path))
+        ds = b.as_dataset(split=split)
+        for tf_episode in ds:
+            logger.info(tf_episode)
+            fog_epsiode = self.new_episode(description="")
+            for step in tf_episode["steps"]:
+                for k, v in step.items():
+                    if k == "observation" or k == "action":
+                        for k2, v2 in v.items():
+                            fog_epsiode.add(feature=str(k2), value=str(v2.numpy()), feature_type = FeatureType(dtype="float64"))
+                    else:
+                        fog_epsiode.add(feature=str(k), value=str(v), feature_type = FeatureType(dtype="float64"))
+            fog_epsiode.close()

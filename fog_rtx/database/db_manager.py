@@ -92,7 +92,7 @@ class DatabaseManager:
         logger.info(f"Compacting and Merging tables: {table_names}")
 
         self.db_connector.merge_tables_with_timestamp(
-            table_names, self.dataset_name + "_compacted"
+            table_names, f"{self.dataset_name}_{self.current_episode_id}_compacted"
         )
 
         # update the metadata field marking the episode as compacted

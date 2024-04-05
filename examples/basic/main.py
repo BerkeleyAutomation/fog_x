@@ -32,7 +32,7 @@ metadata = dataset.get_metadata_as_pandas_df()
 # do what you want like a typical pandas dataframe
 # Example: load with shuffled the episodes in the dataset
 metadata = metadata.sample(frac = 1)
-episodes = dataset.load_from(metadata)
+episodes = dataset.read_by(metadata)
 for episode in episodes:
     print(episode)
 
