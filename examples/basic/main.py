@@ -5,12 +5,6 @@ dataset = fog_rtx.dataset.Dataset(
     name="test_rtx",
     path="/tmp/rtx",
     replace_existing=False,
-    features={
-        "arm_view": fog_rtx.feature.FeatureType(dtype="image"),
-        "camera_pose": fog_rtx.feature.FeatureType(
-            dtype="float64", dimension=[4, 4]
-        ),
-    },
     db_connector=fog_rtx.database.DatabaseConnector("/tmp/rtx.db"),
 )
 

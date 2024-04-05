@@ -32,7 +32,7 @@ class DatabaseManager:
         else:
             self.db_connector.create_table(
                 dataset_name,
-                {"Episode_Description": String, "Compacted": Integer},
+                {"Compacted": Integer},
             )
             logger.info("Database initialized")
 
@@ -42,15 +42,12 @@ class DatabaseManager:
     ) -> int:
         if self.dataset_name is None:
             raise ValueError("Dataset not initialized")
-        # TODO: placeholder, add other metadata to the database
-        episode_description = metadata["description"]
+        metadata["Compacted"] = False
         # insert episode information to the database
         self.current_episode_id = self.db_connector.insert_data(
             self.dataset_name,
-            {
-                "Episode_Description": episode_description,
-                "Compacted": False,
-            },
+            metadata,
+            create_new_column_if_not_exist=True,
         )
 
         # create tables for each feature

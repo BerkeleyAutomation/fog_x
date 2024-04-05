@@ -1,2 +1,2 @@
-sqlalchemy
+sqlalchemy==1.4.51
 pandas

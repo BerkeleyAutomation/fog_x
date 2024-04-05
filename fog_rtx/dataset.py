@@ -37,13 +37,15 @@ class Dataset:
 
         self.storage = storage
 
-    def new_episode(self, description: str) -> Episode:
+    def new_episode(self, 
+                    metadata: Optional[Dict[str, str]] = None) -> Episode:
         """
         Create a new episode / trajectory.
-        TODO: support multiple processes writing to the same episode
+        TODO #1: support multiple processes writing to the same episode
+        TODO #2: close the previous episode if not closed
         """
         return Episode(
-            description=description,
+            metadata=metadata,
             features=self.features,
             enable_feature_inferrence=self.enable_feature_inferrence,
             db_manager=self.db_manager,

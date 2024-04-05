@@ -12,16 +12,15 @@ class Episode:
     def __init__(
         self,
         db_manager: DatabaseManager,
-        description: Optional[str] = None,
+        metadata: Optional[Dict[str, str]],
         features: Dict[str, FeatureType] = {},
         enable_feature_inferrence=True,  # whether additional FeatureTypes can be inferred
     ):
-        self.description = description
         self.features = features
         self.enable_feature_inferrence = enable_feature_inferrence
         self.db_manager = db_manager
         self.db_manager.initialize_episode(
-            metadata={"description": self.description}
+            metadata=metadata
         )
 
     def add(
