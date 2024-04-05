@@ -158,11 +158,11 @@ class Dataset:
                 # For simplicity, let's assume we're just returning the episode
                 return episode
 
-         # Assume we use get_metadata_as_pandas_df to retrieve episodes metadata
+        # Assume we use get_metadata_as_pandas_df to retrieve episodes metadata
         metadata_df = self.get_metadata_as_pandas_df()
         episodes = self.read_by(metadata_df)
-        
+
         # Initialize the PyTorch dataset with the episodes and features
         pytorch_dataset = PyTorchDataset(episodes, self.features)
-        
+
         return pytorch_dataset

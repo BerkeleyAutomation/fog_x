@@ -3,15 +3,10 @@ from typing import Any, List
 
 import pandas as pd  # type: ignore
 import sqlalchemy  # type: ignore
+from sqlalchemy import MetaData  # type: ignore
 from sqlalchemy import Table  # type: ignore
 from sqlalchemy import text  # type: ignore
-from sqlalchemy import (
-    Column,
-    Integer,
-    MetaData,  # type: ignore
-    create_engine,
-    inspect,
-)
+from sqlalchemy import Column, Integer, create_engine, inspect
 from sqlalchemy.orm import declarative_base, sessionmaker  # type: ignore
 
 from fog_rtx.database.utils import type_py2sql  # type: ignore
