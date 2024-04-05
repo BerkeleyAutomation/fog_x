@@ -64,9 +64,8 @@ class DatabaseConnector:
                     logger.warn(f"Creating new column {key} in table {table_name} with type {type(value)}")
                     self.add_column(table_name, Column(key, type_py2sql(type(value)), nullable=True))
 
-
         insert_result = self.engine.execute(table.insert(), data)
-        logger.info(
+        logger.warn(
             f"Data inserted into {table_name} with index {insert_result.inserted_primary_key[0]}"
         )
         return insert_result.inserted_primary_key[0]

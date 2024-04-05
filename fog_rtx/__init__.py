@@ -11,4 +11,4 @@ import logging
 
 _FORMAT = "%(levelname).1s %(asctime)s %(filename)s:%(lineno)d] %(message)s"
 logging.basicConfig(format=_FORMAT)
-logging.root.setLevel(logging.NOTSET)
+# logging.root.setLevel(logging.NOTSET)

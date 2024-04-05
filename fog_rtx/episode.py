@@ -12,7 +12,7 @@ class Episode:
     def __init__(
         self,
         db_manager: DatabaseManager,
-        metadata: Optional[Dict[str, str]],
+        metadata: Optional[Dict[str, Any]] = {},
         features: Dict[str, FeatureType] = {},
         enable_feature_inferrence=True,  # whether additional FeatureTypes can be inferred
     ):
