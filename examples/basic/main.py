@@ -15,7 +15,12 @@ dataset = fog_rtx.dataset.Dataset(
 )
 
 # create a new episode / trajectory
-episode = dataset.new_episode(description="grasp teddy bear from the shelf")
+episode = dataset.new_episode(
+    metadata={
+        "collector_name": "John Doe",
+        "description": "grasp teddy bear from the shelf",
+    }
+)
 
 # populate the episode with FeatureTypes
 for i in range(10):
@@ -28,10 +33,10 @@ episode.close()
 
 # load the dataset
 metadata = dataset.get_metadata_as_pandas_df()
-# ... 
+# ...
 # do what you want like a typical pandas dataframe
 # Example: load with shuffled the episodes in the dataset
-metadata = metadata.sample(frac = 1)
+metadata = metadata.sample(frac=1)
 episodes = dataset.read_by(metadata)
 for episode in episodes:
     print(episode)

@@ -68,31 +68,31 @@ class Dataset:
         """
         Return the metadata as SQL.
         """
-        return self.db_manager.get_metadata_table(
-            "sql"
-        )
-    
+        return self.db_manager.get_metadata_table("sql")
+
     def get_metadata_as_pandas_df(self):
         """
         Return the metadata as pandas dataframe.
         """
-        return self.db_manager.get_metadata_table(
-            "pandas"
-        )
-    
-    def load(self, 
-             dataset_path: str,
-             format: str,
-             split: Optional[str],):
+        return self.db_manager.get_metadata_table("pandas")
+
+    def load(
+        self,
+        dataset_path: str,
+        format: str,
+        split: Optional[str],
+    ):
         """
         Load the dataset.
         """
         if format != "rtx":
             raise ValueError("Unsupported format")
-        
-        # this is only required if rtx format is used 
+
+        # this is only required if rtx format is used
         import tensorflow_datasets as tfds
+
         from fog_rtx.rlds.utils import dataset2path
+
         b = tfds.builder_from_directory(builder_dir=dataset2path(dataset_path))
         ds = b.as_dataset(split=split)
         for tf_episode in ds:
@@ -102,7 +102,15 @@ class Dataset:
                 for k, v in step.items():
                     if k == "observation" or k == "action":
                         for k2, v2 in v.items():
-                            fog_epsiode.add(feature=str(k2), value=str(v2.numpy()), feature_type = FeatureType(dtype="float64"))
+                            fog_epsiode.add(
+                                feature=str(k2),
+                                value=str(v2.numpy()),
+                                feature_type=FeatureType(dtype="float64"),
+                            )
                     else:
-                        fog_epsiode.add(feature=str(k), value=str(v), feature_type = FeatureType(dtype="float64"))
+                        fog_epsiode.add(
+                            feature=str(k),
+                            value=str(v.numpy()),
+                            feature_type=FeatureType(dtype="float64"),
+                        )
             fog_epsiode.close()

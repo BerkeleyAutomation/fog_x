@@ -92,7 +92,8 @@ class DatabaseManager:
         logger.info(f"Compacting and Merging tables: {table_names}")
 
         self.db_connector.merge_tables_with_timestamp(
-            table_names, f"{self.dataset_name}_{self.current_episode_id}_compacted"
+            table_names,
+            f"{self.dataset_name}_{self.current_episode_id}_compacted",
         )
 
         # update the metadata field marking the episode as compacted
@@ -102,7 +103,9 @@ class DatabaseManager:
             {"Compacted": True},
         )
 
-    def get_table(self, table_name:Optional[str] = None, format:str = "pandas"):
+    def get_table(
+        self, table_name: Optional[str] = None, format: str = "pandas"
+    ):
         if table_name is None:
             table_name = self.dataset_name
         if table_name is None:

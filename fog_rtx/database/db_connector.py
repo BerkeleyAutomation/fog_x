@@ -1,7 +1,7 @@
 import logging
 from typing import Any, List
 
-import pandas as pd # type: ignore
+import pandas as pd  # type: ignore
 import sqlalchemy  # type: ignore
 from sqlalchemy import Table  # type: ignore
 from sqlalchemy import Column, Integer, MetaData, create_engine, inspect
@@ -10,6 +10,7 @@ from sqlalchemy.sql import select  # type: ignore
 
 Base = declarative_base()
 logger = logging.getLogger(__name__)
+
 
 class DatabaseConnector:
     def __init__(self, path: str):
@@ -70,8 +71,8 @@ class DatabaseConnector:
                 )
                 logger.info(f"merged: {merged_df}")
         logger.warn(
-            '''currently using merge asof nearest policy on the timstamp, 
-            better policies should be expected'''
+            """currently using merge asof nearest policy on the timstamp, 
+            better policies should be expected"""
         )
         # policy can be X fps timestamp, and use backward merge_asof
         merged_df.to_sql(output_table, self.engine, if_exists="replace")
@@ -83,7 +84,7 @@ class DatabaseConnector:
         )
         logger.debug(f"Data updated in {table_name} at index {index}")
 
-    def select_table(self, table_name: str, format:str = "sql") -> Any:
+    def select_table(self, table_name: str, format: str = "sql") -> Any:
         if format == "sql":
             table = Table(table_name, MetaData(), autoload_with=self.engine)
             return self.engine.execute(sqlalchemy.select([table]))
