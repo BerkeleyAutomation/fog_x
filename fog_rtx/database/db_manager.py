@@ -116,7 +116,7 @@ class DatabaseManager:
         return self.get_table(self.dataset_name, format=format)
 
     def get_episode_table(self, episode_id, format: str = "pandas"):
-        if self.current_episode_id is None:
+        if episode_id is None:
             raise ValueError("Episode not initialized")
         return self.get_table(
             f"{self.dataset_name}_{episode_id}_compacted",

@@ -88,7 +88,7 @@ class Dataset:
         """
         Load the dataset.
         """
-        
+
         # this is only required if rtx format is used
         import tensorflow_datasets as tfds
 
@@ -125,3 +125,44 @@ class Dataset:
         for episode_id in episode_ids:
             episodes.append(self.db_manager.get_episode_table(episode_id))
         return episodes
+
+    def pytorch_dataset_builder(self, **kwargs):
+        import torch
+        from torch.utils.data import Dataset
+
+        class PyTorchDataset(Dataset):
+            def __init__(self, episodes, features):
+                """
+                Initialize the dataset with the episodes and features.
+                :param episodes: A list of episodes loaded from the database.
+                :param features: A dictionary of features to be included in the dataset.
+                """
+                self.episodes = episodes
+                self.features = features
+
+            def __len__(self):
+                """
+                Return the total number of episodes in the dataset.
+                """
+                return len(self.episodes)
+
+            def __getitem__(self, idx):
+                """
+                Retrieve the idx-th episode from the dataset.
+                Depending on the structure, you may need to process the episode
+                and its features here.
+                """
+                print("Retrieving episode at index", idx)
+                episode = self.episodes[idx]
+                # Process the episode and its features here
+                # For simplicity, let's assume we're just returning the episode
+                return episode
+
+         # Assume we use get_metadata_as_pandas_df to retrieve episodes metadata
+        metadata_df = self.get_metadata_as_pandas_df()
+        episodes = self.read_by(metadata_df)
+        
+        # Initialize the PyTorch dataset with the episodes and features
+        pytorch_dataset = PyTorchDataset(episodes, self.features)
+        
+        return pytorch_dataset

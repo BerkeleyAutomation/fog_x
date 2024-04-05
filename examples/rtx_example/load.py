@@ -5,8 +5,7 @@ dataset = fog_rtx.dataset.Dataset(
     path="/tmp",
 )
 
-dataset.load(
-    dataset_path="berkeley_autolab_ur5",
-    format="rtx",
+dataset.load_rtx_episodes(
+    name="berkeley_autolab_ur5",
     split="train[:5]",
 )
