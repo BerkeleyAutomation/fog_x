@@ -127,12 +127,12 @@ class DatabaseManager:
             format=format,
         )
 
-    def _initialize_feature(self, feature_name: str, feature_type: Optional[FeatureType]):
+    def _initialize_feature(self, feature_name: str, feature_type: FeatureType):
         # create a table for the feature
         # TODO: need to make the timestamp type as TIMESTAMPTZ
         self.db_connector.create_table(
             self._get_feature_table_name(feature_name),
-            {"Timestamp": Integer, feature_name: String},
+            {"Timestamp": Integer, feature_name: feature_type.to_sql_type()},
         )
         if feature_type is None:
             logger.error(f"Feature type not provided for {feature_name}")
