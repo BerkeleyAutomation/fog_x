@@ -44,9 +44,12 @@ class PolarsConnector:
             ordered_data = {col: data.get(col, None) for col in self.tables[table_name].columns}
             logger.info(f"Inserting data into {self.tables[table_name]} with data {ordered_data}")
             new_row = pl.DataFrame([ordered_data])
-            index_of_new_row = len(self.tables[table_name])
+            index_of_new_row = len(self.tables[table_name]) 
             self.tables[table_name] = pl.concat([self.tables[table_name], new_row])
-            logger.info(f"Data inserted into {table_name}: {ordered_data}")
+            logger.info(f"Data inserted into {table_name}: {ordered_data} with index {index_of_new_row}")
+            logger.info("Table after insertion:")
+            logger.info(self.tables[table_name])
+
             return index_of_new_row  # Return the index of the inserted row
         else:
             logger.error(f"Table {table_name} does not exist.")
@@ -59,15 +62,22 @@ class PolarsConnector:
             self.tables[table_name][index, column_name] = value
 
     def merge_tables_with_timestamp(self, tables: List[str], output_table: str):
+        for table_name in self.tables.keys():
+            if table_name not in tables:
+                continue
+            self.tables[table_name] = self.tables[table_name].set_sorted("Timestamp")
+
         # Merging tables using timestamps
-        if len(tables) > 1:
-            merged_df = self.tables[tables[0]].join(self.tables[tables[1]], on="Timestamp", how="outer")
+        if len(tables) > 1:            
+            merged_df = self.tables[tables[0]].join_asof(self.tables[tables[1]], on="Timestamp", strategy = "nearest")
             for table_name in tables[2:]:
-                merged_df = merged_df.join(self.tables[table_name], on="Timestamp", how="outer")
-            self.tables[output_table] = merged_df.sort("Timestamp")
+                merged_df = merged_df.join_asof(self.tables[table_name], on="Timestamp", strategy = "nearest")
             logger.info("Tables merged on Timestamp.")
         else:
             logger.error("Need at least two tables to merge.")
+        logger.info(f"Merged table {output_table}:")
+        self.tables[output_table] = merged_df
+        logger.info(self.tables[output_table])
 
     def select_table(self, table_name: str):
         # Return the DataFrame

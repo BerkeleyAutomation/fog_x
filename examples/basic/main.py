@@ -21,6 +21,7 @@ for i in range(1, 10):
         episode.add(feature="feature_1", value=f"episode{i}_step{j}_feature_1")
         episode.add(feature="feature_2", value=f"episode{i}_pose{j}_feature_2")
     episode.close()
+    break
 
 # mark the current state as terminal state
 # and save the episode
