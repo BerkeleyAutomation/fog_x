@@ -78,6 +78,10 @@ class DatabaseManager:
             logger.warning(
                 f"Feature {feature_name} not in the list of features"
             )
+            if feature_type is None:
+                
+                feature_type = FeatureType().from_data(value)
+                logger.warn(f"feature type not provided, inferring from data type {feature_type}")
             self._initialize_feature(feature_name, feature_type)
 
         # insert data into the table

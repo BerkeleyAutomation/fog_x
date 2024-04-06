@@ -106,11 +106,11 @@ class DatabaseConnector:
                     table = Table(table_name, metadata, autoload_with=self.engine)
                     logger.info(f"Successfully added column {key} to {table_name}")
         
-        if is_partial_data:
-            self.engine.execute(
-                table.update().where(table.c.id == index).values(**data)
-            )
-            logger.info(data)
+        # if is_partial_data:
+        #     self.engine.execute(
+        #         table.update().where(table.c.id == index).values(**data)
+        #     )
+        #     logger.info(data)
 
         self.engine.execute(
             table.update().where(table.c.id == index).values(data)
