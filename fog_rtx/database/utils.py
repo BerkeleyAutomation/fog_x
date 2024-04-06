@@ -153,6 +153,8 @@ def _datasets_dtype_to_pld(datasets_dtype: str) -> pld.DataType:
     elif datasets_dtype == "string" or datasets_dtype == "str" or datasets_dtype == "large_string":
         # Polars treats all strings as Utf8
         return pld.Utf8
+    elif datasets_dtype == "object":
+        return pld.Object
     elif datasets_dtype.startswith("timestamp"):
         # Handling timestamps in Polars is a bit different. You might need additional handling based on your use case.
         return pld.Datetime

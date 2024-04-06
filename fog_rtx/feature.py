@@ -41,19 +41,24 @@ class FeatureType:
     def __init__(
         self,
         dtype: Optional[str] = None,
-        shape: Optional[List[int]] = None,
-        is_np=False,  # whether a type is enforced
+        shape: Any = None,
+        tf_feature_spec = None,
+        data = None, 
     ) -> None:
-        self.dtype = dtype
-        self.shape = shape
-        self.is_np = is_np
+        # scalar: (), vector: (n,), matrix: (n,m)
 
-        if self.dtype == "double":  # fix inferred type
-            self.dtype = "float64"
-        if self.dtype == "float":  # fix inferred type
-            self.dtype = "float32"
-
-        self.np_dtype = None
+        # if self.dtype == "double":  # fix inferred type
+        #     self.dtype = "float64"
+        # if self.dtype == "float":  # fix inferred type
+        #     self.dtype = "float32"
+        if data is not None:
+            self.from_data(data)
+        elif tf_feature_spec is not None:
+            self.from_tf_feature_type(tf_feature_spec)
+        elif dtype is not None:
+            self._set(dtype, shape)
+        else:
+            raise ValueError("Either dtype or data must be provided")
 
     def __str__(self):
         return f"dtype={self.dtype}, shape={self.shape})"
@@ -61,24 +66,24 @@ class FeatureType:
     def __repr__(self):
         return self.__str__()
 
-    def from_tf_feature_type(self, feature_type):
+    def _set(self, dtype: str, shape: Any):
+        if dtype not in SUPPORTED_DTYPES:
+            raise ValueError(f"Unsupported dtype: {dtype}")
+        if shape is not None and not isinstance(shape, tuple):
+            raise ValueError(f"Shape must be a tuple: {shape}")
+        self.dtype = dtype
+        self.shape = shape
+
+
+    def from_tf_feature_type(self, tf_feature_spec):
         """
         Convert from tf feature
         """
-        self.shape = feature_type.shape
-        self.np_dtype = feature_type.np_dtype
-        self.dtype = str(self.np_dtype)
-        self.is_np = True
-        return self
-
-    def from_numpy_data(self, data):
-        """
-        Infer feature type from numpy data
-        """
-        self.shape = list(data.shape)
-        self.np_dtype = data.dtype
-        self.dtype = str(self.np_dtype)
-        self.is_np = True
+        shape = tf_feature_spec.shape
+        np_dtype = tf_feature_spec.np_dtype
+        self._set(str(np_dtype), shape)
+        # self.dtype = str(self.np_dtype)
+        # self.is_np = True
         return self
     
     def from_data(self, data: Any):
@@ -86,19 +91,15 @@ class FeatureType:
         Infer feature type from the provided data.
         """
         if isinstance(data, np.ndarray):
-            self.dtype = str(data.dtype)
-            self.shape = data.shape
-            self.is_np = True
+            self._set(data.dtype.name, data.shape)
         elif isinstance(data, list):
-            # Simplified inference for lists - assuming homogeneous data
-            self.dtype = type(data[0]).__name__
-            self.shape = (len(data),)
-            self.is_np = True
+            dtype = type(data[0]).__name__
+            shape = (len(data),)
+            self._set(dtype.name, shape)
         else:
-            # Simplified approach for other data types
-            self.dtype = type(data).__name__
-            self.shape = None
-            self.is_np = False
+            dtype = type(data).__name__
+            shape = ()
+            self._set(dtype.name, shape)
         return self
 
     def to_tf_feature_type(self): 
@@ -106,12 +107,13 @@ class FeatureType:
         Convert to tf feature
         """
         from tensorflow_datasets.core.features import Tensor, Image, FeaturesDict, Scalar, Text
-        if self.is_np:
-            return Tensor(shape=self.shape, dtype=self.np_dtype)
-        elif self.dtype == "string":
-            return Text()
-        elif self.shape is None:
-            return Scalar(dtype=self.dtype)
+        if len(self.shape) == 0:
+            if self.dtype == "string":
+                return Text()
+            else:
+                return Scalar(dtype=self.dtype)
+        elif len(self.shape) >= 1:
+            return Tensor(shape=self.shape, dtype=self.dtype)
         else:
             raise ValueError(f"Unsupported conversion to tf feature: {self}")
 
@@ -128,12 +130,10 @@ class FeatureType:
                 return LargeBinary
     
     def to_pld_storage_type(self):
-        if self.dtype == "string":
-            return "string"
-        if self.is_np:
-            if self.shape is () or self.shape is None:
-                return self.dtype
+        if len(self.shape) == 0:
+            if self.dtype == "string":
+                return "string"
             else:
-                return "large_binary"
+                return self.dtype
         else:
-            return self.dtype
+            return "object"

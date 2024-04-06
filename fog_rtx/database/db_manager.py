@@ -63,7 +63,7 @@ class DatabaseManager:
             metadata = {}
         logger.info(f"Initializing episode for dataset {self.dataset_name} with metadata {metadata}")
 
-        metadata["episode_id"] = self.current_episode_id + 1
+        metadata["episode_id"] = self.current_episode_id 
         metadata["Compacted"] = False
 
         for metadata_key in metadata.keys():
@@ -99,7 +99,7 @@ class DatabaseManager:
             )
             if feature_type is None:
                 
-                feature_type = FeatureType().from_data(value)
+                feature_type = FeatureType(data = value)
                 logger.warn(f"feature type not provided, inferring from data type {feature_type}")
             self._initialize_feature(feature_name, feature_type)
 

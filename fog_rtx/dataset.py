@@ -198,10 +198,12 @@ class Dataset:
                 for k, v in step.items():
                     if k == "observation" or k == "action":
                         for k2, v2 in v.items():
+                            logger.info(f"key: {k2}")
+                            logger.info(f"value: {v2.numpy()}")
                             fog_epsiode.add(
                                 feature=str(k2),
                                 value=v2.numpy(),
-                                feature_type=FeatureType().from_tf_feature_type(data_type[k][k2]),
+                                feature_type=FeatureType(tf_feature_spec=data_type[k][k2]),
                             )
                             if k == "observation":
                                 self.obs_keys.append(k2)
@@ -210,8 +212,8 @@ class Dataset:
                     else:
                         fog_epsiode.add(
                             feature=str(k),
-                            value=v.numpy(),
-                            feature_type=FeatureType().from_tf_feature_type(data_type[k]),
+                            value=v.numpy().astype(data_type[k].np_dtype),
+                            feature_type=FeatureType(tf_feature_spec=data_type[k]),
                         )
                         self.step_keys.append(k)
             fog_epsiode.close()

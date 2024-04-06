@@ -43,12 +43,11 @@ class PolarsConnector:
     def insert_data(self, table_name: str, data: dict):
         # Inserting a new row into the DataFrame and return the index of the new row
         if table_name in self.tables:
-            ordered_data = {col: data.get(col, None) for col in self.tables[table_name].columns}
-            new_row = pl.DataFrame([ordered_data])
+            # use the schema of the original table
+            new_row = pl.DataFrame([data], schema=self.tables[table_name].schema)
             index_of_new_row = len(self.tables[table_name]) 
-            logger.info(f"Inserting data into {table_name}: {ordered_data} with index {index_of_new_row} to table {self.tables[table_name]}")
-            self.tables[table_name] = pl.concat([self.tables[table_name], new_row])
-            logger.debug(f"Data inserted into {table_name}: {ordered_data} with index {index_of_new_row}")
+            logger.info(f"Inserting data into {table_name}: {data} with {new_row} to table {self.tables[table_name]}")
+            self.tables[table_name] = pl.concat([self.tables[table_name], new_row], how = "align")
 
             return index_of_new_row  # Return the index of the inserted row
         else:
