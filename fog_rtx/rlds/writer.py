@@ -49,13 +49,12 @@
 
 """TFDS backend for Envlogger."""
 import dataclasses
+from collections import ChainMap
 from typing import Any, Dict, List, Optional
 
-from envlogger import step_data
-from envlogger.backends import backend_writer
-from envlogger.backends import rlds_utils
 import tensorflow_datasets as tfds
-from collections import ChainMap
+from envlogger import step_data
+from envlogger.backends import backend_writer, rlds_utils
 
 DatasetConfig = tfds.rlds.rlds_base.DatasetConfig
 
@@ -123,7 +122,9 @@ class CloudBackendWriter(backend_writer.BackendWriter):
         else:
             metadata = None
         self._data_directory = data_directory
-        self._ds_info = tfds.rlds.rlds_base.build_info(ds_config, ds_identity, metadata)
+        self._ds_info = tfds.rlds.rlds_base.build_info(
+            ds_config, ds_identity, metadata
+        )
         self._ds_info.set_file_format("tfrecord")
 
         self._current_episode = None
@@ -142,7 +143,9 @@ class CloudBackendWriter(backend_writer.BackendWriter):
             )
             self._current_episode = None
 
-    def _record_step(self, data: step_data.StepData, is_new_episode: bool) -> None:
+    def _record_step(
+        self, data: step_data.StepData, is_new_episode: bool
+    ) -> None:
         """Stores RLDS steps in TFDS format."""
 
         if is_new_episode:
@@ -157,7 +160,9 @@ class CloudBackendWriter(backend_writer.BackendWriter):
         self._current_episode.metadata = data
 
     def close(self) -> None:
-        logging.info("Deleting the backend with data_dir: %r", self._data_directory)
+        logging.info(
+            "Deleting the backend with data_dir: %r", self._data_directory
+        )
         self._write_and_reset_episode()
         self._sequential_writer.close_all()
         logging.info(

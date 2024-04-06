@@ -84,7 +84,14 @@ class DatabaseConnector:
         )
         return insert_result.inserted_primary_key[0]
 
-    def update_data(self, table_name: str, index: int, data: dict,  create_new_column_if_not_exist: bool = False, is_partial_data: bool = False):
+    def update_data(
+        self,
+        table_name: str,
+        index: int,
+        data: dict,
+        create_new_column_if_not_exist: bool = False,
+        is_partial_data: bool = False,
+    ):
         metadata = MetaData()
         table = Table(table_name, metadata, autoload_with=self.engine)
 
@@ -101,11 +108,17 @@ class DatabaseConnector:
                     #     Column(key, type_py2sql(type(value)), nullable=True),
                     # )
                     column_type = type_py2sql(type(value))
-                    self.add_column(table_name, Column(key, column_type, nullable=True))
+                    self.add_column(
+                        table_name, Column(key, column_type, nullable=True)
+                    )
                     metadata.clear()
-                    table = Table(table_name, metadata, autoload_with=self.engine)
-                    logger.info(f"Successfully added column {key} to {table_name}")
-        
+                    table = Table(
+                        table_name, metadata, autoload_with=self.engine
+                    )
+                    logger.info(
+                        f"Successfully added column {key} to {table_name}"
+                    )
+
         # if is_partial_data:
         #     self.engine.execute(
         #         table.update().where(table.c.id == index).values(**data)

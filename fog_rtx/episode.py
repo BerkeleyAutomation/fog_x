@@ -55,9 +55,8 @@ class Episode:
     def compact(self) -> None:
         self.db_manager.compact()
 
-
     def get_steps(self) -> List[Dict[str, Any]]:
         return self.db_manager.get_steps()
-    
+
     def close(self) -> None:
         self.db_manager.close()

@@ -1,8 +1,11 @@
-from typing import Any, List, Optional, Tuple
-from sqlalchemy import Integer, String, LargeBinary, Float
-from fog_rtx.database.utils import type_py2sql, type_np2sql
-import numpy as np 
 import logging
+from typing import Any, List, Optional, Tuple
+
+import numpy as np
+from sqlalchemy import Float, Integer, LargeBinary, String
+
+from fog_rtx.database.utils import type_np2sql, type_py2sql
+
 logger = logging.getLogger(__name__)
 
 
@@ -44,8 +47,8 @@ class FeatureType:
         self,
         dtype: Optional[str] = None,
         shape: Any = None,
-        tf_feature_spec = None,
-        data = None, 
+        tf_feature_spec=None,
+        data=None,
     ) -> None:
         # scalar: (), vector: (n,), matrix: (n,m)
 
@@ -76,13 +79,19 @@ class FeatureType:
         self.dtype = dtype
         self.shape = shape
 
-
     def from_tf_feature_type(self, tf_feature_spec):
         """
         Convert from tf feature
         """
         logger.debug(f"tf_feature_spec: {tf_feature_spec}")
-        from tensorflow_datasets.core.features import Tensor, Image, FeaturesDict, Scalar, Text
+        from tensorflow_datasets.core.features import (
+            FeaturesDict,
+            Image,
+            Scalar,
+            Tensor,
+            Text,
+        )
+
         if isinstance(tf_feature_spec, Tensor):
             shape = tf_feature_spec.shape
             dtype = tf_feature_spec.dtype.name
@@ -97,10 +106,12 @@ class FeatureType:
             shape = ()
             dtype = "string"
         else:
-            raise ValueError(f"Unsupported conversion from tf feature: {tf_feature_spec}")
+            raise ValueError(
+                f"Unsupported conversion from tf feature: {tf_feature_spec}"
+            )
         self._set(str(dtype), shape)
         return self
-    
+
     def from_data(self, data: Any):
         """
         Infer feature type from the provided data.
@@ -117,12 +128,18 @@ class FeatureType:
             self._set(dtype.name, shape)
         return self
 
-    def to_tf_feature_type(self): 
+    def to_tf_feature_type(self):
         """
         Convert to tf feature
         """
         import tensorflow as tf
-        from tensorflow_datasets.core.features import Tensor, Image, FeaturesDict, Scalar, Text
+        from tensorflow_datasets.core.features import (
+            FeaturesDict,
+            Image,
+            Scalar,
+            Tensor,
+            Text,
+        )
 
         str_dtype_to_tf_dtype = {
             "int8": tf.int8,
@@ -161,11 +178,11 @@ class FeatureType:
                 return type_np2sql(self.dtype)
             except:
                 return LargeBinary
-    
+
     def to_pld_storage_type(self):
         if len(self.shape) == 0:
             if self.dtype == "string":
-                return "large_binary" # TODO: better representation of strings
+                return "large_binary"  # TODO: better representation of strings
             else:
                 return self.dtype
         else:

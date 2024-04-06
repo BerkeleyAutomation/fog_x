@@ -1,4 +1,3 @@
-
 import fog_rtx
 
 dataset = fog_rtx.dataset.Dataset(

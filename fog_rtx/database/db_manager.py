@@ -35,7 +35,9 @@ class DatabaseManager:
                     dtype=row["Type"], shape=row["Shape"]
                 )
                 self.features[row["Feature"]] = feature_type
-            logger.info(f"Loaded Features: {self.features} with type {feature_type}")
+            logger.info(
+                f"Loaded Features: {self.features} with type {feature_type}"
+            )
 
         else:
             self.db_connector.create_table(
@@ -61,9 +63,11 @@ class DatabaseManager:
             raise ValueError("Dataset not initialized")
         if metadata is None:
             metadata = {}
-        logger.info(f"Initializing episode for dataset {self.dataset_name} with metadata {metadata}")
+        logger.info(
+            f"Initializing episode for dataset {self.dataset_name} with metadata {metadata}"
+        )
 
-        metadata["episode_id"] = self.current_episode_id 
+        metadata["episode_id"] = self.current_episode_id
         metadata["Compacted"] = False
 
         for metadata_key in metadata.keys():
@@ -71,7 +75,7 @@ class DatabaseManager:
             self.db_connector.add_column(
                 self.dataset_name,
                 metadata_key,
-                "str", # TODO: support more types 
+                "str",  # TODO: support more types
             )
 
         # insert episode information to the database
@@ -98,9 +102,11 @@ class DatabaseManager:
                 f"Feature {feature_name} not in the list of features"
             )
             if feature_type is None:
-                
-                feature_type = FeatureType(data = value)
-                logger.warn(f"feature type not provided, inferring from data type {feature_type}")
+
+                feature_type = FeatureType(data=value)
+                logger.warn(
+                    f"feature type not provided, inferring from data type {feature_type}"
+                )
             self._initialize_feature(feature_name, feature_type)
 
         # insert data into the table
@@ -150,24 +156,28 @@ class DatabaseManager:
             format=format,
         )
 
-    def _initialize_feature(self, feature_name: str, feature_type: FeatureType):
+    def _initialize_feature(
+        self, feature_name: str, feature_type: FeatureType
+    ):
         # create a table for the feature
         # TODO: need to make the timestamp type as TIMESTAMPTZ
         self.db_connector.create_table(
             self._get_feature_table_name(feature_name),
         )
         # {"Timestamp": "int64", feature_name: feature_type.to_sql_type()}
-        
+
         self.db_connector.add_column(
             self._get_feature_table_name(feature_name),
             "Timestamp",
             "int64",
         )
-        logger.info(f"Adding feature {feature_name} to the database with type {feature_type.to_pld_storage_type()}")
+        logger.info(
+            f"Adding feature {feature_name} to the database with type {feature_type.to_pld_storage_type()}"
+        )
         self.db_connector.add_column(
             self._get_feature_table_name(feature_name),
             feature_name,
-            feature_type.to_pld_storage_type(), #TODO: placeholder
+            feature_type.to_pld_storage_type(),  # TODO: placeholder
         )
 
         if feature_type is None:
@@ -188,14 +198,17 @@ class DatabaseManager:
             "str",
         )
         self.db_connector.update_data(
-            table_name = self.dataset_name,
-            index = self.current_episode_id,
-            data = {
-                f"feature_{feature_name}_type": str(self.features[feature_name].dtype),
-                f"feature_{feature_name}_shape": str(self.features[feature_name].shape),
+            table_name=self.dataset_name,
+            index=self.current_episode_id,
+            data={
+                f"feature_{feature_name}_type": str(
+                    self.features[feature_name].dtype
+                ),
+                f"feature_{feature_name}_shape": str(
+                    self.features[feature_name].shape
+                ),
             },
         )
-
 
     def _get_feature_table_name(self, feature_name):
         if self.dataset_name is None:

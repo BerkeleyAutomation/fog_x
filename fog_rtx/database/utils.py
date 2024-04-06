@@ -1,7 +1,8 @@
 import datetime
 import decimal
-import pyarrow as pa
+
 import numpy as np
+import pyarrow as pa
 import sqlalchemy  # type: ignore
 from polars import datatypes as pld
 
@@ -58,6 +59,7 @@ def type_np2sql(dtype=None, arr=None):
     """Return the closest sql type for a given numpy dtype"""
     return type_py2sql(type_np2py(dtype=dtype, arr=arr))
 
+
 def _datasets_dtype_to_arrow(datasets_dtype: str) -> pa.DataType:
     """
     _datasets_dtype_to_arrow takes a datasets string dtype and converts it to a pyarrow.DataType.
@@ -103,14 +105,19 @@ def _datasets_dtype_to_arrow(datasets_dtype: str) -> pa.DataType:
     elif datasets_dtype.startswith("timestamp"):
         # Extracting unit and timezone from the string
         unit, tz = None, None
-        if '[' in datasets_dtype and ']' in datasets_dtype:
-            unit = datasets_dtype[datasets_dtype.find("[")+1 : datasets_dtype.find("]")]
+        if "[" in datasets_dtype and "]" in datasets_dtype:
+            unit = datasets_dtype[
+                datasets_dtype.find("[") + 1 : datasets_dtype.find("]")
+            ]
             tz_start = datasets_dtype.find("tz=")
             if tz_start != -1:
-                tz = datasets_dtype[tz_start+3:]
+                tz = datasets_dtype[tz_start + 3 :]
         return pa.timestamp(unit, tz)
     else:
-        raise ValueError(f"Datasets dtype {datasets_dtype} does not have a PyArrow dtype equivalent.")
+        raise ValueError(
+            f"Datasets dtype {datasets_dtype} does not have a PyArrow dtype equivalent."
+        )
+
 
 def _datasets_dtype_to_pld(datasets_dtype: str) -> pld.DataType:
     """
@@ -150,7 +157,11 @@ def _datasets_dtype_to_pld(datasets_dtype: str) -> pld.DataType:
     elif datasets_dtype == "large_binary":
         # Polars does not differentiate between binary and large_binary
         return pld.Binary
-    elif datasets_dtype == "string" or datasets_dtype == "str" or datasets_dtype == "large_string":
+    elif (
+        datasets_dtype == "string"
+        or datasets_dtype == "str"
+        or datasets_dtype == "large_string"
+    ):
         # Polars treats all strings as Utf8
         return pld.Utf8
     elif datasets_dtype == "object":
@@ -159,4 +170,6 @@ def _datasets_dtype_to_pld(datasets_dtype: str) -> pld.DataType:
         # Handling timestamps in Polars is a bit different. You might need additional handling based on your use case.
         return pld.Datetime
     else:
-        raise ValueError(f"Datasets dtype {datasets_dtype} does not have a Polars dtype equivalent.")
+        raise ValueError(
+            f"Datasets dtype {datasets_dtype} does not have a Polars dtype equivalent."
+        )

@@ -1,7 +1,9 @@
+import io
 import logging
 from typing import Any, Dict, List, Optional, Tuple
-import numpy as np 
-import io
+
+import numpy as np
+
 from fog_rtx.database import DatabaseConnector, DatabaseManager
 from fog_rtx.episode import Episode
 from fog_rtx.feature import FeatureType
@@ -62,7 +64,6 @@ class Dataset:
         """
         return self.db_manager.query(query)
 
-
     def _get_tf_feature_dicts(
         self, obs_keys: List[str], act_keys: List[str], step_keys: List[str]
     ) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
@@ -83,17 +84,23 @@ class Dataset:
             step_tf_dict[k] = self.features[k].to_tf_feature_type()
 
         return observation_tf_dict, action_tf_dict, step_tf_dict
-    
-    def export(self, export_path: str, format: str, max_episodes_per_file: int = 1,version: str = "0.0.1", ) -> None:
+
+    def export(
+        self,
+        export_path: str,
+        format: str,
+        max_episodes_per_file: int = 1,
+        version: str = "0.0.1",
+    ) -> None:
         """
         Export the dataset.
         """
         if format == "rtx":
+            import dm_env
+            import tensorflow as tf
             import tensorflow_datasets as tfds
             from envlogger import step_data
-            import dm_env
             from tensorflow_datasets.core.features import Tensor
-            import tensorflow as tf
 
             from fog_rtx.rlds.writer import CloudBackendWriter
 
@@ -102,11 +109,11 @@ class Dataset:
                 action_tf_dict,
                 step_tf_dict,
             ) = self._get_tf_feature_dicts(
-                self.obs_keys, 
+                self.obs_keys,
                 self.act_keys,
                 self.step_keys,
             )
-            # generate tensorflow configuration file 
+            # generate tensorflow configuration file
             ds_config = tfds.rlds.rlds_base.DatasetConfig(
                 name=self.name,
                 description="",
@@ -119,7 +126,11 @@ class Dataset:
                 observation_info=observation_tf_dict,
                 action_info=action_tf_dict,
                 reward_info=step_tf_dict["reward"],
-                discount_info=step_tf_dict["discount"] if "discount" in step_tf_dict else Tensor(shape=(), dtype=tf.float32),
+                discount_info=(
+                    step_tf_dict["discount"]
+                    if "discount" in step_tf_dict
+                    else Tensor(shape=(), dtype=tf.float32)
+                ),
             )
 
             ds_identity = tfds.core.dataset_info.DatasetIdentity(
@@ -134,7 +145,7 @@ class Dataset:
                 ds_identity=ds_identity,
                 max_episodes_per_file=max_episodes_per_file,
             )
-            
+
             # export the dataset
             episodes = self.get_episodes_from_metadata()
             for episode in episodes:
@@ -144,16 +155,30 @@ class Dataset:
                     stepd = {}
                     for k, v in step.items():
                         if k not in self.features:
-                            logger.info(f"Feature {k} not found in the dataset features.")
-                            continue 
+                            logger.info(
+                                f"Feature {k} not found in the dataset features."
+                            )
+                            continue
                         feature_spec = self.features[k].to_tf_feature_type()
-                        if isinstance(feature_spec, tfds.core.features.Tensor) and feature_spec.shape != ():
+                        if (
+                            isinstance(feature_spec, tfds.core.features.Tensor)
+                            and feature_spec.shape != ()
+                        ):
                             # reverse the process
-                            value = np.load(io.BytesIO(v)).astype(feature_spec.np_dtype)
-                        elif isinstance(feature_spec, tfds.core.features.Tensor) and feature_spec.shape == ():
+                            value = np.load(io.BytesIO(v)).astype(
+                                feature_spec.np_dtype
+                            )
+                        elif (
+                            isinstance(feature_spec, tfds.core.features.Tensor)
+                            and feature_spec.shape == ()
+                        ):
                             value = np.array(v, dtype=feature_spec.np_dtype)
-                        elif isinstance(feature_spec, tfds.core.features.Image):
-                            value = np.load(io.BytesIO(v)).astype(feature_spec.np_dtype)
+                        elif isinstance(
+                            feature_spec, tfds.core.features.Image
+                        ):
+                            value = np.load(io.BytesIO(v)).astype(
+                                feature_spec.np_dtype
+                            )
                         else:
                             value = v
 
@@ -162,11 +187,15 @@ class Dataset:
                         elif k in self.act_keys:
                             actiond[k] = value
                         else:
-                            stepd[k]=value
+                            stepd[k] = value
                     timestep = dm_env.TimeStep(
                         step_type=dm_env.StepType.FIRST,
-                        reward= np.float32(0.0), #stepd["reward"] if "reward" in step else np.float32(0.0),
-                        discount=np.float32(0.0), #stepd["discount"] if "discount" in step else np.float32(0.0),
+                        reward=np.float32(
+                            0.0
+                        ),  # stepd["reward"] if "reward" in step else np.float32(0.0),
+                        discount=np.float32(
+                            0.0
+                        ),  # stepd["discount"] if "discount" in step else np.float32(0.0),
                         observation=observationd,
                     )
                     stepdata = step_data.StepData(
@@ -174,7 +203,7 @@ class Dataset:
                     )
                     writer._record_step(stepdata, is_new_episode=True)
 
-            pass 
+            pass
         else:
             raise ValueError("Unsupported export format")
 
@@ -202,8 +231,14 @@ class Dataset:
 
         # this is only required if rtx format is used
         import tensorflow_datasets as tfds
-        from tensorflow_datasets.core.features import Tensor, Image, FeaturesDict, Scalar, Text
-        
+        from tensorflow_datasets.core.features import (
+            FeaturesDict,
+            Image,
+            Scalar,
+            Tensor,
+            Text,
+        )
+
         from fog_rtx.rlds.utils import dataset2path
 
         b = tfds.builder_from_directory(builder_dir=dataset2path(name))
@@ -221,8 +256,11 @@ class Dataset:
                     if k == "observation" or k == "action":
                         for k2, v2 in v.items():
                             # TODO: abstract this to feature.py
-                            
-                            if isinstance(data_type[k][k2], Tensor) and data_type[k][k2].shape != ():
+
+                            if (
+                                isinstance(data_type[k][k2], Tensor)
+                                and data_type[k][k2].shape != ()
+                            ):
                                 memfile = io.BytesIO()
                                 np.save(memfile, v2.numpy())
                                 value = memfile.getvalue()
@@ -232,11 +270,13 @@ class Dataset:
                                 value = memfile.getvalue()
                             else:
                                 value = v2.numpy()
-                            
+
                             fog_epsiode.add(
                                 feature=str(k2),
                                 value=value,
-                                feature_type=FeatureType(tf_feature_spec=data_type[k][k2]),
+                                feature_type=FeatureType(
+                                    tf_feature_spec=data_type[k][k2]
+                                ),
                             )
                             if k == "observation":
                                 self.obs_keys.append(k2)
@@ -246,7 +286,9 @@ class Dataset:
                         fog_epsiode.add(
                             feature=str(k),
                             value=v.numpy(),
-                            feature_type=FeatureType(tf_feature_spec=data_type[k]),
+                            feature_type=FeatureType(
+                                tf_feature_spec=data_type[k]
+                            ),
                         )
                         self.step_keys.append(k)
             fog_epsiode.close()
@@ -257,7 +299,7 @@ class Dataset:
         episodes = []
         for episode_id in episode_ids:
             if episode_id == None:
-                continue 
+                continue
             episodes.append(self.db_manager.get_episode_table(episode_id))
         return episodes
 
@@ -269,8 +311,8 @@ class Dataset:
             metadata_df = metadata
         episodes = self.read_by(metadata_df)
         return episodes
-    
-    def pytorch_dataset_builder(self, metadata = None, **kwargs):
+
+    def pytorch_dataset_builder(self, metadata=None, **kwargs):
         import torch
         from torch.utils.data import Dataset
 
@@ -309,9 +351,9 @@ class Dataset:
 
         return pytorch_dataset
 
-
-
-    def tensorflow_dataset_builder(self, metadata = None, batch_size=32, shuffle_buffer_size=None, **kwargs):
+    def tensorflow_dataset_builder(
+        self, metadata=None, batch_size=32, shuffle_buffer_size=None, **kwargs
+    ):
         # TODO: doesn't work yet
         """
         Build a TensorFlow dataset.
@@ -333,7 +375,10 @@ class Dataset:
         # Convert data into tensors
         # Assuming episodes_data is a list of numpy arrays or a similar format that can be directly converted to tensors.
         # This might require additional processing depending on the data format and the features.
-        episodes_tensors = [tf.convert_to_tensor(episode.drop(columns = ["Timestamp", "index"])) for episode in episodes]
+        episodes_tensors = [
+            tf.convert_to_tensor(episode.drop(columns=["Timestamp", "index"]))
+            for episode in episodes
+        ]
 
         # Create a tf.data.Dataset from tensors
         dataset = tf.data.Dataset.from_tensor_slices(episodes_tensors)
