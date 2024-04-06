@@ -126,3 +126,14 @@ class FeatureType:
                 return type_np2sql(self.dtype)
             except:
                 return LargeBinary
+    
+    def to_pld_storage_type(self):
+        if self.dtype == "string":
+            return "string"
+        if self.is_np:
+            if self.shape is () or self.shape is None:
+                return self.dtype
+            else:
+                return "large_binary"
+        else:
+            return self.dtype

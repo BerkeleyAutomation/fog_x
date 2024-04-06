@@ -46,6 +46,7 @@ class PolarsConnector:
             ordered_data = {col: data.get(col, None) for col in self.tables[table_name].columns}
             new_row = pl.DataFrame([ordered_data])
             index_of_new_row = len(self.tables[table_name]) 
+            logger.info(f"Inserting data into {table_name}: {ordered_data} with index {index_of_new_row} to table {self.tables[table_name]}")
             self.tables[table_name] = pl.concat([self.tables[table_name], new_row])
             logger.debug(f"Data inserted into {table_name}: {ordered_data} with index {index_of_new_row}")
 

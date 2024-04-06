@@ -71,7 +71,7 @@ class DatabaseManager:
             self.db_connector.add_column(
                 self.dataset_name,
                 metadata_key,
-                "str",
+                "str", # TODO: support more types 
             )
 
         # insert episode information to the database
@@ -163,10 +163,11 @@ class DatabaseManager:
             "Timestamp",
             "int64",
         )
+        logger.info(f"Adding feature {feature_name} to the database with type {feature_type.to_pld_storage_type()}")
         self.db_connector.add_column(
             self._get_feature_table_name(feature_name),
             feature_name,
-            "str", #TODO: placeholder
+            feature_type.to_pld_storage_type(), #TODO: placeholder
         )
 
         if feature_type is None:

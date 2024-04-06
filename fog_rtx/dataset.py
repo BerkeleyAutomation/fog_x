@@ -200,7 +200,7 @@ class Dataset:
                         for k2, v2 in v.items():
                             fog_epsiode.add(
                                 feature=str(k2),
-                                value=str(v2.numpy()),
+                                value=v2.numpy(),
                                 feature_type=FeatureType().from_tf_feature_type(data_type[k][k2]),
                             )
                             if k == "observation":
@@ -210,7 +210,7 @@ class Dataset:
                     else:
                         fog_epsiode.add(
                             feature=str(k),
-                            value=str(v.numpy()),
+                            value=v.numpy(),
                             feature_type=FeatureType().from_tf_feature_type(data_type[k]),
                         )
                         self.step_keys.append(k)
