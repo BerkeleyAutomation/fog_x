@@ -81,7 +81,7 @@ class FeatureType:
         """
         Convert from tf feature
         """
-        logger.info(f"tf_feature_spec: {tf_feature_spec}")
+        logger.debug(f"tf_feature_spec: {tf_feature_spec}")
         from tensorflow_datasets.core.features import Tensor, Image, FeaturesDict, Scalar, Text
         if isinstance(tf_feature_spec, Tensor):
             shape = tf_feature_spec.shape

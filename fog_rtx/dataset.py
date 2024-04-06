@@ -1,6 +1,7 @@
 import logging
 from typing import Any, Dict, List, Optional, Tuple
-
+import numpy as np 
+import io
 from fog_rtx.database import DatabaseConnector, DatabaseManager
 from fog_rtx.episode import Episode
 from fog_rtx.feature import FeatureType
@@ -91,6 +92,8 @@ class Dataset:
             import tensorflow_datasets as tfds
             from envlogger import step_data
             import dm_env
+            from tensorflow_datasets.core.features import Tensor
+            import tensorflow as tf
 
             from fog_rtx.rlds.writer import CloudBackendWriter
 
@@ -116,7 +119,7 @@ class Dataset:
                 observation_info=observation_tf_dict,
                 action_info=action_tf_dict,
                 reward_info=step_tf_dict["reward"],
-                # discount_info=step_tf_dict["discount"],
+                discount_info=step_tf_dict["discount"] if "discount" in step_tf_dict else Tensor(shape=(), dtype=tf.float32),
             )
 
             ds_identity = tfds.core.dataset_info.DatasetIdentity(
@@ -136,20 +139,38 @@ class Dataset:
             episodes = self.get_episodes_from_metadata()
             for episode in episodes:
                 for step in episode.rows(named=True):
-                    observation = {}
-                    for k in self.obs_keys:
-                        observation[k] = step[k]
-                    action = {}
-                    for k in self.act_keys:
-                        action[k] = step[k]
+                    observationd = {}
+                    actiond = {}
+                    stepd = {}
+                    for k, v in step.items():
+                        if k not in self.features:
+                            logger.info(f"Feature {k} not found in the dataset features.")
+                            continue 
+                        feature_spec = self.features[k].to_tf_feature_type()
+                        if isinstance(feature_spec, tfds.core.features.Tensor) and feature_spec.shape != ():
+                            # reverse the process
+                            value = np.load(io.BytesIO(v)).astype(feature_spec.np_dtype)
+                        elif isinstance(feature_spec, tfds.core.features.Tensor) and feature_spec.shape == ():
+                            value = np.array(v, dtype=feature_spec.np_dtype)
+                        elif isinstance(feature_spec, tfds.core.features.Image):
+                            value = np.load(io.BytesIO(v)).astype(feature_spec.np_dtype)
+                        else:
+                            value = v
+
+                        if k in self.obs_keys:
+                            observationd[k] = value
+                        elif k in self.act_keys:
+                            actiond[k] = value
+                        else:
+                            stepd[k]=value
                     timestep = dm_env.TimeStep(
                         step_type=dm_env.StepType.FIRST,
-                        reward=step["reward"] if "reward" in step else 0.0,
-                        discount=self.step["discount"] if "discount" in step else 0.0,
-                        observation=observation,
+                        reward= np.float32(0.0), #stepd["reward"] if "reward" in step else np.float32(0.0),
+                        discount=np.float32(0.0), #stepd["discount"] if "discount" in step else np.float32(0.0),
+                        observation=observationd,
                     )
                     stepdata = step_data.StepData(
-                        timestep=timestep, action=action, custom_data=None
+                        timestep=timestep, action=actiond, custom_data=None
                     )
                     writer._record_step(stepdata, is_new_episode=True)
 
@@ -183,9 +204,6 @@ class Dataset:
         import tensorflow_datasets as tfds
         from tensorflow_datasets.core.features import Tensor, Image, FeaturesDict, Scalar, Text
         
-        import io
-        import numpy as np
-        import PIL
         from fog_rtx.rlds.utils import dataset2path
 
         b = tfds.builder_from_directory(builder_dir=dataset2path(name))
