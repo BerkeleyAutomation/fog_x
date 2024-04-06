@@ -5,7 +5,7 @@ dataset = fog_rtx.dataset.Dataset(
     name="test_rtx",
     path="/tmp/rtx",
     replace_existing=False,
-    db_connector=fog_rtx.database.DatabaseConnector("/tmp/rtx.db"),
+    db_connector=fog_rtx.database.PolarsConnector("/tmp/rtx.db"),
 )
 
 for i in range(1, 10):
@@ -31,11 +31,11 @@ metadata = dataset.get_metadata_as_pandas_df()
 # ...
 # do what you want like a typical pandas dataframe
 # Example: load with shuffled the episodes in the dataset
-metadata = metadata.sample(frac=1)
-print(metadata)
-episodes = dataset.read_by(metadata)
-for episode in episodes:
-    print(episode)
+# metadata = metadata.sample()
+# print(metadata)
+# episodes = dataset.read_by(metadata)
+# for episode in episodes:
+#     print(episode)
 
 # export the dataset
-dataset.export("/tmp/rtx_export", format="rtx")
+# dataset.export("/tmp/rtx_export", format="rtx")

@@ -1,8 +1,6 @@
 import logging
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import Integer, String  # type: ignore
-
 from fog_rtx.database.db_connector import DatabaseConnector
 from fog_rtx.feature import FeatureType
 
@@ -41,7 +39,11 @@ class DatabaseManager:
         else:
             self.db_connector.create_table(
                 dataset_name,
-                {"Compacted": Integer},
+            )
+            self.db_connector.add_column(
+                dataset_name,
+                "Compacted",
+                "bool",
             )
             logger.info("Database initialized")
 
@@ -51,15 +53,24 @@ class DatabaseManager:
     ) -> int:
         if self.dataset_name is None:
             raise ValueError("Dataset not initialized")
-        logger.info(f"Initializing episode for dataset {self.dataset_name} with metadata {metadata}")
         if metadata is None:
             metadata = {}
+        logger.info(f"Initializing episode for dataset {self.dataset_name} with metadata {metadata}")
+
         metadata["Compacted"] = False
+
+        for metadata_key in metadata.keys():
+            logger.info(f"Adding metadata key {metadata_key} to the database")
+            self.db_connector.add_column(
+                self.dataset_name,
+                metadata_key,
+                "str",
+            )
+
         # insert episode information to the database
         self.current_episode_id = self.db_connector.insert_data(
             self.dataset_name,
             metadata,
-            create_new_column_if_not_exist=True,
         )
 
         # create tables for each feature
@@ -119,7 +130,7 @@ class DatabaseManager:
             table_name = self.dataset_name
         if table_name is None:
             raise ValueError("Dataset name not provided")
-        return self.db_connector.select_table(table_name, format=format)
+        return self.db_connector.select_table(table_name)
 
     def get_metadata_table(self, format: str = "pandas"):
         return self.get_table(self.dataset_name, format=format)
@@ -137,8 +148,20 @@ class DatabaseManager:
         # TODO: need to make the timestamp type as TIMESTAMPTZ
         self.db_connector.create_table(
             self._get_feature_table_name(feature_name),
-            {"Timestamp": Integer, feature_name: feature_type.to_sql_type()},
         )
+        # {"Timestamp": "int64", feature_name: feature_type.to_sql_type()}
+        
+        self.db_connector.add_column(
+            self._get_feature_table_name(feature_name),
+            "Timestamp",
+            "int64",
+        )
+        self.db_connector.add_column(
+            self._get_feature_table_name(feature_name),
+            feature_name,
+            "str", #TODO: placeholder
+        )
+
         if feature_type is None:
             logger.error(f"Feature type not provided for {feature_name}")
             self.features[feature_name] = FeatureType()
@@ -146,6 +169,16 @@ class DatabaseManager:
             self.features[feature_name] = feature_type
 
         # update dataset metadata with the feature information
+        self.db_connector.add_column(
+            self.dataset_name,
+            f"feature_{feature_name}_type",
+            "str",
+        )
+        self.db_connector.add_column(
+            self.dataset_name,
+            f"feature_{feature_name}_shape",
+            "str",
+        )
         self.db_connector.update_data(
             table_name = self.dataset_name,
             index = self.current_episode_id,
@@ -153,8 +186,6 @@ class DatabaseManager:
                 f"feature_{feature_name}_type": str(self.features[feature_name].dtype),
                 f"feature_{feature_name}_shape": str(self.features[feature_name].shape),
             },
-            create_new_column_if_not_exist=True,
-            is_partial_data=True,
         )
 
 
