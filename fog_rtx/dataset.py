@@ -181,7 +181,10 @@ class Dataset:
 
         # this is only required if rtx format is used
         import tensorflow_datasets as tfds
-
+        from tensorflow_datasets.core.features import Tensor, Image, FeaturesDict, Scalar, Text
+        
+        import io
+        import numpy as np
         from fog_rtx.rlds.utils import dataset2path
 
         b = tfds.builder_from_directory(builder_dir=dataset2path(name))
@@ -200,9 +203,16 @@ class Dataset:
                         for k2, v2 in v.items():
                             logger.info(f"key: {k2}")
                             logger.info(f"value: {v2.numpy()}")
+                            # TODO: abstract this to feature.py
+                            memfile = io.BytesIO()
+                            if isinstance(data_type[k][k2], Tensor) and data_type[k][k2].shape != ():
+                                np.save(memfile, v2.numpy())
+                                value = memfile.getvalue()
+                            else:
+                                value = v2.numpy()
                             fog_epsiode.add(
                                 feature=str(k2),
-                                value=v2.numpy(),
+                                value=value,
                                 feature_type=FeatureType(tf_feature_spec=data_type[k][k2]),
                             )
                             if k == "observation":
@@ -212,7 +222,7 @@ class Dataset:
                     else:
                         fog_epsiode.add(
                             feature=str(k),
-                            value=v.numpy().astype(data_type[k].np_dtype),
+                            value=v.numpy(),
                             feature_type=FeatureType(tf_feature_spec=data_type[k]),
                         )
                         self.step_keys.append(k)

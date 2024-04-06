@@ -35,7 +35,8 @@ class PolarsConnector:
         if table_name in self.tables:
             arrow_type = _datasets_dtype_to_pld(column_type)
             # self.tables[table_name] = self.tables[table_name].with_column(pl.lit(None).alias(column_name).cast(column_type))
-            self.tables[table_name] = self.tables[table_name].with_columns(pl.lit(None).alias(column_name).cast(arrow_type))
+            # self.tables[table_name] = self.tables[table_name].with_columns(pl.lit(None).alias(column_name).cast(arrow_type))
+            self.tables[table_name] = self.tables[table_name].with_columns(pl.Series(column_name, [None]*len(self.tables[table_name])).cast(arrow_type))
             logger.info(f"Column {column_name} added to table {table_name}.")
         else:
             logger.error(f"Table {table_name} does not exist.")

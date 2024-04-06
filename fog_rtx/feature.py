@@ -2,7 +2,8 @@ from typing import Any, List, Optional, Tuple
 from sqlalchemy import Integer, String, LargeBinary, Float
 from fog_rtx.database.utils import type_py2sql, type_np2sql
 import numpy as np 
-
+import logging
+logger = logging.getLogger(__name__)
 
 SUPPORTED_DTYPES = [
     "null",
@@ -79,11 +80,24 @@ class FeatureType:
         """
         Convert from tf feature
         """
-        shape = tf_feature_spec.shape
-        np_dtype = tf_feature_spec.np_dtype
-        self._set(str(np_dtype), shape)
-        # self.dtype = str(self.np_dtype)
-        # self.is_np = True
+        logger.info(f"tf_feature_spec: {tf_feature_spec}")
+        from tensorflow_datasets.core.features import Tensor, Image, FeaturesDict, Scalar, Text
+        if isinstance(tf_feature_spec, Tensor):
+            shape = tf_feature_spec.shape
+            dtype = tf_feature_spec.dtype.name
+        elif isinstance(tf_feature_spec, Image):
+            shape = tf_feature_spec.shape
+            dtype = tf_feature_spec.np_dtype
+            # TODO: currently images are not handled efficiently
+        elif isinstance(tf_feature_spec, Scalar):
+            shape = ()
+            dtype = tf_feature_spec.dtype.name
+        elif isinstance(tf_feature_spec, Text):
+            shape = ()
+            dtype = "string"
+        else:
+            raise ValueError(f"Unsupported conversion from tf feature: {tf_feature_spec}")
+        self._set(str(dtype), shape)
         return self
     
     def from_data(self, data: Any):
@@ -132,8 +146,8 @@ class FeatureType:
     def to_pld_storage_type(self):
         if len(self.shape) == 0:
             if self.dtype == "string":
-                return "string"
+                return "large_binary" # TODO: better representation of strings
             else:
                 return self.dtype
         else:
-            return "object"
+            return "large_binary"
