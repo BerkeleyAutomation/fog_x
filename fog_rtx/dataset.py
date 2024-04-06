@@ -58,12 +58,55 @@ class Dataset:
         """
         return self.db_manager.query(query)
 
-    def export(self, path: str, format: str) -> None:
+    def export(self, export_path: str, format: str, max_episodes_per_file: int = 1000,version: str = "0.0.1", ) -> None:
         """
         Export the dataset.
         """
         if format == "rtx":
-            pass
+            import tensorflow_datasets as tfds
+            from fog_rtx.rlds.writer import CloudBackendWriter
+
+            (
+                observation_tf_dict,
+                action_tf_dict,
+                step_tf_dict,
+            ) = dict(), dict(), dict()
+            # generate tensorflow configuration file 
+            ds_config = tfds.rlds.rlds_base.DatasetConfig(
+                name=self.name,
+                description="",
+                homepage="",
+                citation="",
+                version=tfds.core.Version("0.0.1"),
+                release_notes={
+                    "0.0.1": "Initial release.",
+                },
+                observation_info=observation_tf_dict,
+                action_info=action_tf_dict,
+                reward_info=step_tf_dict["/reward"],
+                discount_info=step_tf_dict["/discount"],
+            ).get_rlds_dataset_config()
+            
+            ds_identity = tfds.core.dataset_info.DatasetIdentity(
+                name=ds_config.name,
+                version=tfds.core.Version(version),
+                data_dir=export_path,
+                module_name="",
+            )
+            writer = CloudBackendWriter(
+                data_directory=export_path,
+                ds_config=ds_config,
+                ds_identity=ds_identity,
+                max_episodes_per_file=max_episodes_per_file,
+            )
+            
+            # export the dataset
+            episodes = self.db_manager.get_episodes_from_metadata()
+            for episode in episodes:
+                for step in episode:
+                    writer.add_step(step)
+
+            pass 
         else:
             raise ValueError("Unsupported export format")
 
@@ -126,6 +169,15 @@ class Dataset:
             episodes.append(self.db_manager.get_episode_table(episode_id))
         return episodes
 
+    def get_episodes_from_metadata(self, metadata: Any = None):
+        # Assume we use get_metadata_as_pandas_df to retrieve episodes metadata
+        if metadata is None:
+            metadata_df = self.get_metadata_as_pandas_df()
+        else:
+            metadata_df = metadata
+        episodes = self.read_by(metadata_df)
+        return episodes
+    
     def pytorch_dataset_builder(self, metadata = None, **kwargs):
         import torch
         from torch.utils.data import Dataset
@@ -158,12 +210,7 @@ class Dataset:
                 # For simplicity, let's assume we're just returning the episode
                 return episode
 
-        # Assume we use get_metadata_as_pandas_df to retrieve episodes metadata
-        if metadata is None:
-            metadata_df = self.get_metadata_as_pandas_df()
-        else:
-            metadata_df = metadata
-        episodes = self.read_by(metadata_df)
+        episodes = self.get_episodes_from_metadata(metadata)
 
         # Initialize the PyTorch dataset with the episodes and features
         pytorch_dataset = PyTorchDataset(episodes, self.features)
