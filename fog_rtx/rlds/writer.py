@@ -131,7 +131,6 @@ class CloudBackendWriter(backend_writer.BackendWriter):
         self.logger = logger
         self.logger.info(f"self._data_directory: {self._data_directory}")
 
-        self._metadata_database = metadata_database
 
         self.metadata = {"episode_id": 1, "episode_metadata": 2, "description": "test"}
 

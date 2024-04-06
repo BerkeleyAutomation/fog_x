@@ -51,6 +51,7 @@ class DatabaseManager:
     ) -> int:
         if self.dataset_name is None:
             raise ValueError("Dataset not initialized")
+        logger.info(f"Initializing episode for dataset {self.dataset_name} with metadata {metadata}")
         if metadata is None:
             metadata = {}
         metadata["Compacted"] = False

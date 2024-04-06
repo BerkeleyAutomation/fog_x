@@ -88,17 +88,17 @@ class FeatureType:
         if isinstance(data, np.ndarray):
             self.dtype = str(data.dtype)
             self.shape = data.shape
-            self.np = True
+            self.is_np = True
         elif isinstance(data, list):
             # Simplified inference for lists - assuming homogeneous data
             self.dtype = type(data[0]).__name__
             self.shape = (len(data),)
-            self.np = True
+            self.is_np = True
         else:
             # Simplified approach for other data types
             self.dtype = type(data).__name__
             self.shape = None
-            self.np = False
+            self.is_np = False
         return self
 
     def to_tf_feature_type(self): 
@@ -114,4 +114,7 @@ class FeatureType:
         if self.is_np:
             return LargeBinary
         else:
-            return type_np2sql(self.dtype)
+            try:
+                return type_np2sql(self.dtype)
+            except:
+                return LargeBinary
