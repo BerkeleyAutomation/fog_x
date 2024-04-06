@@ -201,8 +201,6 @@ class Dataset:
                 for k, v in step.items():
                     if k == "observation" or k == "action":
                         for k2, v2 in v.items():
-                            logger.info(f"key: {k2}")
-                            logger.info(f"value: {v2.numpy()}")
                             # TODO: abstract this to feature.py
                             memfile = io.BytesIO()
                             if isinstance(data_type[k][k2], Tensor) and data_type[k][k2].shape != ():

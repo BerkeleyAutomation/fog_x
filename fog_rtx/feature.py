@@ -5,6 +5,7 @@ import numpy as np
 import logging
 logger = logging.getLogger(__name__)
 
+
 SUPPORTED_DTYPES = [
     "null",
     "bool",
@@ -120,14 +121,32 @@ class FeatureType:
         """
         Convert to tf feature
         """
+        import tensorflow as tf
         from tensorflow_datasets.core.features import Tensor, Image, FeaturesDict, Scalar, Text
+
+        str_dtype_to_tf_dtype = {
+            "int8": tf.int8,
+            "int16": tf.int16,
+            "int32": tf.int32,
+            "int64": tf.int64,
+            "uint8": tf.uint8,
+            "uint16": tf.uint16,
+            "uint32": tf.uint32,
+            "uint64": tf.uint64,
+            "float16": tf.float16,
+            "float32": tf.float32,
+            "float64": tf.float64,
+            "string": tf.string,
+            "bool": tf.bool,
+        }
+        tf_detype = str_dtype_to_tf_dtype[self.dtype]
         if len(self.shape) == 0:
             if self.dtype == "string":
                 return Text()
             else:
-                return Scalar(dtype=self.dtype)
+                return Scalar(dtype=tf_detype)
         elif len(self.shape) >= 1:
-            return Tensor(shape=self.shape, dtype=self.dtype)
+            return Tensor(shape=self.shape, dtype=tf_detype)
         else:
             raise ValueError(f"Unsupported conversion to tf feature: {self}")
 

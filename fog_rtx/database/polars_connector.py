@@ -47,7 +47,7 @@ class PolarsConnector:
             # use the schema of the original table
             new_row = pl.DataFrame([data], schema=self.tables[table_name].schema)
             index_of_new_row = len(self.tables[table_name]) 
-            logger.info(f"Inserting data into {table_name}: {data} with {new_row} to table {self.tables[table_name]}")
+            logger.debug(f"Inserting data into {table_name}: {data} with {new_row} to table {self.tables[table_name]}")
             self.tables[table_name] = pl.concat([self.tables[table_name], new_row], how = "align")
 
             return index_of_new_row  # Return the index of the inserted row
