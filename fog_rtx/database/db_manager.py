@@ -17,6 +17,7 @@ class DatabaseManager:
         self.dataset_name: Optional[str] = None
         self.current_episode_id: Optional[int] = None
         self.features: Dict[str, FeatureType] = {}
+        self.current_episode_id = 0
 
     def initialize_dataset(
         self, dataset_name: str, features: Dict[str, FeatureType]
@@ -42,6 +43,11 @@ class DatabaseManager:
             )
             self.db_connector.add_column(
                 dataset_name,
+                "episode_id",
+                "int64",
+            )
+            self.db_connector.add_column(
+                dataset_name,
                 "Compacted",
                 "bool",
             )
@@ -57,6 +63,7 @@ class DatabaseManager:
             metadata = {}
         logger.info(f"Initializing episode for dataset {self.dataset_name} with metadata {metadata}")
 
+        metadata["episode_id"] = self.current_episode_id + 1
         metadata["Compacted"] = False
 
         for metadata_key in metadata.keys():

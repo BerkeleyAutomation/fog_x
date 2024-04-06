@@ -105,7 +105,15 @@ class FeatureType:
         """
         Convert to tf feature
         """
-        pass
+        from tensorflow_datasets.core.features import Tensor, Image, FeaturesDict, Scalar, Text
+        if self.is_np:
+            return Tensor(shape=self.shape, dtype=self.np_dtype)
+        elif self.dtype == "string":
+            return Text()
+        elif self.shape is None:
+            return Scalar(dtype=self.dtype)
+        else:
+            raise ValueError(f"Unsupported conversion to tf feature: {self}")
 
     def to_sql_type(self):
         """

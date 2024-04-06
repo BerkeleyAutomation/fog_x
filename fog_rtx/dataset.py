@@ -36,6 +36,9 @@ class Dataset:
         self.db_manager.initialize_dataset(self.name, features)
 
         self.storage = storage
+        self.obs_keys = []
+        self.act_keys = []
+        self.step_keys = []
 
     def new_episode(
         self, metadata: Optional[Dict[str, Any]] = None
@@ -80,25 +83,25 @@ class Dataset:
 
         return observation_tf_dict, action_tf_dict, step_tf_dict
     
-    def export(self, export_path: str, format: str, max_episodes_per_file: int = 1000,version: str = "0.0.1", ) -> None:
+    def export(self, export_path: str, format: str, max_episodes_per_file: int = 1,version: str = "0.0.1", ) -> None:
         """
         Export the dataset.
         """
         if format == "rtx":
             import tensorflow_datasets as tfds
+            from envlogger import step_data
+            import dm_env
+
             from fog_rtx.rlds.writer import CloudBackendWriter
 
-            obs_keys = []
-            act_keys = []
-            step_keys = ["reward"]
             (
                 observation_tf_dict,
                 action_tf_dict,
                 step_tf_dict,
             ) = self._get_tf_feature_dicts(
-                obs_keys, 
-                act_keys,
-                step_keys,
+                self.obs_keys, 
+                self.act_keys,
+                self.step_keys,
             )
             # generate tensorflow configuration file 
             ds_config = tfds.rlds.rlds_base.DatasetConfig(
@@ -133,7 +136,22 @@ class Dataset:
             episodes = self.get_episodes_from_metadata()
             for episode in episodes:
                 for step in episode:
-                    writer.add_step(step)
+                    observation = {}
+                    for k in self.obs_keys:
+                        observation[k] = step[k]
+                    action = {}
+                    for k in self.act_keys:
+                        action[k] = step[k]
+                    timestep = dm_env.TimeStep(
+                        step_type=self.step_type,
+                        reward=self.step["reward"] if "reward" in step else 0,
+                        discount=self.step["discount"] if "discount" in step else 0.0,
+                        observation=observation,
+                    )
+                    stepdata = step_data.StepData(
+                        timestep=timestep, action=action, custom_data=None
+                    )
+                    writer._record_step(stepdata, is_new_episode=True)
 
             pass 
         else:
@@ -185,19 +203,26 @@ class Dataset:
                                 value=str(v2.numpy()),
                                 feature_type=FeatureType().from_tf_feature_type(data_type[k][k2]),
                             )
+                            if k == "observation":
+                                self.obs_keys.append(k2)
+                            elif k == "action":
+                                self.act_keys.append(k2)
                     else:
                         fog_epsiode.add(
                             feature=str(k),
                             value=str(v.numpy()),
                             feature_type=FeatureType().from_tf_feature_type(data_type[k]),
                         )
+                        self.step_keys.append(k)
             fog_epsiode.close()
 
     def read_by(self, pandas_metadata: Any = None):
-        episode_ids = list(pandas_metadata["id"])
+        episode_ids = list(pandas_metadata["episode_id"])
         logger.info(f"Reading episodes as order: {episode_ids}")
         episodes = []
         for episode_id in episode_ids:
+            if episode_id == None:
+                continue 
             episodes.append(self.db_manager.get_episode_table(episode_id))
         return episodes
 
