@@ -135,7 +135,7 @@ class Dataset:
             # export the dataset
             episodes = self.get_episodes_from_metadata()
             for episode in episodes:
-                for step in episode:
+                for step in episode.rows(named=True):
                     observation = {}
                     for k in self.obs_keys:
                         observation[k] = step[k]
@@ -143,8 +143,8 @@ class Dataset:
                     for k in self.act_keys:
                         action[k] = step[k]
                     timestep = dm_env.TimeStep(
-                        step_type=self.step_type,
-                        reward=self.step["reward"] if "reward" in step else 0,
+                        step_type=dm_env.StepType.FIRST,
+                        reward=step["reward"] if "reward" in step else 0.0,
                         discount=self.step["discount"] if "discount" in step else 0.0,
                         observation=observation,
                     )
@@ -185,6 +185,7 @@ class Dataset:
         
         import io
         import numpy as np
+        import PIL
         from fog_rtx.rlds.utils import dataset2path
 
         b = tfds.builder_from_directory(builder_dir=dataset2path(name))
@@ -202,12 +203,18 @@ class Dataset:
                     if k == "observation" or k == "action":
                         for k2, v2 in v.items():
                             # TODO: abstract this to feature.py
-                            memfile = io.BytesIO()
+                            
                             if isinstance(data_type[k][k2], Tensor) and data_type[k][k2].shape != ():
+                                memfile = io.BytesIO()
+                                np.save(memfile, v2.numpy())
+                                value = memfile.getvalue()
+                            elif isinstance(data_type[k][k2], Image):
+                                memfile = io.BytesIO()
                                 np.save(memfile, v2.numpy())
                                 value = memfile.getvalue()
                             else:
                                 value = v2.numpy()
+                            
                             fog_epsiode.add(
                                 feature=str(k2),
                                 value=value,
