@@ -55,8 +55,8 @@ class PolarsConnector:
     def update_data(self, table_name: str, index: int, data: dict):
         # update data
         for column_name, value in data.items():
-            logger.info(self.tables[table_name])
-            self.tables[table_name][column_name][index] = value
+            logger.info(f"updating {column_name} with {value} at index {index} in {self.tables[table_name]}")
+            self.tables[table_name][index, column_name] = value
 
     def merge_tables_with_timestamp(self, tables: List[str], output_table: str):
         # Merging tables using timestamps
