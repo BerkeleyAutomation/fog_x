@@ -153,13 +153,13 @@ class Dataset:
                         for k2, v2 in v.items():
                             fog_epsiode.add(
                                 feature=str(k2),
-                                value=(v2.numpy()),
+                                value=str(v2.numpy()),
                                 feature_type=FeatureType().from_tf_feature_type(data_type[k][k2]),
                             )
                     else:
                         fog_epsiode.add(
                             feature=str(k),
-                            value=(v.numpy()),
+                            value=str(v.numpy()),
                             feature_type=FeatureType().from_tf_feature_type(data_type[k]),
                         )
             fog_epsiode.close()

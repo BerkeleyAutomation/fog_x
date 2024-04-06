@@ -6,6 +6,7 @@
 
 ### known bugs 
 1. when creating a new dataset, the first entry is null 
+2. merging and loading from df lost the schema and original data types 
 
 ### Big Steps 
 1. asynchonous writing, test with multiple processes & episodes 
