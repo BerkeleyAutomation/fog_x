@@ -13,7 +13,8 @@ class PolarsConnector:
 
     def close(self):
         # No connection to close in Polars, but we could clear the tables dictionary
-        pass
+        for table_name in self.tables.keys():
+            self.tables[table_name].write_parquet(f"{self.path}/{table_name}.parquet")
 
     def list_tables(self):
         # Listing available DataFrame tables
@@ -24,6 +25,7 @@ class PolarsConnector:
         # schema = {column_name: _datasets_dtype_to_arrow(column_type) for column_name, column_type in columns.items()}
         self.tables[table_name] = pl.DataFrame()
         logger.info(f"Table {table_name} created with Polars.")
+        logger.info(f"writing to {self.path}/{table_name}.parquet")
 
     def add_column(self, table_name: str, column_name: str, column_type):
         if column_name in self.tables[table_name].columns:
