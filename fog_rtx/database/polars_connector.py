@@ -44,13 +44,10 @@ class PolarsConnector:
         # Inserting a new row into the DataFrame and return the index of the new row
         if table_name in self.tables:
             ordered_data = {col: data.get(col, None) for col in self.tables[table_name].columns}
-            logger.info(f"Inserting data into {self.tables[table_name]} with data {ordered_data}")
             new_row = pl.DataFrame([ordered_data])
             index_of_new_row = len(self.tables[table_name]) 
             self.tables[table_name] = pl.concat([self.tables[table_name], new_row])
-            logger.info(f"Data inserted into {table_name}: {ordered_data} with index {index_of_new_row}")
-            logger.info("Table after insertion:")
-            logger.info(self.tables[table_name])
+            logger.debug(f"Data inserted into {table_name}: {ordered_data} with index {index_of_new_row}")
 
             return index_of_new_row  # Return the index of the inserted row
         else:
@@ -60,7 +57,7 @@ class PolarsConnector:
     def update_data(self, table_name: str, index: int, data: dict):
         # update data
         for column_name, value in data.items():
-            logger.info(f"updating {column_name} with {value} at index {index} in {self.tables[table_name]}")
+            logger.info(f"updating {column_name} with {value} at index {index}")
             self.tables[table_name][index, column_name] = value
 
     def merge_tables_with_timestamp(self, tables: List[str], output_table: str):
@@ -77,9 +74,7 @@ class PolarsConnector:
             logger.info("Tables merged on Timestamp.")
         else:
             logger.error("Need at least two tables to merge.")
-        logger.info(f"Merged table {output_table}:")
         self.tables[output_table] = merged_df
-        logger.info(self.tables[output_table])
 
     def select_table(self, table_name: str):
         # Return the DataFrame

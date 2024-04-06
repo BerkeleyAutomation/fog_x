@@ -58,6 +58,28 @@ class Dataset:
         """
         return self.db_manager.query(query)
 
+
+    def _get_tf_feature_dicts(
+        self, obs_keys: List[str], act_keys: List[str], step_keys: List[str]
+    ) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
+        """
+        Get the tensorflow feature dictionaries.
+        """
+        observation_tf_dict = {}
+        action_tf_dict = {}
+        step_tf_dict = {}
+
+        for k in obs_keys:
+            observation_tf_dict[k] = self.features[k].to_tf_feature_type()
+
+        for k in act_keys:
+            action_tf_dict[k] = self.features[k].to_tf_feature_type()
+
+        for k in step_keys:
+            step_tf_dict[k] = self.features[k].to_tf_feature_type()
+
+        return observation_tf_dict, action_tf_dict, step_tf_dict
+    
     def export(self, export_path: str, format: str, max_episodes_per_file: int = 1000,version: str = "0.0.1", ) -> None:
         """
         Export the dataset.
@@ -66,11 +88,18 @@ class Dataset:
             import tensorflow_datasets as tfds
             from fog_rtx.rlds.writer import CloudBackendWriter
 
+            obs_keys = []
+            act_keys = []
+            step_keys = ["reward"]
             (
                 observation_tf_dict,
                 action_tf_dict,
                 step_tf_dict,
-            ) = dict(), dict(), dict()
+            ) = self._get_tf_feature_dicts(
+                obs_keys, 
+                act_keys,
+                step_keys,
+            )
             # generate tensorflow configuration file 
             ds_config = tfds.rlds.rlds_base.DatasetConfig(
                 name=self.name,
@@ -84,8 +113,8 @@ class Dataset:
                 observation_info=observation_tf_dict,
                 action_info=action_tf_dict,
                 reward_info=step_tf_dict["reward"],
-                discount_info=step_tf_dict["discount"],
-            ).get_rlds_dataset_config()
+                # discount_info=step_tf_dict["discount"],
+            )
 
             ds_identity = tfds.core.dataset_info.DatasetIdentity(
                 name=ds_config.name,
@@ -101,7 +130,7 @@ class Dataset:
             )
             
             # export the dataset
-            episodes = self.db_manager.get_episodes_from_metadata()
+            episodes = self.get_episodes_from_metadata()
             for episode in episodes:
                 for step in episode:
                     writer.add_step(step)

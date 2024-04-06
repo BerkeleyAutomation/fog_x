@@ -59,8 +59,10 @@ from collections import ChainMap
 
 DatasetConfig = tfds.rlds.rlds_base.DatasetConfig
 
-import logging 
+import logging
+
 logger = logging.getLogger(__name__)
+
 
 @dataclasses.dataclass
 class Episode(object):
@@ -95,28 +97,31 @@ class CloudBackendWriter(backend_writer.BackendWriter):
         data_directory: str,
         ds_config: tfds.rlds.rlds_base.DatasetConfig,
         ds_identity: tfds.core.dataset_info.DatasetIdentity,
-        metadata: Optional[Dict[str, Any]],
         max_episodes_per_file: int = 1000,
         split_name: Optional[str] = None,
-        
-        **base_kwargs,
+        version: str = "0.0.1",
+        store_ds_metadata: bool = False,
+        **base_kwargs
     ):
         """Constructor.
 
         Args:
-            data_directory: Directory to store the data
-            ds_config: Dataset Configuration.
-            max_episodes_per_file: Number of episodes to store per shard.
-            split_name: Name to be used by the split. If None, 'train' will be used.
-            version: version (major.minor.patch) of the dataset.
-            store_ds_metadata: if False, it won't store the dataset level
-                metadata.
-            **base_kwargs: arguments for the base class.
+          data_directory: Directory to store the data
+          ds_config: Dataset Configuration.
+          max_episodes_per_file: Number of episodes to store per shard.
+          split_name: Name to be used by the split. If None, 'train' will be used.
+          version: version (major.minor.patch) of the dataset.
+          store_ds_metadata: if False, it won't store the dataset level
+            metadata.
+          **base_kwargs: arguments for the base class.
         """
         super().__init__(**base_kwargs)
         if not split_name:
             split_name = "train"
-
+        if store_ds_metadata:
+            metadata = self._metadata
+        else:
+            metadata = None
         self._data_directory = data_directory
         self._ds_info = tfds.rlds.rlds_base.build_info(ds_config, ds_identity, metadata)
         self._ds_info.set_file_format("tfrecord")
@@ -128,33 +133,13 @@ class CloudBackendWriter(backend_writer.BackendWriter):
         )
         self._split_name = split_name
         self._sequential_writer.initialize_splits([split_name])
-        self.logger = logger
-        self.logger.info(f"self._data_directory: {self._data_directory}")
-
-
-        self.metadata = {"episode_id": 1, "episode_metadata": 2, "description": "test"}
-
-    def _gather_episode_metadata(self) -> Dict[str, Any]:
-        """Gathers episode metadata"""
-        # metadata = ChainMap(self._metadata, self._current_episode.metadata)
-        # if data.episode_metadata is not None:
-        #     metadata.update(data.episode_metadata)
-        # if data.episode_id is not None:
-        #     metadata["episode_id"] = data.episode_id
-        self.metadata["episode_id"] += 1
-        self.metadata["episode_metadata"] += 1
-        # self.logger.info(f"{self._ds_info}")
-
-        return self.metadata
+        logging.info("self._data_directory: %r", self._data_directory)
 
     def _write_and_reset_episode(self):
         if self._current_episode is not None:
             self._sequential_writer.add_examples(
                 {self._split_name: [self._current_episode.get_rlds_episode()]}
             )
-            self.episode_metadata = self._gather_episode_metadata()
-            if self._metadata_database is not None:
-                self._metadata_database.insert([self.episode_metadata])
             self._current_episode = None
 
     def _record_step(self, data: step_data.StepData, is_new_episode: bool) -> None:
@@ -172,14 +157,9 @@ class CloudBackendWriter(backend_writer.BackendWriter):
         self._current_episode.metadata = data
 
     def close(self) -> None:
-        self.logger.info(f"Deleting the backend with data_dir: {self._data_directory}")
+        logging.info("Deleting the backend with data_dir: %r", self._data_directory)
         self._write_and_reset_episode()
-        try:
-            self._sequential_writer.close_all()
-        except:
-            self.logger.info(
-                f"(Known issue) Error deleting the backend with data_dir when calling destructor"
-            )
-        self.logger.info(
-            f"Done deleting the backend with data_dir: {self._data_directory}"
+        self._sequential_writer.close_all()
+        logging.info(
+            "Done deleting the backend with data_dir: %r", self._data_directory
         )
