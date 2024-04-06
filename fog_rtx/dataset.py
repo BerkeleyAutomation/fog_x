@@ -126,7 +126,7 @@ class Dataset:
             episodes.append(self.db_manager.get_episode_table(episode_id))
         return episodes
 
-    def pytorch_dataset_builder(self, **kwargs):
+    def pytorch_dataset_builder(self, metadata = None, **kwargs):
         import torch
         from torch.utils.data import Dataset
 
@@ -159,10 +159,56 @@ class Dataset:
                 return episode
 
         # Assume we use get_metadata_as_pandas_df to retrieve episodes metadata
-        metadata_df = self.get_metadata_as_pandas_df()
+        if metadata is None:
+            metadata_df = self.get_metadata_as_pandas_df()
+        else:
+            metadata_df = metadata
         episodes = self.read_by(metadata_df)
 
         # Initialize the PyTorch dataset with the episodes and features
         pytorch_dataset = PyTorchDataset(episodes, self.features)
 
         return pytorch_dataset
+
+
+
+    def tensorflow_dataset_builder(self, metadata = None, batch_size=32, shuffle_buffer_size=None, **kwargs):
+        # TODO: doesn't work yet
+        """
+        Build a TensorFlow dataset.
+
+        :param batch_size: The size of the batches of data.
+        :param shuffle_buffer_size: The buffer size for shuffling the data. If None, no shuffling will be performed.
+        :param kwargs: Additional arguments for TensorFlow data transformations.
+        :return: A tf.data.Dataset object.
+        """
+        import tensorflow as tf
+
+        if metadata is None:
+            metadata_df = self.get_metadata_as_pandas_df()
+        else:
+            metadata_df = metadata
+
+        episodes = self.read_by(metadata_df)
+        print(episodes)
+        # Convert data into tensors
+        # Assuming episodes_data is a list of numpy arrays or a similar format that can be directly converted to tensors.
+        # This might require additional processing depending on the data format and the features.
+        episodes_tensors = [tf.convert_to_tensor(episode.drop(columns = ["Timestamp", "index"])) for episode in episodes]
+
+        # Create a tf.data.Dataset from tensors
+        dataset = tf.data.Dataset.from_tensor_slices(episodes_tensors)
+
+        # Shuffle the dataset if shuffle_buffer_size is provided
+        if shuffle_buffer_size:
+            dataset = dataset.shuffle(buffer_size=shuffle_buffer_size)
+
+        # Batch the dataset
+        dataset = dataset.batch(batch_size)
+
+        # Apply any additional transformations provided in kwargs
+        for transformation, parameters in kwargs.items():
+            if hasattr(dataset, transformation):
+                dataset = getattr(dataset, transformation)(**parameters)
+
+        return dataset
