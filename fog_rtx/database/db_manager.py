@@ -29,6 +29,15 @@ class DatabaseManager:
         logger.info(f"Tables in database: {tables}")
         if tables and dataset_name in tables:
             logger.info("Database is not empty and already initialized")
+            # get features from the table and update the features
+            metadata = self.get_metadata_table()
+            for _, row in metadata.iterrows():
+                feature_type = FeatureType(
+                    dtype=row["Type"], shape=row["Shape"]
+                )
+                self.features[row["Feature"]] = feature_type
+            logger.info(f"Loaded Features: {self.features} with type {feature_type}")
+
         else:
             self.db_connector.create_table(
                 dataset_name,
@@ -53,8 +62,8 @@ class DatabaseManager:
         )
 
         # create tables for each feature
-        for feature_name in self.features.keys():
-            self._initialize_feature(feature_name)
+        for feature_name, feature_type in self.features.items():
+            self._initialize_feature(feature_name, feature_type)
 
         return self.current_episode_id
 
@@ -69,12 +78,7 @@ class DatabaseManager:
             logger.warning(
                 f"Feature {feature_name} not in the list of features"
             )
-            self._initialize_feature(feature_name)
-            if feature_type is None:
-                logger.error(f"Feature type not provided for {feature_name}")
-                self.features[feature_name] = FeatureType()
-            else:
-                self.features[feature_name] = feature_type
+            self._initialize_feature(feature_name, feature_type)
 
         # insert data into the table
         self.db_connector.insert_data(
@@ -123,13 +127,31 @@ class DatabaseManager:
             format=format,
         )
 
-    def _initialize_feature(self, feature_name: str):
+    def _initialize_feature(self, feature_name: str, feature_type: Optional[FeatureType]):
         # create a table for the feature
         # TODO: need to make the timestamp type as TIMESTAMPTZ
         self.db_connector.create_table(
             self._get_feature_table_name(feature_name),
             {"Timestamp": Integer, feature_name: String},
         )
+        if feature_type is None:
+            logger.error(f"Feature type not provided for {feature_name}")
+            self.features[feature_name] = FeatureType()
+        else:
+            self.features[feature_name] = feature_type
+
+        # update dataset metadata with the feature information
+        self.db_connector.update_data(
+            table_name = self.dataset_name,
+            index = self.current_episode_id,
+            data = {
+                f"feature_{feature_name}_type": str(self.features[feature_name].dtype),
+                f"feature_{feature_name}_shape": str(self.features[feature_name].shape),
+            },
+            create_new_column_if_not_exist=True,
+            is_partial_data=True,
+        )
+
 
     def _get_feature_table_name(self, feature_name):
         if self.dataset_name is None:

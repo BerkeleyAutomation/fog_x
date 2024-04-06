@@ -83,10 +83,10 @@ class Dataset:
                 },
                 observation_info=observation_tf_dict,
                 action_info=action_tf_dict,
-                reward_info=step_tf_dict["/reward"],
-                discount_info=step_tf_dict["/discount"],
+                reward_info=step_tf_dict["reward"],
+                discount_info=step_tf_dict["discount"],
             ).get_rlds_dataset_config()
-            
+
             ds_identity = tfds.core.dataset_info.DatasetIdentity(
                 name=ds_config.name,
                 version=tfds.core.Version(version),
@@ -139,6 +139,9 @@ class Dataset:
 
         b = tfds.builder_from_directory(builder_dir=dataset2path(name))
         ds = b.as_dataset(split=split)
+
+        data_type = b.info.features["steps"]
+
         for tf_episode in ds:
             logger.info(tf_episode)
             fog_epsiode = self.new_episode(
@@ -151,13 +154,13 @@ class Dataset:
                             fog_epsiode.add(
                                 feature=str(k2),
                                 value=str(v2.numpy()),
-                                feature_type=FeatureType(dtype="float64"),
+                                feature_type=FeatureType().from_tf_feature_type(data_type[k][k2]),
                             )
                     else:
                         fog_epsiode.add(
                             feature=str(k),
                             value=str(v.numpy()),
-                            feature_type=FeatureType(dtype="float64"),
+                            feature_type=FeatureType().from_tf_feature_type(data_type[k]),
                         )
             fog_epsiode.close()
 
