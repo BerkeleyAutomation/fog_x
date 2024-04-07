@@ -163,6 +163,7 @@ class DatabaseManager:
         # TODO: need to make the timestamp type as TIMESTAMPTZ
         self.db_connector.create_table(
             self._get_feature_table_name(feature_name),
+            as_lazy_frame = True,
         )
         # {"Timestamp": "int64", feature_name: feature_type.to_sql_type()}
 

@@ -15,24 +15,34 @@ class PolarsConnector:
         self.tables = (
             {}
         )  # This will store table names as keys and DataFrames as values
+        self.table_len = {}
 
     def close(self):
         # No connection to close in Polars, but we could clear the tables dictionary
         for table_name in self.tables.keys():
-            self.tables[table_name].write_parquet(
-                f"{self.path}/{table_name}.parquet"
-            )
+            if isinstance(self.tables[table_name], pl.LazyFrame):
+                # self.tables[table_name].show_graph(output_path="./plot.png")
+                self.tables[table_name].collect().write_parquet(
+                    f"{self.path}/{table_name}.parquet"
+                )
+            else:
+                self.tables[table_name].write_parquet(
+                    f"{self.path}/{table_name}.parquet"
+                )
 
     def list_tables(self):
         # Listing available DataFrame tables
         return list(self.tables.keys())
 
-    def create_table(self, table_name: str):
+    def create_table(self, table_name: str, as_lazy_frame: bool = False):
         # Create a new DataFrame with specified columns
         # schema = {column_name: _datasets_dtype_to_arrow(column_type) for column_name, column_type in columns.items()}
         self.tables[table_name] = pl.DataFrame()
+        if as_lazy_frame:
+            self.tables[table_name] = self.tables[table_name].lazy()
         logger.info(f"Table {table_name} created with Polars.")
         logger.info(f"writing to {self.path}/{table_name}.parquet")
+        self.table_len[table_name] = 0 # no entries yet
 
     def add_column(self, table_name: str, column_name: str, column_type):
         if column_name in self.tables[table_name].columns:
@@ -47,7 +57,7 @@ class PolarsConnector:
             # self.tables[table_name] = self.tables[table_name].with_columns(pl.lit(None).alias(column_name).cast(arrow_type))
             self.tables[table_name] = self.tables[table_name].with_columns(
                 pl.Series(
-                    column_name, [None] * len(self.tables[table_name])
+                    column_name, [None] * self.table_len[table_name]
                 ).cast(arrow_type)
             )
             logger.info(f"Column {column_name} added to table {table_name}.")
@@ -61,13 +71,16 @@ class PolarsConnector:
             new_row = pl.DataFrame(
                 [data], schema=self.tables[table_name].schema
             )
-            index_of_new_row = len(self.tables[table_name])
+            
+            index_of_new_row = self.table_len[table_name]
             logger.debug(
                 f"Inserting data into {table_name}: {data} with {new_row} to table {self.tables[table_name]}"
             )
             self.tables[table_name] = pl.concat(
                 [self.tables[table_name], new_row], how="align"
             )
+
+            self.table_len[table_name] += 1 
 
             return index_of_new_row  # Return the index of the inserted row
         else:
