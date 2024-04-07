@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from fog_rtx.database import DatabaseConnector, DatabaseManager
+from fog_rtx.database import DatabaseConnector, DatabaseManager, PolarsConnector
 from fog_rtx.episode import Episode
 from fog_rtx.feature import FeatureType
 
@@ -34,7 +34,7 @@ class Dataset:
         self.features = features
         self.enable_feature_inferrence = enable_feature_inferrence
         if db_connector is None:
-            db_connector = DatabaseConnector(f"{path}/rtx.db")
+            db_connector = PolarsConnector(f"{path}/")
         self.db_manager = DatabaseManager(db_connector)
         self.db_manager.initialize_dataset(self.name, features)
 
