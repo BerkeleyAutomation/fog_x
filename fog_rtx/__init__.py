@@ -4,8 +4,9 @@ __root_dir__ = os.path.dirname(os.path.abspath(__file__))
 
 
 from fog_rtx import dataset, episode, feature
+from fog_rtx.dataset import Dataset
 
-all = ["dataset", "feature", "episode"]
+all = ["dataset", "feature", "episode", "Dataset"]
 
 import logging
 

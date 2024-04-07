@@ -1,10 +1,15 @@
 import io
 import logging
+import os
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from fog_rtx.database import DatabaseConnector, DatabaseManager, PolarsConnector
+from fog_rtx.database import (
+    DatabaseConnector,
+    DatabaseManager,
+    PolarsConnector,
+)
 from fog_rtx.episode import Episode
 from fog_rtx.feature import FeatureType
 
@@ -30,6 +35,10 @@ class Dataset:
     ) -> None:
         self.name = name
         self.path = path
+        # create the folder if path doesn't exist
+        if not os.path.exists(path):
+            os.makedirs(path)
+
         self.replace_existing = replace_existing
         self.features = features
         self.enable_feature_inferrence = enable_feature_inferrence
@@ -91,6 +100,9 @@ class Dataset:
         format: str,
         max_episodes_per_file: int = 1,
         version: str = "0.0.1",
+        obs_keys=[],
+        act_keys=[],
+        step_keys=[],
     ) -> None:
         """
         Export the dataset.
@@ -109,10 +121,16 @@ class Dataset:
                 action_tf_dict,
                 step_tf_dict,
             ) = self._get_tf_feature_dicts(
-                self.obs_keys,
-                self.act_keys,
-                self.step_keys,
+                self.obs_keys + obs_keys,
+                self.act_keys + act_keys,
+                self.step_keys + step_keys,
             )
+
+            logger.info("Exporting dataset as RT-X format")
+            logger.info(f"Observation keys: {observation_tf_dict}")
+            logger.info(f"Action keys: {action_tf_dict}")
+            logger.info(f"Step keys: {step_tf_dict}")
+
             # generate tensorflow configuration file
             ds_config = tfds.rlds.rlds_base.DatasetConfig(
                 name=self.name,
@@ -125,7 +143,11 @@ class Dataset:
                 },
                 observation_info=observation_tf_dict,
                 action_info=action_tf_dict,
-                reward_info=step_tf_dict["reward"],
+                reward_info=(
+                    step_tf_dict["reward"]
+                    if "reward" in step_tf_dict
+                    else Tensor(shape=(), dtype=tf.float32)
+                ),
                 discount_info=(
                     step_tf_dict["discount"]
                     if "discount" in step_tf_dict
@@ -154,6 +176,7 @@ class Dataset:
                     actiond = {}
                     stepd = {}
                     for k, v in step.items():
+                        logger.info(f"key: {k}")
                         if k not in self.features:
                             logger.info(
                                 f"Feature {k} not found in the dataset features."
@@ -182,12 +205,18 @@ class Dataset:
                         else:
                             value = v
 
-                        if k in self.obs_keys:
+                        if k in obs_keys:
                             observationd[k] = value
-                        elif k in self.act_keys:
+                        elif k in act_keys:
                             actiond[k] = value
                         else:
                             stepd[k] = value
+
+                    logger.info(
+                        f"Step: {stepd}"
+                        f"Observation: {observationd}"
+                        f"Action: {actiond}"
+                    )
                     timestep = dm_env.TimeStep(
                         step_type=dm_env.StepType.FIRST,
                         reward=np.float32(

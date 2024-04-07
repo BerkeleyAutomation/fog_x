@@ -4,6 +4,7 @@
 2. storage implementation
 4. loading from the existing stored data
 5. efficient image storage 
+6. compare with standard tfds on loading and storage
 
 ### known bugs 
 1. when creating a new dataset, the first entry is null 

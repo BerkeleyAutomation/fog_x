@@ -103,7 +103,8 @@ class PolarsConnector:
                 )
             logger.info("Tables merged on Timestamp.")
         else:
-            logger.error("Need at least two tables to merge.")
+            merged_df = self.tables[tables[0]]
+            logger.info("Only one table to merge.")
         self.tables[output_table] = merged_df
 
     def select_table(self, table_name: str):

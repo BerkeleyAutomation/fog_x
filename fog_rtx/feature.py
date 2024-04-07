@@ -34,6 +34,7 @@ SUPPORTED_DTYPES = [
     "binary",
     "large_binary",
     "string",
+    "str",
     "large_string",
 ]
 
@@ -51,11 +52,6 @@ class FeatureType:
         data=None,
     ) -> None:
         # scalar: (), vector: (n,), matrix: (n,m)
-
-        # if self.dtype == "double":  # fix inferred type
-        #     self.dtype = "float64"
-        # if self.dtype == "float":  # fix inferred type
-        #     self.dtype = "float32"
         if data is not None:
             self.from_data(data)
         elif tf_feature_spec is not None:
@@ -72,6 +68,10 @@ class FeatureType:
         return self.__str__()
 
     def _set(self, dtype: str, shape: Any):
+        if dtype == "double":  # fix inferred type
+            dtype = "float64"
+        if dtype == "float":  # fix inferred type
+            dtype = "float32"
         if dtype not in SUPPORTED_DTYPES:
             raise ValueError(f"Unsupported dtype: {dtype}")
         if shape is not None and not isinstance(shape, tuple):
@@ -125,7 +125,7 @@ class FeatureType:
         else:
             dtype = type(data).__name__
             shape = ()
-            self._set(dtype.name, shape)
+            self._set(dtype, shape)
         return self
 
     def to_tf_feature_type(self):
@@ -154,6 +154,7 @@ class FeatureType:
             "float32": tf.float32,
             "float64": tf.float64,
             "string": tf.string,
+            "str": tf.string,
             "bool": tf.bool,
         }
         tf_detype = str_dtype_to_tf_dtype[self.dtype]
