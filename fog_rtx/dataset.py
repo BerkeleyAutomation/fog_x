@@ -76,12 +76,6 @@ class Dataset:
             db_manager=self.db_manager,
         )
 
-    def query(self, query: str) -> List[Episode]:
-        """
-        Query the dataset.
-        """
-        return self.db_manager.query(query)
-
     def _get_tf_feature_dicts(
         self, obs_keys: List[str], act_keys: List[str], step_keys: List[str]
     ) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, Any]]:
@@ -245,12 +239,6 @@ class Dataset:
         else:
             raise ValueError("Unsupported export format")
 
-    def get_episode_info(self):
-        """
-        Return the metadata as pandas dataframe.
-        """
-        return self.db_manager.get_episode_info_table()
-
     def load_rtx_episodes(
         self,
         name: str,
@@ -324,6 +312,13 @@ class Dataset:
                         )
                         self.step_keys.append(k)
             fog_epsiode.close()
+
+    def get_episode_info(self):
+        """
+        Return the metadata as pandas dataframe.
+        """
+        return self.db_manager.get_episode_info_table()
+
 
     def read_by(self, episode_info: Any = None):
         episode_ids = list(episode_info["episode_id"])
