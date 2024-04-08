@@ -187,7 +187,9 @@ class Dataset:
             # export the dataset
             episodes = self.get_episodes_from_metadata()
             for episode in episodes:
-                for step in episode.collect().rows(named=True):
+                steps = episode.collect().rows(named=True)
+                for i in range(len(steps)):
+                    step = steps[i]
                     observationd = {}
                     actiond = {}
                     stepd = {}
@@ -247,7 +249,10 @@ class Dataset:
                     stepdata = step_data.StepData(
                         timestep=timestep, action=actiond, custom_data=None
                     )
-                    writer._record_step(stepdata, is_new_episode=True)
+                    if i < len(steps) - 1:
+                        writer._record_step(stepdata, is_new_episode=False)
+                    else:
+                        writer._record_step(stepdata, is_new_episode=True)
 
             pass
         else:

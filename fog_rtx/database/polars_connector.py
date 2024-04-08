@@ -161,6 +161,11 @@ class LazyFrameConnector(PolarsConnector):
         )
 
     def load_tables(self, episode_ids: List[str], table_names: List[str]):
+        # rescan the dataset
+        self.dataset = pl.scan_pyarrow_dataset(
+            ds.dataset(self.path, format="parquet")
+        )
+
         for table_name, episode_id in zip(table_names, episode_ids):
             self.tables[table_name] = self.dataset.filter(
                 pl.col("episode_id") == episode_id
