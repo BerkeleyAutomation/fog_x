@@ -3,20 +3,20 @@
 [![codecov](https://codecov.io/gh/KeplerC/fog_rtx/branch/main/graph/badge.svg?token=fog_rtx_token_here)](https://codecov.io/gh/KeplerC/fog_rtx)
 [![CI](https://github.com/KeplerC/fog_rtx/actions/workflows/main.yml/badge.svg)](https://github.com/KeplerC/fog_rtx/actions/workflows/main.yml)
 
-🦊Fog-X: An Efficient and Scalable Data Collection and Management Framework For Robotics Learning. Support Open-X-Embodiment, HuggingFace. 
+🦊Fog-X: An Efficient and Scalable Data Collection and Management Framework For Robotics Learning. Support [Open-X-Embodiment](https://robotics-transformer-x.github.io/), [HuggingFace](https://huggingface.co/)🤗. 
 
-🦊Fog-X considers memory efficiency and speed by working with a trajectory-level metadata and a lazily-loaded dataset. Implemented on [Apache Pyarrows](https://arrow.apache.org/docs/python/index.html) dataset, it allows flexible partitioning of the dataset on distributed storage. 
+🦊Fog-X considers both speed🚀 and memory efficiency📈 with active metadata and lazily-loaded trajectory data. 🦊 supports flexible and distributed partitioning of the dataset. 
 
 ## Install 
 
 ```bash
-pip install fog_rtx
+pip install fogx
 ```
 
 ## Usage
 
 ```py
-import fog_rtx as fox 
+import fogx as fox 
 
 # 🦊 Dataset Creation 
 # from distributed dataset storage 

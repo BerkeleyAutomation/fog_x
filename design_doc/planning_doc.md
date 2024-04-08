@@ -12,7 +12,9 @@
 ### Big Steps 
 1. asynchonous writing, test with multiple processes & episodes 
 2. querying language and pulling optimization
-3. time sync join policy 
+3. time sync join policy (FPS-based)
 5. handling streaming with a builder pattern (?)
 7. ROS / ROS2 
 8. recompaction to save space 
+9. CLI
+10. hugging face
