@@ -112,7 +112,9 @@ class DatabaseManager:
         # insert data into the table
         self.db_connector.insert_data(
             self._get_feature_table_name(feature_name),
-            {"Timestamp": timestamp, feature_name: value},
+            {"episode_id": self.current_episode_id,
+             "Timestamp": timestamp, 
+             feature_name: value},
         )
 
     def compact(self):
@@ -167,6 +169,11 @@ class DatabaseManager:
         )
         # {"Timestamp": "int64", feature_name: feature_type.to_sql_type()}
 
+        self.db_connector.add_column(
+            self._get_feature_table_name(feature_name),
+            "episode_id",
+            "int64",
+        )
         self.db_connector.add_column(
             self._get_feature_table_name(feature_name),
             "Timestamp",

@@ -112,7 +112,7 @@ class PolarsConnector:
             )
             for table_name in tables[2:]:
                 merged_df = merged_df.join_asof(
-                    self.tables[table_name], on="Timestamp", strategy="nearest"
+                    self.tables[table_name].drop("episode_id"), on="Timestamp", strategy="nearest"
                 )
             logger.info("Tables merged on Timestamp.")
         else:
