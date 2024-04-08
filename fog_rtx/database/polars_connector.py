@@ -21,13 +21,18 @@ class PolarsConnector:
 
     def close(self):
         # No connection to close in Polars, but we could clear the tables dictionary
-        for table_name in self.tables.keys():
-            table = self.tables[table_name].to_arrow()
-            pq.write_to_dataset(table, root_path=self.path)
+        # self.save_all()
+        pass 
 
     def list_tables(self):
         # Listing available DataFrame tables
         return list(self.tables.keys())
+
+    def save_tables(self, tables: List[str]):        
+        for table_name in tables:
+            table = self.tables[table_name].to_arrow()
+            pq.write_to_dataset(table, root_path=self.path)
+
 
     def create_table(self, table_name: str, as_lazy_frame: bool = False):
         # Create a new DataFrame with specified columns

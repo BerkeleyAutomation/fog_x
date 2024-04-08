@@ -226,4 +226,7 @@ class DatabaseManager:
 
     def close(self):
         self.compact()
+        self.db_connector.save_tables(
+            [f"{self.dataset_name}_{self.current_episode_id}_compacted"],
+        )
         self.db_connector.close()

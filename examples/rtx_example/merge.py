@@ -2,7 +2,7 @@ import fog_rtx
 
 dataset = fog_rtx.dataset.Dataset(
     name="demo_ds",
-    path="/tmp",
+    path="~/test_dataset",
 )
 
 dataset.load_rtx_episodes(
