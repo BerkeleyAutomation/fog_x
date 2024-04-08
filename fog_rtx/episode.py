@@ -19,7 +19,7 @@ class Episode:
         self.features = features
         self.enable_feature_inferrence = enable_feature_inferrence
         self.db_manager = db_manager
-        self.db_manager.initialize_episode(metadata=metadata)
+        self.db_manager.initialize_episode(additional_metadata=metadata)
 
     def add(
         self,

@@ -20,7 +20,8 @@ class DatabaseManager:
         self.dataset_name: Optional[str] = None
         self.current_episode_id: Optional[int] = None
         self.features: Dict[str, FeatureType] = {}
-        self.current_episode_id = 0
+        self.current_episode_id = -1
+        self.episode_metadata = {}
 
     def initialize_dataset(
         self, dataset_name: str, features: Dict[str, FeatureType]
@@ -36,6 +37,7 @@ class DatabaseManager:
         episode_info_table = self.get_episode_info_table()
         logger.info(f"Episode Info Table: {episode_info_table}")
         if episode_info_table is not None:
+            self.current_episode_id = len(episode_info_table)
             for row in episode_info_table.iter_rows(named=True):
                 if None in row.values():
                     continue 
@@ -76,24 +78,27 @@ class DatabaseManager:
                 "Compacted",
                 "bool",
             )
+            self.current_episode_id = 0
             logger.info("Database initialized")
 
     def initialize_episode(
         self,
-        metadata: Optional[Dict[str, Any]] = None,
+        additional_metadata: Optional[Dict[str, Any]] = None,
     ) -> int:
         if self.dataset_name is None:
             raise ValueError("Dataset not initialized")
-        if metadata is None:
-            metadata = {}
+        if additional_metadata is None:
+            additional_metadata = {}
+        for key, value in additional_metadata.items():
+            self.episode_metadata[key] = value
+
+
+        self.episode_metadata["episode_id"] = self.current_episode_id
+        self.episode_metadata["Finished"] = False
         logger.info(
-            f"Initializing episode for dataset {self.dataset_name} with metadata {metadata}"
+            f"Initializing episode for dataset {self.dataset_name} with metadata {self.episode_metadata}"
         )
-
-        metadata["episode_id"] = self.current_episode_id
-        metadata["Compacted"] = False
-
-        for metadata_key in metadata.keys():
+        for metadata_key in self.episode_metadata.keys():
             logger.info(f"Adding metadata key {metadata_key} to the database")
             self.episode_info_connector.add_column(
                 self.dataset_name,
@@ -102,10 +107,10 @@ class DatabaseManager:
             )
 
         # insert episode information to the database
-        self.current_episode_id = self.episode_info_connector.insert_data(
+        self.episode_info_connector.insert_data(
             self.dataset_name,
-            metadata,
-        )
+            self.episode_metadata,
+        ) 
 
         # create tables for each feature
         for feature_name, feature_type in self.features.items():
@@ -221,6 +226,7 @@ class DatabaseManager:
             self.current_episode_id,
             {"Compacted": True},
         )
+        
 
     # def get_table(
     #     self, table_name: Optional[str] = None, format: str = "pandas"
@@ -259,3 +265,4 @@ class DatabaseManager:
         self.episode_info_connector.save_tables(
             [f"{self.dataset_name}"],
         )
+        self.current_episode_id += 1

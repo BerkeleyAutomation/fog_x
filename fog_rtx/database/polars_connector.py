@@ -68,6 +68,7 @@ class PolarsConnector:
             self.tables[table_name] = pl.concat(
                 [self.tables[table_name], new_row], how="align"
             )
+            # logger.info(f"table is now {self.tables[table_name]}")
 
             self.table_len[table_name] += 1 
 
@@ -142,7 +143,6 @@ class LazyFrameConnector(PolarsConnector):
         super().__init__(path)
         self.tables = {}
         self.table_len = {}
-        self.dataset = ds.dataset(self.path).to_table()
 
     def load_tables(self):
         # Load all tables from the path
