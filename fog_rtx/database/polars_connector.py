@@ -1,10 +1,11 @@
 import logging
+import os
 from typing import List
-import pyarrow as pa
-import pyarrow.parquet as pq
-import pyarrow.dataset as ds
+
 import polars as pl
-import os 
+import pyarrow as pa
+import pyarrow.dataset as ds
+import pyarrow.parquet as pq
 
 from fog_rtx.database.utils import _datasets_dtype_to_pld
 
@@ -31,7 +32,7 @@ class PolarsConnector:
         if as_lazy_frame:
             self.tables[table_name] = self.tables[table_name].lazy()
         logger.info(f"Table {table_name} created with Polars.")
-        self.table_len[table_name] = 0 # no entries yet
+        self.table_len[table_name] = 0  # no entries yet
 
     def add_column(self, table_name: str, column_name: str, column_type):
         if column_name in self.tables[table_name].columns:
@@ -60,7 +61,7 @@ class PolarsConnector:
             new_row = pl.DataFrame(
                 [data], schema=self.tables[table_name].schema
             )
-            
+
             index_of_new_row = self.table_len[table_name]
             logger.debug(
                 f"Inserting data into {table_name}: {data} with {new_row} to table {self.tables[table_name]}"
@@ -70,7 +71,7 @@ class PolarsConnector:
             )
             # logger.info(f"table is now {self.tables[table_name]}")
 
-            self.table_len[table_name] += 1 
+            self.table_len[table_name] += 1
 
             return index_of_new_row  # Return the index of the inserted row
         else:
@@ -102,7 +103,9 @@ class PolarsConnector:
             )
             for table_name in tables[2:]:
                 merged_df = merged_df.join_asof(
-                    self.tables[table_name].drop("episode_id"), on="Timestamp", strategy="nearest"
+                    self.tables[table_name].drop("episode_id"),
+                    on="Timestamp",
+                    strategy="nearest",
                 )
             logger.info("Tables merged on Timestamp.")
         else:
@@ -115,15 +118,18 @@ class PolarsConnector:
         if table_name in self.tables:
             return self.tables[table_name]
         else:
-            logger.error(f"Table {table_name} does not exist.")
+            logger.error(
+                f"Table {table_name} does not exist, available tables are {self.tables.keys()}."
+            )
             return None
+
 
 class DataFrameConnector(PolarsConnector):
     def __init__(self, path: str):
         super().__init__(path)
         self.tables = {}
         self.table_len = {}
-    
+
     def load_tables(self, table_names: List[str]):
         # load tables from the path
         for table_name in table_names:
@@ -133,28 +139,41 @@ class DataFrameConnector(PolarsConnector):
                 self.table_len[table_name] = len(self.tables[table_name])
             else:
                 logger.info(f"Table {table_name} does not exist in {path}.")
-        
-    def save_tables(self, table_names: List[str]):      
+
+    def save_tables(self, table_names: List[str]):
         for table_name in table_names:
-            self.tables[table_name].write_parquet(f"{self.path}/{table_name}.parquet")
+            self.tables[table_name].write_parquet(
+                f"{self.path}/{table_name}.parquet"
+            )
+
 
 class LazyFrameConnector(PolarsConnector):
     def __init__(self, path: str):
         super().__init__(path)
         self.tables = {}
         self.table_len = {}
+        self.dataset = pl.scan_pyarrow_dataset(
+            ds.dataset(self.path, format="parquet")
+        )
 
-    def load_tables(self):
-        # Load all tables from the path
-        self.dataset = pl.scan_pyarrow_dataset(ds.dataset(self.path, format="parquet"))
-        self.tables = {table_name: self.dataset[table_name] for table_name in self.dataset.columns}
-        self.table_len = {table_name: len(self.tables[table_name]) for table_name in self.tables}
+    def load_tables(self, table_names: List[str], episode_ids: List[str]):
+        for table_name, episode_id in zip(table_names, episode_ids):
+            self.tables[table_name] = self.dataset.filter(
+                pl.col("episode_id") == episode_id
+            )
+            logger.info(f"Tables loaded from {self.tables}")
 
-    def save_tables(self, tables: List[str]):        
+    def save_tables(self, tables: List[str]):
         # for table_name in tables:
         #     table = self.tables[table_name].to_arrow()
         #     pq.write_to_dataset(table, root_path=self.path)
         dataset = [self.tables[tables[0]].to_arrow()]
         # dataset = [self.dataset.to_table(), ]
         basename_template = f"{tables[0]}-{{i}}.parquet"
-        ds.write_dataset(dataset, base_dir=self.path, basename_template=basename_template, format = "parquet", existing_data_behavior = 'overwrite_or_ignore')
+        ds.write_dataset(
+            dataset,
+            base_dir=self.path,
+            basename_template=basename_template,
+            format="parquet",
+            existing_data_behavior="overwrite_or_ignore",
+        )

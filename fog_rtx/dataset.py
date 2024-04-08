@@ -8,9 +8,9 @@ import numpy as np
 from fog_rtx.database import (
     DatabaseConnector,
     DatabaseManager,
-    PolarsConnector,
     DataFrameConnector,
     LazyFrameConnector,
+    PolarsConnector,
 )
 from fog_rtx.episode import Episode
 from fog_rtx.feature import FeatureType
@@ -32,14 +32,14 @@ class Dataset:
             str, FeatureType
         ] = {},  # features to be stored {name: FeatureType}
         enable_feature_inferrence=True,  # whether additional features can be inferred
-        episode_info_connector: DatabaseConnector = None, 
-        step_data_connector: DatabaseConnector = None, 
+        episode_info_connector: DatabaseConnector = None,
+        step_data_connector: DatabaseConnector = None,
         storage: Optional[str] = None,
     ) -> None:
         self.name = name
         path = os.path.expanduser(path)
         self.path = path
-        if path is None: 
+        if path is None:
             raise ValueError("Path is required")
         # create the folder if path doesn't exist
         if not os.path.exists(path):
@@ -52,10 +52,12 @@ class Dataset:
         if episode_info_connector is None:
             episode_info_connector = DataFrameConnector(f"{path}/")
         if step_data_connector is None:
-            if not os.path.exists(f"{path}/steps"):
-                os.makedirs(f"{path}/steps")
-            step_data_connector = LazyFrameConnector(f"{path}/steps")
-        self.db_manager = DatabaseManager(episode_info_connector, step_data_connector)
+            if not os.path.exists(f"{path}/{name}"):
+                os.makedirs(f"{path}/{name}")
+            step_data_connector = LazyFrameConnector(f"{path}/{name}")
+        self.db_manager = DatabaseManager(
+            episode_info_connector, step_data_connector
+        )
         self.db_manager.initialize_dataset(self.name, features)
 
         self.storage = storage
@@ -192,9 +194,10 @@ class Dataset:
                     for k, v in step.items():
                         # logger.info(f"key: {k}")
                         if k not in self.features:
-                            logger.info(
-                                f"Feature {k} not found in the dataset features."
-                            )
+                            if k != "episode_id" and k != "Timestamp":
+                                logger.info(
+                                    f"Feature {k} not found in the dataset features."
+                                )
                             continue
                         feature_spec = self.features[k].to_tf_feature_type()
                         if (
@@ -329,13 +332,12 @@ class Dataset:
         Return the metadata as pandas dataframe.
         """
         return self.db_manager.get_episode_info_table()
-    
+
     def get_step_data(self):
         """
         Return the metadata as pandas dataframe.
         """
         return self.db_manager.get_episode_info_table()
-
 
     def read_by(self, episode_info: Any = None):
         episode_ids = list(episode_info["episode_id"])

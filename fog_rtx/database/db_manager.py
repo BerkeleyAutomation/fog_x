@@ -1,9 +1,10 @@
 import logging
+from ast import literal_eval
 from typing import Any, Dict, List, Optional
 
 from fog_rtx.database.polars_connector import PolarsConnector
 from fog_rtx.feature import FeatureType
-from ast import literal_eval
+
 logger = logging.getLogger(__name__)
 
 
@@ -12,9 +13,12 @@ class DatabaseManager:
     DatabaseManager class for adding and querying data from the database
     """
 
-    def __init__(self, 
-                 episode_info_connector: PolarsConnector,
-                 step_data_connector: PolarsConnector):
+    def __init__(
+        self,
+        episode_info_connector: PolarsConnector,
+        step_data_connector: PolarsConnector,
+        required_stats: List[str] = ["count"],
+    ):
         self.episode_info_connector = episode_info_connector
         self.step_data_connector = step_data_connector
         self.dataset_name: Optional[str] = None
@@ -22,6 +26,7 @@ class DatabaseManager:
         self.features: Dict[str, FeatureType] = {}
         self.current_episode_id = -1
         self.episode_metadata = {}
+        self.required_stats = required_stats
 
     def initialize_dataset(
         self, dataset_name: str, features: Dict[str, FeatureType]
@@ -29,30 +34,42 @@ class DatabaseManager:
         self.dataset_name = dataset_name
         self.features = features
         self.episode_info_connector.load_tables([self.dataset_name])
-        # self.step_data_connector.load_tables()
 
-        # self.step_data_connector.load_tables()
         # tables = self.episode_info_connector.list_tables()
 
-        episode_info_table = None 
+        episode_info_table = None
         episode_info_table = self.get_episode_info_table()
+
         logger.info(f"Episode Info Table: {episode_info_table}")
         if episode_info_table is not None:
             self.current_episode_id = len(episode_info_table)
             for row in episode_info_table.iter_rows(named=True):
                 if None in row.values():
-                    continue 
+                    continue
                 for key, value in row.items():
                     if key.endswith("type"):
-                        feature_name = key.replace("feature_", "").replace("_type", "")
+                        feature_name = key.replace("feature_", "").replace(
+                            "_type", ""
+                        )
                         feature_type = FeatureType(
-                            dtype=value, shape=literal_eval(row[f"feature_{feature_name}_shape"])
+                            dtype=value,
+                            shape=literal_eval(
+                                row[f"feature_{feature_name}_shape"]
+                            ),
                         )
                         self.features[feature_name] = feature_type
                         logger.info(
                             f"Loaded Features: {feature_name} with type {feature_type}"
                         )
                 break
+
+            self.step_data_connector.load_tables(
+                [episode_id for episode_id in range(len(episode_info_table))],
+                [
+                    f"{self.dataset_name}_{episode_id}"
+                    for episode_id in range(len(episode_info_table))
+                ],
+            )
             # if tables and dataset_name in tables:
             #     logger.info("Database is not empty and already initialized")
             #     # get features from the table and update the features
@@ -76,7 +93,7 @@ class DatabaseManager:
             )
             self.episode_info_connector.add_column(
                 dataset_name,
-                "Compacted",
+                "Finished",
                 "bool",
             )
             self.current_episode_id = 0
@@ -92,7 +109,6 @@ class DatabaseManager:
             additional_metadata = {}
         for key, value in additional_metadata.items():
             self.episode_metadata[key] = value
-
 
         self.episode_metadata["episode_id"] = self.current_episode_id
         self.episode_metadata["Finished"] = False
@@ -111,14 +127,13 @@ class DatabaseManager:
         self.episode_info_connector.insert_data(
             self.dataset_name,
             self.episode_metadata,
-        ) 
+        )
 
         # create tables for each feature
         for feature_name, feature_type in self.features.items():
             self._initialize_feature(feature_name, feature_type)
 
         return self.current_episode_id
-
 
     def _initialize_feature(
         self, feature_name: str, feature_type: FeatureType
@@ -146,7 +161,7 @@ class DatabaseManager:
         self.step_data_connector.add_column(
             self._get_feature_table_name(feature_name),
             feature_name,
-            feature_type.to_pld_storage_type(),  
+            feature_type.to_pld_storage_type(),
         )
 
         if feature_type is None:
@@ -178,7 +193,12 @@ class DatabaseManager:
                 ),
             },
         )
-
+        for stat in self.required_stats:
+            self.episode_info_connector.add_column(
+                self.dataset_name,
+                f"{feature_name}_{stat}",
+                "float64",
+            )
 
     def add(
         self,
@@ -202,9 +222,11 @@ class DatabaseManager:
         # insert data into the table
         self.step_data_connector.insert_data(
             self._get_feature_table_name(feature_name),
-            {"episode_id": self.current_episode_id,
-             "Timestamp": timestamp, 
-             feature_name: value},
+            {
+                "episode_id": self.current_episode_id,
+                "Timestamp": timestamp,
+                feature_name: value,
+            },
         )
 
     def compact(self):
@@ -218,16 +240,8 @@ class DatabaseManager:
 
         self.step_data_connector.merge_tables_with_timestamp(
             table_names,
-            f"{self.dataset_name}_{self.current_episode_id}_compacted",
+            f"{self.dataset_name}_{self.current_episode_id}",
         )
-
-        # update the metadata field marking the episode as compacted
-        self.episode_info_connector.update_data(
-            self.dataset_name,
-            self.current_episode_id,
-            {"Compacted": True},
-        )
-        
 
     # def get_table(
     #     self, table_name: Optional[str] = None, format: str = "pandas"
@@ -245,7 +259,7 @@ class DatabaseManager:
         if episode_id is None:
             raise ValueError("Episode not initialized")
         return self.step_data_connector.select_table(
-            f"{self.dataset_name}_{episode_id}_compacted",
+            f"{self.dataset_name}_{episode_id}",
         )
 
     def _get_feature_table_name(self, feature_name):
@@ -260,8 +274,37 @@ class DatabaseManager:
 
     def close(self):
         self.compact()
+
+        update_dict = {"Finished": True}
+        compacted_table = self.step_data_connector.select_table(
+            f"{self.dataset_name}_{self.current_episode_id}"
+        )
+
+        for feature_name in self.features.keys():
+            if "count" in self.required_stats:
+                update_dict[f"{feature_name}_count"] = compacted_table[
+                    feature_name
+                ].count()
+            if "mean" in self.required_stats:
+                update_dict[f"{feature_name}_mean"] = compacted_table[
+                    feature_name
+                ].mean()
+            if "max" in self.required_stats:
+                update_dict[f"{feature_name}_max"] = compacted_table[
+                    feature_name
+                ].max()
+            if "min" in self.required_stats:
+                update_dict[f"{feature_name}_min"] = compacted_table[
+                    feature_name
+                ].min()
+
+        # update the metadata field marking the episode as compacted
+        self.episode_info_connector.update_data(
+            self.dataset_name, self.current_episode_id, update_dict
+        )
+
         self.step_data_connector.save_tables(
-            [f"{self.dataset_name}_{self.current_episode_id}_compacted"],
+            [f"{self.dataset_name}_{self.current_episode_id}"],
         )
         self.episode_info_connector.save_tables(
             [f"{self.dataset_name}"],
