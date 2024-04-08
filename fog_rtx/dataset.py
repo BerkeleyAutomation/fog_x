@@ -101,8 +101,8 @@ class Dataset:
 
     def export(
         self,
-        export_path: str,
-        format: str,
+        export_path: Optional[str] = None,
+        format: str = "rtx",
         max_episodes_per_file: int = 1,
         version: str = "0.0.1",
         obs_keys=[],
@@ -113,6 +113,11 @@ class Dataset:
         Export the dataset.
         """
         if format == "rtx":
+            if export_path == None:
+                export_path = self.path + "/export"
+            if not os.path.exists(export_path):
+                os.makedirs(export_path)
+
             import dm_env
             import tensorflow as tf
             import tensorflow_datasets as tfds
@@ -121,14 +126,18 @@ class Dataset:
 
             from fog_rtx.rlds.writer import CloudBackendWriter
 
+            self.obs_keys += obs_keys
+            self.act_keys += act_keys
+            self.step_keys += step_keys
+
             (
                 observation_tf_dict,
                 action_tf_dict,
                 step_tf_dict,
             ) = self._get_tf_feature_dicts(
-                self.obs_keys + obs_keys,
-                self.act_keys + act_keys,
-                self.step_keys + step_keys,
+                self.obs_keys,
+                self.act_keys,
+                self.step_keys,
             )
 
             logger.info("Exporting dataset as RT-X format")
@@ -181,7 +190,7 @@ class Dataset:
                     actiond = {}
                     stepd = {}
                     for k, v in step.items():
-                        logger.info(f"key: {k}")
+                        # logger.info(f"key: {k}")
                         if k not in self.features:
                             logger.info(
                                 f"Feature {k} not found in the dataset features."
@@ -210,18 +219,18 @@ class Dataset:
                         else:
                             value = v
 
-                        if k in obs_keys:
+                        if k in self.obs_keys:
                             observationd[k] = value
-                        elif k in act_keys:
+                        elif k in self.act_keys:
                             actiond[k] = value
                         else:
                             stepd[k] = value
 
-                    logger.info(
-                        f"Step: {stepd}"
-                        f"Observation: {observationd}"
-                        f"Action: {actiond}"
-                    )
+                    # logger.info(
+                    #     f"Step: {stepd}"
+                    #     f"Observation: {observationd}"
+                    #     f"Action: {actiond}"
+                    # )
                     timestep = dm_env.TimeStep(
                         step_type=dm_env.StepType.FIRST,
                         reward=np.float32(
@@ -320,6 +329,12 @@ class Dataset:
         Return the metadata as pandas dataframe.
         """
         return self.db_manager.get_episode_info_table()
+    
+    def get_step_data(self):
+        """
+        Return the metadata as pandas dataframe.
+        """
+        return self.db_manager.get_episode_info_table()
 
 
     def read_by(self, episode_info: Any = None):
@@ -335,7 +350,7 @@ class Dataset:
     def get_episodes_from_metadata(self, metadata: Any = None):
         # Assume we use get_metadata_as_pandas_df to retrieve episodes metadata
         if metadata is None:
-            metadata_df = self.get_metadata_as_pandas_df()
+            metadata_df = self.get_episode_info()
         else:
             metadata_df = metadata
         episodes = self.read_by(metadata_df)

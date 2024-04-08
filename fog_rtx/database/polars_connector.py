@@ -146,10 +146,9 @@ class LazyFrameConnector(PolarsConnector):
 
     def load_tables(self):
         # Load all tables from the path
-        self.dataset = pq.ParquetDataset(self.path)
-        # for table in dataset.tables:
-        #     self.tables[table.name] = table.to_polars()
-        #     self.table_len[table.name] = len(self.tables[table.name])
+        self.dataset = pl.scan_pyarrow_dataset(ds.dataset(self.path, format="parquet"))
+        self.tables = {table_name: self.dataset[table_name] for table_name in self.dataset.columns}
+        self.table_len = {table_name: len(self.tables[table_name]) for table_name in self.tables}
 
     def save_tables(self, tables: List[str]):        
         # for table_name in tables:

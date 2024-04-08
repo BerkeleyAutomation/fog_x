@@ -29,6 +29,7 @@ class DatabaseManager:
         self.dataset_name = dataset_name
         self.features = features
         self.episode_info_connector.load_tables([self.dataset_name])
+        # self.step_data_connector.load_tables()
 
         # self.step_data_connector.load_tables()
         # tables = self.episode_info_connector.list_tables()

@@ -2,13 +2,12 @@ import fog_rtx
 
 dataset = fog_rtx.dataset.Dataset(
     name="demo_ds",
-    path="/tmp",
-    db_connector=fog_rtx.database.PolarsConnector("/tmp/"),
+    path="~/test_dataset",
 )
 
 dataset.load_rtx_episodes(
     name="berkeley_autolab_ur5",
-    split="train[:1]",
+    split="train[:2]",
 )
 
-dataset.export("/tmp/rtx_export", format="rtx")
+dataset.export(format="rtx")
