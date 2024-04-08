@@ -1,15 +1,12 @@
 # TODOs 
 
 ### Small Steps 
-2. storage implementation
-4. loading from the existing stored data
 5. efficient image storage 
 6. compare with standard tfds on loading and storage
 
 ### known bugs 
-1. when creating a new dataset, the first entry is null 
-2. merging and loading from df lost the schema and original data types 
 3. sql part is completely broken 
+4. need to describe lazily loaded frames, more metadata fields 
 
 ### Big Steps 
 1. asynchonous writing, test with multiple processes & episodes 
