@@ -19,10 +19,10 @@ dataset.load_rtx_episodes(
 # dataset.num_episodes == 4
 
 # query the dataset
-metadata = dataset.get_metadata_as_pandas_df()
-print(metadata)
+episode_info = dataset.get_episode_info()
+print(episode_info)
 # only get the episodes with custom_tag == "Partition_1"
-metadata = metadata.filter(metadata["custom_tag"] == "Partition_1")
+metadata = episode_info.filter(episode_info["custom_tag"] == "Partition_1")
 episodes = dataset.read_by(metadata)
 
 # read the episodes

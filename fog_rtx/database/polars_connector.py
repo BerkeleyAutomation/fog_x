@@ -19,10 +19,13 @@ class PolarsConnector:
         )  # This will store table names as keys and DataFrames as values
         self.table_len = {}
 
-    def close(self):
-        # No connection to close in Polars, but we could clear the tables dictionary
-        # self.save_all()
-        pass 
+    def load_tables(self):
+        # Load all tables from the path
+        dataset = pq.ParquetDataset(self.path)
+        for table in dataset.tables:
+            self.tables[table.name] = table.to_polars()
+            self.table_len[table.name] = len(self.tables[table.name])
+        logger.info(f"Tables loaded from {self.path}.")
 
     def list_tables(self):
         # Listing available DataFrame tables
@@ -127,3 +130,15 @@ class PolarsConnector:
         else:
             logger.error(f"Table {table_name} does not exist.")
             return None
+
+class DataFrameConnector(PolarsConnector):
+    def __init__(self, path: str):
+        super().__init__(path)
+        self.tables = {}
+        self.table_len = {}
+    
+    def load_tables(self): 
+        pass
+
+class LazyConnector(PolarsConnector):
+    pass 

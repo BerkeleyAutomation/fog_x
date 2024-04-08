@@ -24,17 +24,20 @@ class Dataset:
     def __init__(
         self,
         name: str,
-        path: str,
+        path: str = None,
         replace_existing: bool = False,
         features: Dict[
             str, FeatureType
         ] = {},  # features to be stored {name: FeatureType}
         enable_feature_inferrence=True,  # whether additional features can be inferred
-        db_connector: Optional[DatabaseConnector] = None,
+        episode_connector: DatabaseConnector = None, 
+        step_connector: DatabaseConnector = None, 
         storage: Optional[str] = None,
     ) -> None:
         self.name = name
         self.path = path
+        if path is None: 
+            raise ValueError("Path is required")
         # create the folder if path doesn't exist
         if not os.path.exists(path):
             os.makedirs(path)
@@ -42,9 +45,14 @@ class Dataset:
         self.replace_existing = replace_existing
         self.features = features
         self.enable_feature_inferrence = enable_feature_inferrence
-        if db_connector is None:
-            db_connector = PolarsConnector(f"{path}/")
-        self.db_manager = DatabaseManager(db_connector)
+
+        if episode_connector is None:
+            episode_connector = PolarsConnector(f"{path}/")
+        if step_connector is None:
+            if not os.path.exists(f"{path}/steps"):
+                os.makedirs(f"{path}/steps")
+            step_connector = PolarsConnector(f"{path}/steps")
+        self.db_manager = DatabaseManager(episode_connector, step_connector)
         self.db_manager.initialize_dataset(self.name, features)
 
         self.storage = storage
@@ -236,17 +244,11 @@ class Dataset:
         else:
             raise ValueError("Unsupported export format")
 
-    def get_metadata_as_sql(self):
-        """
-        Return the metadata as SQL.
-        """
-        return self.db_manager.get_metadata_table("sql")
-
-    def get_metadata_as_pandas_df(self):
+    def get_episode_info(self):
         """
         Return the metadata as pandas dataframe.
         """
-        return self.db_manager.get_metadata_table("pandas")
+        return self.db_manager.get_episode_table()
 
     def load_rtx_episodes(
         self,
@@ -322,14 +324,14 @@ class Dataset:
                         self.step_keys.append(k)
             fog_epsiode.close()
 
-    def read_by(self, pandas_metadata: Any = None):
-        episode_ids = list(pandas_metadata["episode_id"])
+    def read_by(self, episode_info: Any = None):
+        episode_ids = list(episode_info["episode_id"])
         logger.info(f"Reading episodes as order: {episode_ids}")
         episodes = []
         for episode_id in episode_ids:
             if episode_id == None:
                 continue
-            episodes.append(self.db_manager.get_episode_table(episode_id))
+            episodes.append(self.db_manager.get_step_table(episode_id))
         return episodes
 
     def get_episodes_from_metadata(self, metadata: Any = None):
