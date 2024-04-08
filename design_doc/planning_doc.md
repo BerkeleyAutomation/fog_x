@@ -12,7 +12,6 @@
 1. asynchonous writing, test with multiple processes & episodes 
 2. querying language and pulling optimization
 3. time sync join policy 
-4. distributed storage (rocksdb?)
 5. handling streaming with a builder pattern (?)
 6. lazy loading
 7. ROS / ROS2 

@@ -1,4 +1,4 @@
-# fog_rtx
+# 🦊 fog_rtx
 
 [![codecov](https://codecov.io/gh/KeplerC/fog_rtx/branch/main/graph/badge.svg?token=fog_rtx_token_here)](https://codecov.io/gh/KeplerC/fog_rtx)
 [![CI](https://github.com/KeplerC/fog_rtx/actions/workflows/main.yml/badge.svg)](https://github.com/KeplerC/fog_rtx/actions/workflows/main.yml)
@@ -14,33 +14,40 @@ pip install fog_rtx
 ## Usage
 
 ```py
-import fog_rtx
+import fog_rtx as fox 
 
 # create a new dataset
-dataset = fog_rtx.dataset.Dataset(
+dataset = fox.Dataset(
     name="test_rtx", path="/tmp/rtx", 
 )  
 
+# Data collection: 
 # create a new episode / trajectory
 episode = dataset.new_episode(
     description = "grasp teddy bear from the shelf"
 )
 
-# populate the episode with FeatureTypes
+# collect step data for the episode
 episode.add(feature = "arm_view", value = "image1.jpg")
 episode.add(feature = "camera_pose", value = "image1.jpg")
 
 # mark the current state as terminal state 
-# and save the episode
 episode.close()
 
-# load the dataset
-episodes = dataset.query("SELECT *")
-for episode in episodes:
-    print(episode)
+# Alternatively, 
+# load from existing RT-X/Open-X datasets 
+dataset.load_rtx_episodes(
+    name="berkeley_autolab_ur5",
+    additional_metadata={"collector": "User 2"}
+)
 
-# export the dataset
-dataset.export("/tmp/rtx_export", format="rtx")
+# Data Analytics and management
+episode_info = dataset.get_episode_info()
+metadata = episode_info.filter(episode_info["collector"] == "User 2")
+episodes = dataset.read_by(metadata)
+
+# export and share the dataset as standard RT-X format
+dataset.export(episodes, format="rtx")
 ```
 
 ## Development
