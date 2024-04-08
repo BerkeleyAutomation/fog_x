@@ -18,3 +18,4 @@
 4. distributed storage (rocksdb?)
 5. handling streaming with a builder pattern (?)
 6. lazy loading
+7. ROS / ROS2 

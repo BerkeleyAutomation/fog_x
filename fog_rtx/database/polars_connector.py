@@ -1,5 +1,7 @@
 import logging
 from typing import List
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 import polars as pl
 
@@ -20,15 +22,8 @@ class PolarsConnector:
     def close(self):
         # No connection to close in Polars, but we could clear the tables dictionary
         for table_name in self.tables.keys():
-            if isinstance(self.tables[table_name], pl.LazyFrame):
-                # self.tables[table_name].show_graph(output_path="./plot.png")
-                self.tables[table_name].collect().write_parquet(
-                    f"{self.path}/{table_name}.parquet"
-                )
-            else:
-                self.tables[table_name].write_parquet(
-                    f"{self.path}/{table_name}.parquet"
-                )
+            table = self.tables[table_name].to_arrow()
+            pq.write_to_dataset(table, root_path=self.path)
 
     def list_tables(self):
         # Listing available DataFrame tables
