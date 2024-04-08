@@ -3,6 +3,7 @@
 ### Small Steps 
 5. efficient image storage 
 6. compare with standard tfds on loading and storage
+7. recover shema from save data
 
 ### known bugs 
 3. sql part is completely broken 

@@ -96,7 +96,7 @@ class CloudBackendWriter(backend_writer.BackendWriter):
         data_directory: str,
         ds_config: tfds.rlds.rlds_base.DatasetConfig,
         ds_identity: tfds.core.dataset_info.DatasetIdentity,
-        max_episodes_per_file: int = 1000,
+        max_episodes_per_file: int = 1,
         split_name: Optional[str] = None,
         version: str = "0.0.1",
         store_ds_metadata: bool = False,

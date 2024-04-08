@@ -3,7 +3,9 @@
 [![codecov](https://codecov.io/gh/KeplerC/fog_rtx/branch/main/graph/badge.svg?token=fog_rtx_token_here)](https://codecov.io/gh/KeplerC/fog_rtx)
 [![CI](https://github.com/KeplerC/fog_rtx/actions/workflows/main.yml/badge.svg)](https://github.com/KeplerC/fog_rtx/actions/workflows/main.yml)
 
-An Efficient and Scalable Data Collection and Management Framework For Robotics Learning. Support RT-X, HuggingFace. 
+An Efficient and Scalable Data Collection and Management Framework For Robotics Learning. Support Open-X-Embodiment, HuggingFace. 
+
+🦊fox considers memory efficiency and speed by working with a trajectory-level metadata and a lazily-loaded dataset. Implemented on [Apache Pyarrows](https://arrow.apache.org/docs/python/index.html) dataset, it allows flexible partitioning of the dataset on distributed storage. 
 
 ## Install 
 
@@ -19,10 +21,13 @@ import fog_rtx as fox
 # create a new dataset
 dataset = fox.Dataset(
     name="test_rtx", path="/tmp/rtx", 
+    # dataset is automatically partitioned, allowing 
+    # distributed storage on different directories and cloud
+    load_from = ["/tmp/rtx", "s3://fox_stroage/"]
 )  
 
 # Data collection: 
-# create a new episode / trajectory
+# create a new trajectory
 episode = dataset.new_episode(
     description = "grasp teddy bear from the shelf"
 )
@@ -31,7 +36,7 @@ episode = dataset.new_episode(
 episode.add(feature = "arm_view", value = "image1.jpg")
 episode.add(feature = "camera_pose", value = "image1.jpg")
 
-# mark the current state as terminal state 
+# mark the current trajectory as finished and save it
 episode.close()
 
 # Alternatively, 
@@ -46,13 +51,13 @@ episode_info = dataset.get_episode_info()
 metadata = episode_info.filter(episode_info["collector"] == "User 2")
 episodes = dataset.read_by(metadata)
 
-# export and share the dataset as standard RT-X format
+# export and share the dataset as standard Open-X-Embodiment format
 dataset.export(episodes, format="rtx")
 ```
 
 
 ## More Coming Soon!
-Currently we see a 60\% space saving on some existing RT-X datasets. This can be even more with re-paritioning the dataset. Our next steps can be found in the [planning doc](./design_doc/planning_doc.md). Feedback welcome through issues or PR to planning doc!
+Currently we see a more than 60\% space saving on some existing RT-X datasets. This can be even more by re-paritioning the dataset. Our next steps can be found in the [planning doc](./design_doc/planning_doc.md). Feedback welcome through issues or PR to planning doc!
 
 ## Development
 

@@ -7,7 +7,7 @@ dataset = fog_rtx.dataset.Dataset(
 
 dataset.load_rtx_episodes(
     name="berkeley_autolab_ur5",
-    split="train[:10]",
+    split="train[:1]",
 )
 
 dataset.export(format="rtx")
