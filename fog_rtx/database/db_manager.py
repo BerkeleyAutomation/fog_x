@@ -13,10 +13,10 @@ class DatabaseManager:
     """
 
     def __init__(self, 
-                 episode_connector: PolarsConnector,
-                 step_connector: PolarsConnector):
-        self.episode_connector = episode_connector
-        self.step_connector = step_connector
+                 episode_info_connector: PolarsConnector,
+                 step_data_connector: PolarsConnector):
+        self.episode_info_connector = episode_info_connector
+        self.step_data_connector = step_data_connector
         self.dataset_name: Optional[str] = None
         self.current_episode_id: Optional[int] = None
         self.features: Dict[str, FeatureType] = {}
@@ -27,7 +27,7 @@ class DatabaseManager:
     ):
         self.dataset_name = dataset_name
         self.features = features
-        tables = self.episode_connector.list_tables()
+        tables = self.episode_info_connector.list_tables()
         logger.info(f"Tables in database: {tables}")
         if tables and dataset_name in tables:
             logger.info("Database is not empty and already initialized")
@@ -43,15 +43,15 @@ class DatabaseManager:
             )
 
         else:
-            self.episode_connector.create_table(
+            self.episode_info_connector.create_table(
                 dataset_name,
             )
-            self.episode_connector.add_column(
+            self.episode_info_connector.add_column(
                 dataset_name,
                 "episode_id",
                 "int64",
             )
-            self.episode_connector.add_column(
+            self.episode_info_connector.add_column(
                 dataset_name,
                 "Compacted",
                 "bool",
@@ -75,14 +75,14 @@ class DatabaseManager:
 
         for metadata_key in metadata.keys():
             logger.info(f"Adding metadata key {metadata_key} to the database")
-            self.episode_connector.add_column(
+            self.episode_info_connector.add_column(
                 self.dataset_name,
                 metadata_key,
                 "str",  # TODO: support more types
             )
 
         # insert episode information to the database
-        self.current_episode_id = self.episode_connector.insert_data(
+        self.current_episode_id = self.episode_info_connector.insert_data(
             self.dataset_name,
             metadata,
         )
@@ -99,17 +99,17 @@ class DatabaseManager:
     ):
         # create a table for the feature
         # TODO: need to make the timestamp type as TIMESTAMPTZ
-        self.step_connector.create_table(
+        self.step_data_connector.create_table(
             self._get_feature_table_name(feature_name),
         )
         # {"Timestamp": "int64", feature_name: feature_type.to_sql_type()}
 
-        self.step_connector.add_column(
+        self.step_data_connector.add_column(
             self._get_feature_table_name(feature_name),
             "episode_id",
             "int64",
         )
-        self.step_connector.add_column(
+        self.step_data_connector.add_column(
             self._get_feature_table_name(feature_name),
             "Timestamp",
             "int64",
@@ -117,7 +117,7 @@ class DatabaseManager:
         logger.info(
             f"Adding feature {feature_name} to the database with type {feature_type.to_pld_storage_type()}"
         )
-        self.step_connector.add_column(
+        self.step_data_connector.add_column(
             self._get_feature_table_name(feature_name),
             feature_name,
             feature_type.to_pld_storage_type(),  
@@ -130,17 +130,17 @@ class DatabaseManager:
             self.features[feature_name] = feature_type
 
         # update dataset metadata with the feature information
-        self.episode_connector.add_column(
+        self.episode_info_connector.add_column(
             self.dataset_name,
             f"feature_{feature_name}_type",
             "str",
         )
-        self.episode_connector.add_column(
+        self.episode_info_connector.add_column(
             self.dataset_name,
             f"feature_{feature_name}_shape",
             "str",
         )
-        self.episode_connector.update_data(
+        self.episode_info_connector.update_data(
             table_name=self.dataset_name,
             index=self.current_episode_id,
             data={
@@ -174,7 +174,7 @@ class DatabaseManager:
             self._initialize_feature(feature_name, feature_type)
 
         # insert data into the table
-        self.step_connector.insert_data(
+        self.step_data_connector.insert_data(
             self._get_feature_table_name(feature_name),
             {"episode_id": self.current_episode_id,
              "Timestamp": timestamp, 
@@ -190,13 +190,13 @@ class DatabaseManager:
         ]
         logger.info(f"Compacting and Merging tables: {table_names}")
 
-        self.step_connector.merge_tables_with_timestamp(
+        self.step_data_connector.merge_tables_with_timestamp(
             table_names,
             f"{self.dataset_name}_{self.current_episode_id}_compacted",
         )
 
         # update the metadata field marking the episode as compacted
-        self.episode_connector.update_data(
+        self.episode_info_connector.update_data(
             self.dataset_name,
             self.current_episode_id,
             {"Compacted": True},
@@ -212,12 +212,12 @@ class DatabaseManager:
     #     return self.db_connector.select_table(table_name)
 
     def get_episode_table(self):
-        return self.episode_connector.select_table(self.dataset_name)
+        return self.episode_info_connector.select_table(self.dataset_name)
 
     def get_step_table(self, episode_id):
         if episode_id is None:
             raise ValueError("Episode not initialized")
-        return self.step_connector.select_table(
+        return self.step_data_connector.select_table(
             f"{self.dataset_name}_{episode_id}_compacted",
         )
 
@@ -233,9 +233,9 @@ class DatabaseManager:
 
     def close(self):
         self.compact()
-        self.step_connector.save_tables(
+        self.step_data_connector.save_tables(
             [f"{self.dataset_name}_{self.current_episode_id}_compacted"],
         )
-        self.episode_connector.save_tables(
+        self.episode_info_connector.save_tables(
             [f"{self.dataset_name}"],
         )

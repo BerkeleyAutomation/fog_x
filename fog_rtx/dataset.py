@@ -30,8 +30,8 @@ class Dataset:
             str, FeatureType
         ] = {},  # features to be stored {name: FeatureType}
         enable_feature_inferrence=True,  # whether additional features can be inferred
-        episode_connector: DatabaseConnector = None, 
-        step_connector: DatabaseConnector = None, 
+        episode_info_connector: DatabaseConnector = None, 
+        step_data_connector: DatabaseConnector = None, 
         storage: Optional[str] = None,
     ) -> None:
         self.name = name
@@ -46,13 +46,13 @@ class Dataset:
         self.features = features
         self.enable_feature_inferrence = enable_feature_inferrence
 
-        if episode_connector is None:
-            episode_connector = PolarsConnector(f"{path}/")
-        if step_connector is None:
+        if episode_info_connector is None:
+            episode_info_connector = PolarsConnector(f"{path}/")
+        if step_data_connector is None:
             if not os.path.exists(f"{path}/steps"):
                 os.makedirs(f"{path}/steps")
-            step_connector = PolarsConnector(f"{path}/steps")
-        self.db_manager = DatabaseManager(episode_connector, step_connector)
+            step_data_connector = PolarsConnector(f"{path}/steps")
+        self.db_manager = DatabaseManager(episode_info_connector, step_data_connector)
         self.db_manager.initialize_dataset(self.name, features)
 
         self.storage = storage
