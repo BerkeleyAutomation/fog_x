@@ -241,6 +241,7 @@ class DatabaseManager:
         self.step_data_connector.merge_tables_with_timestamp(
             table_names,
             f"{self.dataset_name}_{self.current_episode_id}",
+            clear_feature_tables = True,
         )
 
     # def get_table(
@@ -303,10 +304,17 @@ class DatabaseManager:
             self.dataset_name, self.current_episode_id, update_dict
         )
 
-        self.step_data_connector.save_tables(
+        self.step_data_connector.save_table(
+            f"{self.dataset_name}_{self.current_episode_id}",
+        )
+        
+        # TODO: this is a hack clear the old dataframe and load as a lazy frame  
+        self.step_data_connector.load_tables(
+            [self.current_episode_id],
             [f"{self.dataset_name}_{self.current_episode_id}"],
         )
-        self.episode_info_connector.save_tables(
-            [f"{self.dataset_name}"],
+
+        self.episode_info_connector.save_table(
+            f"{self.dataset_name}"
         )
         self.current_episode_id += 1

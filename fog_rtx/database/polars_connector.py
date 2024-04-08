@@ -25,15 +25,6 @@ class PolarsConnector:
         # Listing available DataFrame tables
         return list(self.tables.keys())
 
-    def create_table(self, table_name: str, as_lazy_frame: bool = False):
-        # Create a new DataFrame with specified columns
-        # schema = {column_name: _datasets_dtype_to_arrow(column_type) for column_name, column_type in columns.items()}
-        self.tables[table_name] = pl.DataFrame()
-        if as_lazy_frame:
-            self.tables[table_name] = self.tables[table_name].lazy()
-        logger.info(f"Table {table_name} created with Polars.")
-        self.table_len[table_name] = 0  # no entries yet
-
     def add_column(self, table_name: str, column_name: str, column_type):
         if column_name in self.tables[table_name].columns:
             logger.warning(
@@ -87,7 +78,8 @@ class PolarsConnector:
             self.tables[table_name][index, column_name] = value
 
     def merge_tables_with_timestamp(
-        self, tables: List[str], output_table: str
+        self, tables: List[str], output_table: str, 
+        clear_feature_tables: bool = False
     ):
         for table_name in self.tables.keys():
             if table_name not in tables:
@@ -99,7 +91,7 @@ class PolarsConnector:
         # Merging tables using timestamps
         if len(tables) > 1:
             merged_df = self.tables[tables[0]].join_asof(
-                self.tables[tables[1]], on="Timestamp", strategy="nearest"
+                self.tables[tables[1]].drop("episode_id"), on="Timestamp", strategy="nearest"
             )
             for table_name in tables[2:]:
                 merged_df = merged_df.join_asof(
@@ -112,6 +104,11 @@ class PolarsConnector:
             merged_df = self.tables[tables[0]]
             logger.info("Only one table to merge.")
         self.tables[output_table] = merged_df
+
+        if clear_feature_tables:
+            for table_name in tables:
+                self.tables.pop(table_name)
+                logger.info(f"Table {table_name} removed.")
 
     def select_table(self, table_name: str):
         # Return the DataFrame
@@ -130,6 +127,14 @@ class DataFrameConnector(PolarsConnector):
         self.tables = {}
         self.table_len = {}
 
+    def create_table(self, table_name: str):
+        # Create a new DataFrame with specified columns
+        # schema = {column_name: _datasets_dtype_to_arrow(column_type) for column_name, column_type in columns.items()}
+        self.tables[table_name] = pl.DataFrame()
+        logger.info(f"Table {table_name} created with Polars.")
+        self.table_len[table_name] = 0  # no entries yet
+
+
     def load_tables(self, table_names: List[str]):
         # load tables from the path
         for table_name in table_names:
@@ -140,11 +145,10 @@ class DataFrameConnector(PolarsConnector):
             else:
                 logger.info(f"Table {table_name} does not exist in {path}.")
 
-    def save_tables(self, table_names: List[str]):
-        for table_name in table_names:
-            self.tables[table_name].write_parquet(
-                f"{self.path}/{table_name}.parquet"
-            )
+    def save_table(self, table_name: str):
+        self.tables[table_name].write_parquet(
+            f"{self.path}/{table_name}.parquet"
+        )
 
 
 class LazyFrameConnector(PolarsConnector):
@@ -156,20 +160,27 @@ class LazyFrameConnector(PolarsConnector):
             ds.dataset(self.path, format="parquet")
         )
 
-    def load_tables(self, table_names: List[str], episode_ids: List[str]):
+    def load_tables(self, episode_ids: List[str], table_names: List[str]):
         for table_name, episode_id in zip(table_names, episode_ids):
             self.tables[table_name] = self.dataset.filter(
                 pl.col("episode_id") == episode_id
             )
             logger.info(f"Tables loaded from {self.tables}")
 
-    def save_tables(self, tables: List[str]):
+    def create_table(self, table_name: str):
+        # Create a new DataFrame with specified columns
+        # schema = {column_name: _datasets_dtype_to_arrow(column_type) for column_name, column_type in columns.items()}
+        self.tables[table_name] = pl.DataFrame()
+        logger.info(f"Table {table_name} created with Polars.")
+        self.table_len[table_name] = 0  # no entries yet
+
+    def save_table(self, table_name: str):
         # for table_name in tables:
         #     table = self.tables[table_name].to_arrow()
         #     pq.write_to_dataset(table, root_path=self.path)
-        dataset = [self.tables[tables[0]].to_arrow()]
+        dataset = self.tables[table_name].to_arrow()
         # dataset = [self.dataset.to_table(), ]
-        basename_template = f"{tables[0]}-{{i}}.parquet"
+        basename_template = f"{table_name}-{{i}}.parquet"
         ds.write_dataset(
             dataset,
             base_dir=self.path,

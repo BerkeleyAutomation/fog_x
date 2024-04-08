@@ -187,7 +187,7 @@ class Dataset:
             # export the dataset
             episodes = self.get_episodes_from_metadata()
             for episode in episodes:
-                for step in episode.rows(named=True):
+                for step in episode.collect().rows(named=True):
                     observationd = {}
                     actiond = {}
                     stepd = {}
