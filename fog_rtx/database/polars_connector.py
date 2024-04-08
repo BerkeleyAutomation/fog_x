@@ -2,7 +2,7 @@ import logging
 from typing import List
 import pyarrow as pa
 import pyarrow.parquet as pq
-
+import pyarrow.dataset as ds
 import polars as pl
 import os 
 
@@ -19,19 +19,6 @@ class PolarsConnector:
             {}
         )  # This will store table names as keys and DataFrames as values
         self.table_len = {}
-
-    def load_tables(self):
-        # Load all tables from the path
-        dataset = pq.ParquetDataset(self.path)
-        # for table in dataset.tables:
-        #     self.tables[table.name] = table.to_polars()
-        #     self.table_len[table.name] = len(self.tables[table.name])
-
-    def save_tables(self, tables: List[str]):        
-        for table_name in tables:
-            table = self.tables[table_name].to_arrow()
-            pq.write_to_dataset(table, root_path=self.path)
-
 
     def list_tables(self):
         # Listing available DataFrame tables
@@ -150,5 +137,25 @@ class DataFrameConnector(PolarsConnector):
         for table_name in table_names:
             self.tables[table_name].write_parquet(f"{self.path}/{table_name}.parquet")
 
-class LazyConnector(PolarsConnector):
-    pass 
+class LazyFrameConnector(PolarsConnector):
+    def __init__(self, path: str):
+        super().__init__(path)
+        self.tables = {}
+        self.table_len = {}
+        self.dataset = ds.dataset(self.path).to_table()
+
+    def load_tables(self):
+        # Load all tables from the path
+        self.dataset = pq.ParquetDataset(self.path)
+        # for table in dataset.tables:
+        #     self.tables[table.name] = table.to_polars()
+        #     self.table_len[table.name] = len(self.tables[table.name])
+
+    def save_tables(self, tables: List[str]):        
+        # for table_name in tables:
+        #     table = self.tables[table_name].to_arrow()
+        #     pq.write_to_dataset(table, root_path=self.path)
+        dataset = [self.tables[tables[0]].to_arrow()]
+        # dataset = [self.dataset.to_table(), ]
+        basename_template = f"{tables[0]}-{{i}}.parquet"
+        ds.write_dataset(dataset, base_dir=self.path, basename_template=basename_template, format = "parquet", existing_data_behavior = 'overwrite_or_ignore')

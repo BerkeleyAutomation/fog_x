@@ -10,6 +10,7 @@ from fog_rtx.database import (
     DatabaseManager,
     PolarsConnector,
     DataFrameConnector,
+    LazyFrameConnector,
 )
 from fog_rtx.episode import Episode
 from fog_rtx.feature import FeatureType
@@ -36,6 +37,7 @@ class Dataset:
         storage: Optional[str] = None,
     ) -> None:
         self.name = name
+        path = os.path.expanduser(path)
         self.path = path
         if path is None: 
             raise ValueError("Path is required")
@@ -52,7 +54,7 @@ class Dataset:
         if step_data_connector is None:
             if not os.path.exists(f"{path}/steps"):
                 os.makedirs(f"{path}/steps")
-            step_data_connector = PolarsConnector(f"{path}/steps")
+            step_data_connector = LazyFrameConnector(f"{path}/steps")
         self.db_manager = DatabaseManager(episode_info_connector, step_data_connector)
         self.db_manager.initialize_dataset(self.name, features)
 
