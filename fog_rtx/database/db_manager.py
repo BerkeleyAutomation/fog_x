@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 
 from fog_rtx.database.polars_connector import PolarsConnector
 from fog_rtx.feature import FeatureType
-
+from ast import literal_eval
 logger = logging.getLogger(__name__)
 
 
@@ -27,21 +27,41 @@ class DatabaseManager:
     ):
         self.dataset_name = dataset_name
         self.features = features
-        tables = self.episode_info_connector.list_tables()
-        logger.info(f"Tables in database: {tables}")
-        if tables and dataset_name in tables:
-            logger.info("Database is not empty and already initialized")
-            # get features from the table and update the features
-            metadata = self.get_metadata_table()
-            for _, row in metadata.iterrows():
-                feature_type = FeatureType(
-                    dtype=row["Type"], shape=row["Shape"]
-                )
-                self.features[row["Feature"]] = feature_type
-            logger.info(
-                f"Loaded Features: {self.features} with type {feature_type}"
-            )
+        self.episode_info_connector.load_tables([self.dataset_name])
 
+        # self.step_data_connector.load_tables()
+        # tables = self.episode_info_connector.list_tables()
+
+        episode_info_table = None 
+        episode_info_table = self.get_episode_info_table()
+        logger.info(f"Episode Info Table: {episode_info_table}")
+        if episode_info_table is not None:
+            for row in episode_info_table.iter_rows(named=True):
+                if None in row.values():
+                    continue 
+                for key, value in row.items():
+                    if key.endswith("type"):
+                        feature_name = key.replace("feature_", "").replace("_type", "")
+                        feature_type = FeatureType(
+                            dtype=value, shape=literal_eval(row[f"feature_{feature_name}_shape"])
+                        )
+                        self.features[feature_name] = feature_type
+                        logger.info(
+                            f"Loaded Features: {feature_name} with type {feature_type}"
+                        )
+                break
+            # if tables and dataset_name in tables:
+            #     logger.info("Database is not empty and already initialized")
+            #     # get features from the table and update the features
+            #     metadata = self.get_metadata_table()
+            #     for _, row in metadata.iterrows():
+            #         feature_type = FeatureType(
+            #             dtype=row["Type"], shape=row["Shape"]
+            #         )
+            #         self.features[row["Feature"]] = feature_type
+            #     logger.info(
+            #         f"Loaded Features: {self.features} with type {feature_type}"
+            #     )
         else:
             self.episode_info_connector.create_table(
                 dataset_name,
@@ -211,7 +231,7 @@ class DatabaseManager:
     #         raise ValueError("Dataset name not provided")
     #     return self.db_connector.select_table(table_name)
 
-    def get_episode_table(self):
+    def get_episode_info_table(self):
         return self.episode_info_connector.select_table(self.dataset_name)
 
     def get_step_table(self, episode_id):

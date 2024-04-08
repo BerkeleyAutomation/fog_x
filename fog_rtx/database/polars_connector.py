@@ -4,6 +4,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 import polars as pl
+import os 
 
 from fog_rtx.database.utils import _datasets_dtype_to_pld
 
@@ -22,20 +23,19 @@ class PolarsConnector:
     def load_tables(self):
         # Load all tables from the path
         dataset = pq.ParquetDataset(self.path)
-        for table in dataset.tables:
-            self.tables[table.name] = table.to_polars()
-            self.table_len[table.name] = len(self.tables[table.name])
-        logger.info(f"Tables loaded from {self.path}.")
-
-    def list_tables(self):
-        # Listing available DataFrame tables
-        return list(self.tables.keys())
+        # for table in dataset.tables:
+        #     self.tables[table.name] = table.to_polars()
+        #     self.table_len[table.name] = len(self.tables[table.name])
 
     def save_tables(self, tables: List[str]):        
         for table_name in tables:
             table = self.tables[table_name].to_arrow()
             pq.write_to_dataset(table, root_path=self.path)
 
+
+    def list_tables(self):
+        # Listing available DataFrame tables
+        return list(self.tables.keys())
 
     def create_table(self, table_name: str, as_lazy_frame: bool = False):
         # Create a new DataFrame with specified columns
@@ -44,7 +44,6 @@ class PolarsConnector:
         if as_lazy_frame:
             self.tables[table_name] = self.tables[table_name].lazy()
         logger.info(f"Table {table_name} created with Polars.")
-        logger.info(f"writing to {self.path}/{table_name}.parquet")
         self.table_len[table_name] = 0 # no entries yet
 
     def add_column(self, table_name: str, column_name: str, column_type):
@@ -137,8 +136,19 @@ class DataFrameConnector(PolarsConnector):
         self.tables = {}
         self.table_len = {}
     
-    def load_tables(self): 
-        pass
+    def load_tables(self, table_names: List[str]):
+        # load tables from the path
+        for table_name in table_names:
+            path = f"{self.path}/{table_name}.parquet"
+            if os.path.exists(os.path.expanduser(path)):
+                self.tables[table_name] = pl.read_parquet(path)
+                self.table_len[table_name] = len(self.tables[table_name])
+            else:
+                logger.info(f"Table {table_name} does not exist in {path}.")
+        
+    def save_tables(self, table_names: List[str]):      
+        for table_name in table_names:
+            self.tables[table_name].write_parquet(f"{self.path}/{table_name}.parquet")
 
 class LazyConnector(PolarsConnector):
     pass 

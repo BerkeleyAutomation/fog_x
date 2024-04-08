@@ -9,6 +9,7 @@ from fog_rtx.database import (
     DatabaseConnector,
     DatabaseManager,
     PolarsConnector,
+    DataFrameConnector,
 )
 from fog_rtx.episode import Episode
 from fog_rtx.feature import FeatureType
@@ -47,7 +48,7 @@ class Dataset:
         self.enable_feature_inferrence = enable_feature_inferrence
 
         if episode_info_connector is None:
-            episode_info_connector = PolarsConnector(f"{path}/")
+            episode_info_connector = DataFrameConnector(f"{path}/")
         if step_data_connector is None:
             if not os.path.exists(f"{path}/steps"):
                 os.makedirs(f"{path}/steps")
@@ -248,7 +249,7 @@ class Dataset:
         """
         Return the metadata as pandas dataframe.
         """
-        return self.db_manager.get_episode_table()
+        return self.db_manager.get_episode_info_table()
 
     def load_rtx_episodes(
         self,
