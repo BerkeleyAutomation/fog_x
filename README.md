@@ -50,6 +50,10 @@ episodes = dataset.read_by(metadata)
 dataset.export(episodes, format="rtx")
 ```
 
+
+## More Coming Soon!
+Currently we see a 60\% space saving on some existing RT-X datasets. This can be even more with re-paritioning the dataset. Our next steps can be found in the [planning doc](./design_doc/planning_doc.md). Feedback welcome through issues or PR to planning doc!
+
 ## Development
 
-Read the [CONTRIBUTING.md](CONTRIBUTING.md) file. See [TODO](./design_doc/planning_doc.md)
+Read the [CONTRIBUTING.md](CONTRIBUTING.md) file. 

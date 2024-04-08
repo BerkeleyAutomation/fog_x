@@ -13,5 +13,5 @@
 2. querying language and pulling optimization
 3. time sync join policy 
 5. handling streaming with a builder pattern (?)
-6. lazy loading
 7. ROS / ROS2 
+8. recompaction to save space 
