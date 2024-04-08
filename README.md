@@ -3,9 +3,9 @@
 [![codecov](https://codecov.io/gh/KeplerC/fog_rtx/branch/main/graph/badge.svg?token=fog_rtx_token_here)](https://codecov.io/gh/KeplerC/fog_rtx)
 [![CI](https://github.com/KeplerC/fog_rtx/actions/workflows/main.yml/badge.svg)](https://github.com/KeplerC/fog_rtx/actions/workflows/main.yml)
 
-🦊Fog-X: An Efficient and Scalable Data Collection and Management Framework For Robotics Learning. Support [Open-X-Embodiment](https://robotics-transformer-x.github.io/), [HuggingFace](https://huggingface.co/)🤗. 
+🦊 Fog-X: An Efficient and Scalable Data Collection and Management Framework For Robotics Learning. Support [Open-X-Embodiment](https://robotics-transformer-x.github.io/), 🤗[HuggingFace](https://huggingface.co/). 
 
-🦊Fog-X considers both speed🚀 and memory efficiency📈 with active metadata and lazily-loaded trajectory data. 🦊 supports flexible and distributed partitioning of the dataset. 
+🦊 Fog-X considers both speed 🚀 and memory efficiency 📈 with active metadata and lazily-loaded trajectory data. It supports flexible and distributed dataset partitioning. 
 
 ## Install 
 
@@ -27,7 +27,7 @@ dataset = fox.Dataset(load_from = ["/tmp/rtx", "s3://fox_stroage/"])
 episode = dataset.new_episode()
 # collect step data for the episode
 episode.add(feature = "arm_view", value = "image1.jpg")
-# Automatically time-aligns the features
+# Automatically time-aligns and saves the trajectory
 episode.close()
 
 # 🦊 Data Loading:
@@ -37,16 +37,16 @@ dataset.load_rtx_episodes(
     additional_metadata={"collector": "User 2"}
 )
 
-# 🦊 Data Management and Analytics
+# 🦊 Data Management and Analytics: 
 # Compute and memory efficient filter, map, aggregate, groupby
 episode_info = dataset.get_episode_info()
-metadata = episode_info.filter(episode_info["collector"] == "User 2")
+desired_episodes = episode_info.filter(episode_info["collector"] == "User 2")
 
 # 🦊 Data Sharing and Usage:
 # Export and share the dataset as standard Open-X-Embodiment format
-dataset.export(metadata, format="rtx")
-# Use with pytorch dataloader
-torch.utils.data.DataLoader(dataset.as_pytorch_dataset(metadata))
+dataset.export(desired_episodes, format="rtx")
+# Load with pytorch dataloader
+torch.utils.data.DataLoader(dataset.as_pytorch_dataset(desired_episodes))
 ```
 
 ## More Coming Soon!
