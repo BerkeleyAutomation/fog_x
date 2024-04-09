@@ -10,10 +10,10 @@ dataset.load_rtx_episodes(
     split="train[:1]",
 )
 
-all_step_data = dataset.get_step_data() # get lazy polars frame of the dataset
+all_step_data = dataset.get_step_data() # get lazy polars frame of the entire dataset
 id_to_language_instruction = (
     all_step_data
-    .select("episode_id", "natural_language_instruction") # only using episode id and language column
+    .select("episode_id", "natural_language_instruction") # only interested in episode id and language column
     .group_by("episode_id") # group by unqiue language ids, since language instruction is stored for every step
     .last()  # since instruction is same for all steps in an episode, we can just take the last one
     .collect() # the frame is lazily evaluated if we call collect() 
