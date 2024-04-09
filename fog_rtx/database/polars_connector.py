@@ -193,3 +193,10 @@ class LazyFrameConnector(PolarsConnector):
             format="parquet",
             existing_data_behavior="overwrite_or_ignore",
         )
+
+    def get_dataset_table(self, reload:bool = False):
+        if reload:
+            self.dataset = pl.scan_pyarrow_dataset(
+                ds.dataset(self.path, format="parquet")
+            )
+        return self.dataset

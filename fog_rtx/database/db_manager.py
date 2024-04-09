@@ -263,6 +263,9 @@ class DatabaseManager:
             f"{self.dataset_name}_{episode_id}",
         )
 
+    def get_step_table_all(self, reload=False):
+        return self.step_data_connector.get_dataset_table(reload)
+
     def _get_feature_table_name(self, feature_name):
         if self.dataset_name is None:
             raise ValueError("Dataset not initialized")

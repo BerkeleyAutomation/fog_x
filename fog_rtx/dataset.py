@@ -340,9 +340,9 @@ class Dataset:
 
     def get_step_data(self):
         """
-        Return the metadata as pandas dataframe.
+        Return the all step data as lazy dataframe.
         """
-        return self.db_manager.get_episode_info_table()
+        return self.db_manager.get_step_table_all()
 
     def read_by(self, episode_info: Any = None):
         episode_ids = list(episode_info["episode_id"])
