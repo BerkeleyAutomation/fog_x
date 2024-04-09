@@ -49,6 +49,16 @@ dataset.export(desired_episodes, format="rtx")
 torch.utils.data.DataLoader(dataset.as_pytorch_dataset(desired_episodes))
 ```
 
+## Design
+🦊 Fog-X recognizes most post-processing, analytics and management involves the trajectory-level data, such as tags, while actual trajectory steps are rarely read, written and transformed. Acessing and modifying trajectory data is very expensive and hard. 
+
+As a result, 🦊 Fog-X proposes 
+* a user-friendly metadata table via Pandas Datframe for speed and freedom
+* a LazyFrame from Polars for the trajectory dataset that only loads and transform the data if needed 
+* parquet as storage format for distributed storage and columnar support compared to tensorflow records 
+* Easy and automatic RT-X/Open-X dataset export and pytorch dataloading 
+
+
 ## More Coming Soon!
 Currently we see a more than 60\% space saving on some existing RT-X datasets. This can be even more by re-paritioning the dataset. Our next steps can be found in the [planning doc](./design_doc/planning_doc.md). Feedback welcome through issues or PR to planning doc!
 
