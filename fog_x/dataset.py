@@ -114,7 +114,7 @@ class Dataset:
         """
         Export the dataset.
         """
-        if format == "rtx":
+        if format == "rtx" or format == "open-x" or format == "rlds":
             if export_path == None:
                 export_path = self.path + "/export"
             if not os.path.exists(export_path):
@@ -401,7 +401,7 @@ class Dataset:
                 and its features here.
                 """
                 print("Retrieving episode at index", idx)
-                episode = self.episodes[idx]
+                episode = self.episodes[idx].collect().to_pandas()
                 # Process the episode and its features here
                 # For simplicity, let's assume we're just returning the episode
                 return episode

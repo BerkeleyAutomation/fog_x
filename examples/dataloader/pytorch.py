@@ -7,11 +7,11 @@ dataset = fog_x.dataset.Dataset(
     path="/tmp",
 )
 
-dataset.load_rtx_episodes(
-    name="berkeley_autolab_ur5",
-    split="train[:2]",
-    additional_metadata={"collector": "User 1"},
-)
+# dataset.load_rtx_episodes(
+#     name="berkeley_autolab_ur5",
+#     split="train[:2]",
+#     additional_metadata={"collector": "User 1"},
+# )
 
 dataset.load_rtx_episodes(
     name="berkeley_autolab_ur5",
@@ -19,9 +19,10 @@ dataset.load_rtx_episodes(
     additional_metadata={"collector": "User 2"},
 )
 
-
+metadata = dataset.get_episode_info()
+metadata = metadata.filter(metadata["collector"] == "User 2")
 pytorch_ds = dataset.pytorch_dataset_builder(
-    metadata=dataset.get_metadata_as_pandas_df()
+    metadata=metadata
 )
 
 # get samples from the dataset

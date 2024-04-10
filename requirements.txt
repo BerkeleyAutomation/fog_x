@@ -1,2 +1,13 @@
-sqlalchemy==1.4.51
+sqlalchemy==1.4.51 
 pandas
+polars
+numpy
+pillow
+pyarrow
+# following are required for exporting 
+datasets
+torch
+# rlds 
+tensorflow
+tensorflow_datasets
+envlogger
