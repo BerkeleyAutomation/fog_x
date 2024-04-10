@@ -3,8 +3,8 @@ import os
 __root_dir__ = os.path.dirname(os.path.abspath(__file__))
 
 
-from fog_rtx import dataset, episode, feature
-from fog_rtx.dataset import Dataset
+from fog_x import dataset, episode, feature
+from fog_x.dataset import Dataset
 
 all = ["dataset", "feature", "episode", "Dataset"]
 

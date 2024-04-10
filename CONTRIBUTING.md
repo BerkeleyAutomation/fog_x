@@ -1,6 +1,6 @@
 # How to develop on this project
 
-fog_rtx welcomes contributions from the community.
+fog_x welcomes contributions from the community.
 
 **You need PYTHON3!**
 
@@ -8,9 +8,9 @@ This instructions are for linux base systems. (Linux, MacOS, BSD, etc.)
 ## Setting up your own fork of this repo.
 
 - On github interface click on `Fork` button.
-- Clone your fork of this repo. `git clone git@github.com:YOUR_GIT_USERNAME/fog_rtx.git`
-- Enter the directory `cd fog_rtx`
-- Add upstream repo `git remote add upstream https://github.com/KeplerC/fog_rtx`
+- Clone your fork of this repo. `git clone git@github.com:YOUR_GIT_USERNAME/fog_x.git`
+- Enter the directory `cd fog_x`
+- Add upstream repo `git remote add upstream https://github.com/KeplerC/fog_x`
 
 ## Setting up your own virtual environment
 

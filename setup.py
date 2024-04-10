@@ -1,4 +1,4 @@
-"""Python setup.py for fog_rtx package"""
+"""Python setup.py for fog_x package"""
 import io
 import os
 from setuptools import find_packages, setup
@@ -6,7 +6,7 @@ from setuptools import find_packages, setup
 
 def read(*paths, **kwargs):
     """Read the contents of a text file safely.
-    >>> read("fog_rtx", "VERSION")
+    >>> read("fog_x", "VERSION")
     '0.1.0'
     >>> read("README.md")
     ...
@@ -30,17 +30,17 @@ def read_requirements(path):
 
 
 setup(
-    name="fog_rtx",
-    version=read("fog_rtx", "VERSION"),
-    description="Awesome fog_rtx created by KeplerC",
-    url="https://github.com/KeplerC/fog_rtx/",
+    name="fog_x",
+    version=read("fog_x", "VERSION"),
+    description="Awesome fog_x created by KeplerC",
+    url="https://github.com/KeplerC/fog_x/",
     long_description=read("README.md"),
     long_description_content_type="text/markdown",
     author="KeplerC",
     packages=find_packages(exclude=["tests", ".github"]),
     install_requires=read_requirements("requirements.txt"),
     entry_points={
-        "console_scripts": ["fog_rtx = fog_rtx.__main__:main"]
+        "console_scripts": ["fog_x = fog_x.__main__:main"]
     },
     extras_require={"test": read_requirements("requirements-test.txt")},
 )

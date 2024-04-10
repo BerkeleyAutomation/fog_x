@@ -5,15 +5,15 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
-from fog_rtx.database import (
+from fog_x.database import (
     DatabaseConnector,
     DatabaseManager,
     DataFrameConnector,
     LazyFrameConnector,
     PolarsConnector,
 )
-from fog_rtx.episode import Episode
-from fog_rtx.feature import FeatureType
+from fog_x.episode import Episode
+from fog_x.feature import FeatureType
 
 logger = logging.getLogger(__name__)
 
@@ -126,7 +126,7 @@ class Dataset:
             from envlogger import step_data
             from tensorflow_datasets.core.features import Tensor
 
-            from fog_rtx.rlds.writer import CloudBackendWriter
+            from fog_x.rlds.writer import CloudBackendWriter
 
             self.obs_keys += obs_keys
             self.act_keys += act_keys
@@ -278,7 +278,7 @@ class Dataset:
             Text,
         )
 
-        from fog_rtx.rlds.utils import dataset2path
+        from fog_x.rlds.utils import dataset2path
 
         b = tfds.builder_from_directory(builder_dir=dataset2path(name))
         ds = b.as_dataset(split=split)

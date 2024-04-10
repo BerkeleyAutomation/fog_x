@@ -1,8 +1,8 @@
 import torch
 
-import fog_rtx
+import fog_x
 
-dataset = fog_rtx.dataset.Dataset(
+dataset = fog_x.dataset.Dataset(
     name="demo_ds",
     path="/tmp",
 )

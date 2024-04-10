@@ -7,7 +7,7 @@ import pyarrow as pa
 import pyarrow.dataset as ds
 import pyarrow.parquet as pq
 
-from fog_rtx.database.utils import _datasets_dtype_to_pld
+from fog_x.database.utils import _datasets_dtype_to_pld
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ class PolarsConnector:
                     column_name, [None] * self.table_len[table_name]
                 ).cast(arrow_type)
             )
-            logger.info(f"Column {column_name} added to table {table_name}.")
+            logger.debug(f"Column {column_name} added to table {table_name}.")
         else:
             logger.error(f"Table {table_name} does not exist.")
 
@@ -60,7 +60,7 @@ class PolarsConnector:
             self.tables[table_name] = pl.concat(
                 [self.tables[table_name], new_row], how="align"
             )
-            # logger.info(f"table is now {self.tables[table_name]}")
+            # logger.debug(f"table is now {self.tables[table_name]}")
 
             self.table_len[table_name] += 1
 
@@ -72,7 +72,7 @@ class PolarsConnector:
     def update_data(self, table_name: str, index: int, data: dict):
         # update data
         for column_name, value in data.items():
-            logger.info(
+            logger.debug(
                 f"updating {column_name} with {value} at index {index}"
             )
             self.tables[table_name][index, column_name] = value
@@ -99,16 +99,16 @@ class PolarsConnector:
                     on="Timestamp",
                     strategy="nearest",
                 )
-            logger.info("Tables merged on Timestamp.")
+            logger.debug("Tables merged on Timestamp.")
         else:
             merged_df = self.tables[tables[0]]
-            logger.info("Only one table to merge.")
+            logger.debug("Only one table to merge.")
         self.tables[output_table] = merged_df
 
         if clear_feature_tables:
             for table_name in tables:
                 self.tables.pop(table_name)
-                logger.info(f"Table {table_name} removed.")
+                logger.debug(f"Table {table_name} removed.")
 
     def select_table(self, table_name: str):
         # Return the DataFrame
@@ -131,7 +131,7 @@ class DataFrameConnector(PolarsConnector):
         # Create a new DataFrame with specified columns
         # schema = {column_name: _datasets_dtype_to_arrow(column_type) for column_name, column_type in columns.items()}
         self.tables[table_name] = pl.DataFrame()
-        logger.info(f"Table {table_name} created with Polars.")
+        logger.debug(f"Table {table_name} created with Polars.")
         self.table_len[table_name] = 0  # no entries yet
 
 
@@ -143,7 +143,7 @@ class DataFrameConnector(PolarsConnector):
                 self.tables[table_name] = pl.read_parquet(path)
                 self.table_len[table_name] = len(self.tables[table_name])
             else:
-                logger.info(f"Table {table_name} does not exist in {path}.")
+                logger.debug(f"Table {table_name} does not exist in {path}.")
 
     def save_table(self, table_name: str):
         self.tables[table_name].write_parquet(
@@ -170,13 +170,13 @@ class LazyFrameConnector(PolarsConnector):
             self.tables[table_name] = self.dataset.filter(
                 pl.col("episode_id") == episode_id
             )
-            logger.info(f"Tables loaded from {self.tables}")
+            logger.debug(f"Tables loaded from {self.tables}")
 
     def create_table(self, table_name: str):
         # Create a new DataFrame with specified columns
         # schema = {column_name: _datasets_dtype_to_arrow(column_type) for column_name, column_type in columns.items()}
         self.tables[table_name] = pl.DataFrame()
-        logger.info(f"Table {table_name} created with Polars.")
+        logger.debug(f"Table {table_name} created with Polars.")
         self.table_len[table_name] = 0  # no entries yet
 
     def save_table(self, table_name: str):

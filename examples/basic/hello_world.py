@@ -1,7 +1,7 @@
-import fog_rtx
+import fog_x
 
 # create a new dataset
-dataset = fog_rtx.Dataset(
+dataset = fog_x.Dataset(
     name="test_rtx",
     path="/tmp/rtx",
 )

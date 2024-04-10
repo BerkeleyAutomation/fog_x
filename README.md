@@ -1,7 +1,7 @@
 # 🦊 Fog-X
 
-[![codecov](https://codecov.io/gh/KeplerC/fog_rtx/branch/main/graph/badge.svg?token=fog_rtx_token_here)](https://codecov.io/gh/KeplerC/fog_rtx)
-[![CI](https://github.com/KeplerC/fog_rtx/actions/workflows/main.yml/badge.svg)](https://github.com/KeplerC/fog_rtx/actions/workflows/main.yml)
+[![codecov](https://codecov.io/gh/KeplerC/fog_x/branch/main/graph/badge.svg?token=fog_x_token_here)](https://codecov.io/gh/KeplerC/fog_x)
+[![CI](https://github.com/KeplerC/fog_x/actions/workflows/main.yml/badge.svg)](https://github.com/KeplerC/fog_x/actions/workflows/main.yml)
 
 🦊 Fog-X: An Efficient and Scalable Data Collection and Management Framework For Robotics Learning. Support [Open-X-Embodiment](https://robotics-transformer-x.github.io/), 🤗[HuggingFace](https://huggingface.co/). 
 

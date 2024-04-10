@@ -2,8 +2,8 @@ import logging
 import time
 from typing import Any, Dict, List, Optional
 
-from fog_rtx.database import DatabaseManager
-from fog_rtx.feature import FeatureType
+from fog_x.database import DatabaseManager
+from fog_x.feature import FeatureType
 
 logger = logging.getLogger(__name__)
 

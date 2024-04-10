@@ -2,8 +2,8 @@ import logging
 from ast import literal_eval
 from typing import Any, Dict, List, Optional
 
-from fog_rtx.database.polars_connector import PolarsConnector
-from fog_rtx.feature import FeatureType
+from fog_x.database.polars_connector import PolarsConnector
+from fog_x.feature import FeatureType
 
 logger = logging.getLogger(__name__)
 

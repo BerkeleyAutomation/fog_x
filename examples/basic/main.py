@@ -1,11 +1,11 @@
-import fog_rtx
+import fog_x
 
 # create a new dataset
-dataset = fog_rtx.dataset.Dataset(
+dataset = fog_x.dataset.Dataset(
     name="test_rtx",
     path="/tmp/rtx",
     replace_existing=False,
-    db_connector=fog_rtx.database.PolarsConnector("/tmp/"),
+    db_connector=fog_x.database.PolarsConnector("/tmp/"),
 )
 
 for i in range(1, 10):

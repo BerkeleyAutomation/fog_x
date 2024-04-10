@@ -4,7 +4,7 @@ from typing import Any, List, Optional, Tuple
 import numpy as np
 from sqlalchemy import Float, Integer, LargeBinary, String
 
-from fog_rtx.database.utils import type_np2sql, type_py2sql
+from fog_x.database.utils import type_np2sql, type_py2sql
 
 logger = logging.getLogger(__name__)
 

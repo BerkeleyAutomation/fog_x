@@ -1,29 +1,29 @@
 import sys
 import pytest
 
-# import fog_rtx
+# import fog_x
 
 
 def test_import():
     # each test runs on cwd to its temp dir
-    import fog_rtx
+    import fog_x
 
 
 def test_dataset_create():
-    import fog_rtx
+    import fog_x
 
-    dataset = fog_rtx.Dataset(
-        name="test_fog_rtx",
-        path="/tmp/test_fog_rtx",
+    dataset = fog_x.Dataset(
+        name="test_fog_x",
+        path="/tmp/test_fog_x",
     )
 
 
 def test_episode_create():
-    import fog_rtx
+    import fog_x
 
-    dataset = fog_rtx.Dataset(
-        name="test_fog_rtx",
-        path="/tmp/test_fog_rtx",
+    dataset = fog_x.Dataset(
+        name="test_fog_x",
+        path="/tmp/test_fog_x",
     )
     trajectory = dataset.new_episode()
     trajectory.add(feature="hello", value=1.0)
@@ -32,11 +32,11 @@ def test_episode_create():
 
 
 def test_dataset_read():
-    import fog_rtx
+    import fog_x
 
-    dataset = fog_rtx.Dataset(
-        name="test_fog_rtx",
-        path="/tmp/test_fog_rtx",
+    dataset = fog_x.Dataset(
+        name="test_fog_x",
+        path="/tmp/test_fog_x",
     )
     for episode in dataset.read_by(
         pandas_metadata=dataset.get_metadata_as_pandas_df()
@@ -45,14 +45,14 @@ def test_dataset_read():
 
 
 def test_dataset_export():
-    import fog_rtx
+    import fog_x
 
-    dataset = fog_rtx.Dataset(
-        name="test_fog_rtx",
-        path="/tmp/test_fog_rtx",
+    dataset = fog_x.Dataset(
+        name="test_fog_x",
+        path="/tmp/test_fog_x",
     )
     dataset.export(
-        "/tmp/test_fog_rtx_export",
+        "/tmp/test_fog_x_export",
         format="rtx",
         obs_keys=["hello"],
         act_keys=["world"],
@@ -60,11 +60,11 @@ def test_dataset_export():
 
 
 def test_rtx_example_load():
-    import fog_rtx
+    import fog_x
 
-    dataset = fog_rtx.Dataset(
-        name="test_fog_rtx",
-        path="/tmp/test_fog_rtx",
+    dataset = fog_x.Dataset(
+        name="test_fog_x",
+        path="/tmp/test_fog_x",
     )
 
     dataset.load_rtx_episodes(
@@ -76,11 +76,11 @@ def test_rtx_example_load():
 
 
 def test_rtx_example_merge():
-    import fog_rtx
+    import fog_x
 
-    dataset = fog_rtx.Dataset(
-        name="test_fog_rtx",
-        path="/tmp/test_fog_rtx",
+    dataset = fog_x.Dataset(
+        name="test_fog_x",
+        path="/tmp/test_fog_x",
     )
     dataset.load_rtx_episodes(
         name="berkeley_autolab_ur5",
@@ -102,9 +102,9 @@ def test_rtx_example_merge():
 
 
 def test_rtx_example_query():
-    dataset = fog_rtx.Dataset(
-        name="test_fog_rtx",
-        path="/tmp/test_fog_rtx",
+    dataset = fog_x.Dataset(
+        name="test_fog_x",
+        path="/tmp/test_fog_x",
     )
     metadata = dataset.get_metadata_as_pandas_df()
     print(metadata)

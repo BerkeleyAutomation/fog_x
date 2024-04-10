@@ -9,7 +9,7 @@ from sqlalchemy import text  # type: ignore
 from sqlalchemy import Column, Integer, create_engine, inspect
 from sqlalchemy.orm import declarative_base, sessionmaker  # type: ignore
 
-from fog_rtx.database.utils import type_py2sql  # type: ignore
+from fog_x.database.utils import type_py2sql  # type: ignore
 
 Base = declarative_base()
 logger = logging.getLogger(__name__)
