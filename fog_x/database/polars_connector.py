@@ -27,7 +27,7 @@ class PolarsConnector:
 
     def add_column(self, table_name: str, column_name: str, column_type):
         if column_name in self.tables[table_name].columns:
-            logger.warning(
+            logger.debug(
                 f"Column {column_name} already exists in table {table_name}."
             )
             return

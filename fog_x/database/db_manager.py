@@ -40,7 +40,7 @@ class DatabaseManager:
         episode_info_table = None
         episode_info_table = self.get_episode_info_table()
 
-        logger.info(f"Episode Info Table: {episode_info_table}")
+        logger.debug(f"Episode Info Table: {episode_info_table}")
         if episode_info_table is not None:
             self.current_episode_id = len(episode_info_table)
             for row in episode_info_table.iter_rows(named=True):
@@ -58,7 +58,7 @@ class DatabaseManager:
                             ),
                         )
                         self.features[feature_name] = feature_type
-                        logger.info(
+                        logger.debug(
                             f"Loaded Features: {feature_name} with type {feature_type}"
                         )
                 break
@@ -71,7 +71,7 @@ class DatabaseManager:
                 ],
             )
             # if tables and dataset_name in tables:
-            #     logger.info("Database is not empty and already initialized")
+            #     logger.debug("Database is not empty and already initialized")
             #     # get features from the table and update the features
             #     metadata = self.get_metadata_table()
             #     for _, row in metadata.iterrows():
@@ -79,7 +79,7 @@ class DatabaseManager:
             #             dtype=row["Type"], shape=row["Shape"]
             #         )
             #         self.features[row["Feature"]] = feature_type
-            #     logger.info(
+            #     logger.debug(
             #         f"Loaded Features: {self.features} with type {feature_type}"
             #     )
         else:
@@ -97,7 +97,7 @@ class DatabaseManager:
                 "bool",
             )
             self.current_episode_id = 0
-            logger.info("Database initialized")
+            logger.debug("Database initialized")
 
     def initialize_episode(
         self,
@@ -112,11 +112,11 @@ class DatabaseManager:
 
         self.episode_metadata["episode_id"] = self.current_episode_id
         self.episode_metadata["Finished"] = False
-        logger.info(
+        logger.debug(
             f"Initializing episode for dataset {self.dataset_name} with metadata {self.episode_metadata}"
         )
         for metadata_key in self.episode_metadata.keys():
-            logger.info(f"Adding metadata key {metadata_key} to the database")
+            logger.debug(f"Adding metadata key {metadata_key} to the database")
             self.episode_info_connector.add_column(
                 self.dataset_name,
                 metadata_key,
@@ -155,7 +155,7 @@ class DatabaseManager:
             "Timestamp",
             "int64",
         )
-        logger.info(
+        logger.debug(
             f"Adding feature {feature_name} to the database with type {feature_type.to_pld_storage_type()}"
         )
         self.step_data_connector.add_column(
@@ -236,7 +236,7 @@ class DatabaseManager:
             self._get_feature_table_name(feature_name)
             for feature_name in self.features.keys()
         ]
-        logger.info(f"Compacting and Merging tables: {table_names}")
+        logger.debug(f"Compacting and Merging tables: {table_names}")
 
         self.step_data_connector.merge_tables_with_timestamp(
             table_names,

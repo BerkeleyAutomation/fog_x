@@ -344,6 +344,17 @@ class Dataset:
         """
         return self.db_manager.get_step_table_all()
 
+    def get_step_data_by_episode_ids(self, episode_ids: List[int], as_lazy_frame = True):
+        episodes = []
+        for episode_id in episode_ids:
+            if episode_id == None:
+                continue
+            if as_lazy_frame:
+                episodes.append(self.db_manager.get_step_table(episode_id))
+            else:
+                episodes.append(self.db_manager.get_step_table(episode_id).collect())
+        return episodes
+    
     def read_by(self, episode_info: Any = None):
         episode_ids = list(episode_info["episode_id"])
         logger.info(f"Reading episodes as order: {episode_ids}")
