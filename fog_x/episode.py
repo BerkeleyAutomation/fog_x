@@ -14,10 +14,10 @@ class Episode:
         db_manager: DatabaseManager,
         metadata: Optional[Dict[str, Any]] = {},
         features: Dict[str, FeatureType] = {},
-        enable_feature_inferrence=True,  # whether additional FeatureTypes can be inferred
+        enable_feature_inference=True,  # whether additional FeatureTypes can be inferred
     ):
         self.features = features
-        self.enable_feature_inferrence = enable_feature_inferrence
+        self.enable_feature_inference = enable_feature_inference
         self.db_manager = db_manager
         self.db_manager.initialize_episode(additional_metadata=metadata)
 

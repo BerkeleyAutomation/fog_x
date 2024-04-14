@@ -31,7 +31,7 @@ class Dataset:
         features: Dict[
             str, FeatureType
         ] = {},  # features to be stored {name: FeatureType}
-        enable_feature_inferrence=True,  # whether additional features can be inferred
+        enable_feature_inference=True,  # whether additional features can be inferred
         episode_info_connector: DatabaseConnector = None,
         step_data_connector: DatabaseConnector = None,
         storage: Optional[str] = None,
@@ -47,7 +47,7 @@ class Dataset:
 
         self.replace_existing = replace_existing
         self.features = features
-        self.enable_feature_inferrence = enable_feature_inferrence
+        self.enable_feature_inference = enable_feature_inference
 
         if episode_info_connector is None:
             episode_info_connector = DataFrameConnector(f"{path}/")
@@ -76,7 +76,7 @@ class Dataset:
         return Episode(
             metadata=metadata,
             features=self.features,
-            enable_feature_inferrence=self.enable_feature_inferrence,
+            enable_feature_inference=self.enable_feature_inference,
             db_manager=self.db_manager,
         )
 
