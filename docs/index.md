@@ -1,17 +1,17 @@
-# Welcome to MkDocs
+# 🦊 Fog-X Documentation
 
-For full documentation visit [mkdocs.org](https://www.mkdocs.org).
+**Fog-X is an efficient and scalable data collection and management framework for robotics learning.**
+Supports datasets from [Open-X-Embodiment](https://robotics-transformer-x.github.io/) and 🤗[HuggingFace](https://huggingface.co/).
+Fog-X considers both speed 🚀 and memory efficiency 📈 with active metadata and lazily-loaded trajectory data. It supports flexible and distributed dataset partitioning. 
 
-## Commands
+## Installation
 
-* `mkdocs new [dir-name]` - Create a new project.
-* `mkdocs serve` - Start the live-reloading docs server.
-* `mkdocs build` - Build the documentation site.
-* `mkdocs -h` - Print help message and exit.
+```bash
+pip install fogx
+```
 
-## Project layout
+## Usage
 
-    mkdocs.yml    # The configuration file.
-    docs/
-        index.md  # The documentation homepage.
-        ...       # Other markdown pages, images and other files.
+See [Usage Guide](./usage.md) for an overview of how to use Fog-X.
+
+You can also view [working examples on GitHub](https://github.com/KeplerC/fog_x/tree/main/examples).
