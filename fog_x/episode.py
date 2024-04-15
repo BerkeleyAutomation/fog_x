@@ -14,10 +14,10 @@ class Episode:
         db_manager: DatabaseManager,
         metadata: Optional[Dict[str, Any]] = {},
         features: Dict[str, FeatureType] = {},
-        enable_feature_inferrence=True,  # whether additional FeatureTypes can be inferred
+        enable_feature_inference=True,  # whether additional FeatureTypes can be inferred
     ):
         self.features = features
-        self.enable_feature_inferrence = enable_feature_inferrence
+        self.enable_feature_inference = enable_feature_inference
         self.db_manager = db_manager
         self.db_manager.initialize_episode(additional_metadata=metadata)
 
@@ -28,6 +28,22 @@ class Episode:
         timestamp: Optional[int] = None,
         feature_type: Optional[FeatureType] = None,
     ) -> None:
+        """
+        Add one feature step data.
+        To add multiple features at each step, call this multiple times or use
+        `add_by_dict` to ensure the same timestamp is used for each feature.
+
+        Args:
+            feature (str): name of the feature
+            value (Any): value associated with the feature
+            timestamp (optional int): nanoseconds since the Epoch.
+                If not provided, the current time is used.
+
+        Examples:
+            >>> episode.add('feature1', 'image1.jpg')
+            >>> episode.add('feature2', 100)
+        """
+
         if timestamp is None:
             timestamp = time.time_ns()
 
@@ -45,7 +61,16 @@ class Episode:
         self, data: Dict[str, Any], timestamp: Optional[int] = None
     ) -> None:
         """
-        add the same timestamp for all features
+        Add multiple features as step data.
+        Ensures that the same timestamp is used for each feature.
+
+        Args:
+            data (Dict[str, Any]): feature names and their values
+            timestamp (optional int): nanoseconds since the Epoch.
+                If not provided, the current time is used.
+
+        Examples:
+            >>> episode.add_by_dict({'feature1': 'image1.jpg', 'feature2': 100})
         """
         if timestamp is None:
             timestamp = time.time_ns()
@@ -53,10 +78,29 @@ class Episode:
             self.add(feature, value, timestamp)
 
     def compact(self) -> None:
+        """
+        Creates a table for the compacted data.
+
+        TODO:
+            * compact should not be run more than once?
+            * expand docstring description
+        """
         self.db_manager.compact()
 
     def get_steps(self) -> List[Dict[str, Any]]:
+        """
+        Retrieves the episode's step data.
+
+        Returns:
+            the step data
+
+        TODO:
+            * get_steps not in db_manager; db_manager.get_step_table_all returns a `LazyFrame`, not `List[Dict[str, Any]]`
+        """
         return self.db_manager.get_steps()
 
     def close(self) -> None:
+        """
+        Saves the episode object.
+        """
         self.db_manager.close()

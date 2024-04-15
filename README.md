@@ -20,7 +20,7 @@ import fogx as fox
 
 # 🦊 Dataset Creation 
 # from distributed dataset storage 
-dataset = fox.Dataset(load_from = ["/tmp/rtx", "s3://fox_stroage/"])  
+dataset = fox.Dataset(load_from = ["/tmp/rtx", "s3://fox_storage/"])  
 
 # 🦊 Data collection: 
 # create a new trajectory

@@ -1,2 +1,12 @@
 site_name: fog_x
 theme: readthedocs
+
+plugins:
+- search
+- mkdocstrings:
+    default_handler: python
+    handlers:
+      python:
+        options:
+          heading_level: 3
+          show_source: false

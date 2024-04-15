@@ -4,6 +4,8 @@ import os
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
+import polars
+import pandas
 
 from fog_x.database import (
     DatabaseConnector,
@@ -31,11 +33,27 @@ class Dataset:
         features: Dict[
             str, FeatureType
         ] = {},  # features to be stored {name: FeatureType}
-        enable_feature_inferrence=True,  # whether additional features can be inferred
+        enable_feature_inference=True,  # whether additional features can be inferred
         episode_info_connector: DatabaseConnector = None,
         step_data_connector: DatabaseConnector = None,
         storage: Optional[str] = None,
     ) -> None:
+        """
+
+        Args:
+            name (str): Name of this dataset. Used as the directory name when exporting.
+            path (str): Required. Local path of where this dataset should be stored.
+            features (optional Dict[str, FeatureType]): Description of `param1`.
+            enable_feature_inference (bool): enable inferring additional FeatureTypes
+
+        Example:
+        ```
+        >>> dataset = fog_x.Dataset('my_dataset', path='~/fog_x/my_dataset`)
+        ```
+
+        TODO:
+            * is replace_existing actually used anywhere?
+        """
         self.name = name
         path = os.path.expanduser(path)
         self.path = path
@@ -47,7 +65,7 @@ class Dataset:
 
         self.replace_existing = replace_existing
         self.features = features
-        self.enable_feature_inferrence = enable_feature_inferrence
+        self.enable_feature_inference = enable_feature_inference
 
         if episode_info_connector is None:
             episode_info_connector = DataFrameConnector(f"{path}/")
@@ -55,9 +73,7 @@ class Dataset:
             if not os.path.exists(f"{path}/{name}"):
                 os.makedirs(f"{path}/{name}")
             step_data_connector = LazyFrameConnector(f"{path}/{name}")
-        self.db_manager = DatabaseManager(
-            episode_info_connector, step_data_connector
-        )
+        self.db_manager = DatabaseManager(episode_info_connector, step_data_connector)
         self.db_manager.initialize_dataset(self.name, features)
 
         self.storage = storage
@@ -65,18 +81,21 @@ class Dataset:
         self.act_keys = []
         self.step_keys = []
 
-    def new_episode(
-        self, metadata: Optional[Dict[str, Any]] = None
-    ) -> Episode:
+    def new_episode(self, metadata: Optional[Dict[str, Any]] = None) -> Episode:
         """
         Create a new episode / trajectory.
-        TODO #1: support multiple processes writing to the same episode
-        TODO #2: close the previous episode if not closed
+
+        Returns:
+            Episode
+
+        TODO:
+            * support multiple processes writing to the same episode
+            * close the previous episode if not closed
         """
         return Episode(
             metadata=metadata,
             features=self.features,
-            enable_feature_inferrence=self.enable_feature_inferrence,
+            enable_feature_inference=self.enable_feature_inference,
             db_manager=self.db_manager,
         )
 
@@ -113,6 +132,10 @@ class Dataset:
     ) -> None:
         """
         Export the dataset.
+
+        Args:
+            export_path (optional str): location of exported data. Uses dataset.path/export by default.
+            format (str): Supported formats are `rtx`, `open-x`, and `rlds`.
         """
         if format == "rtx" or format == "open-x" or format == "rlds":
             if export_path == None:
@@ -207,20 +230,14 @@ class Dataset:
                             and feature_spec.shape != ()
                         ):
                             # reverse the process
-                            value = np.load(io.BytesIO(v)).astype(
-                                feature_spec.np_dtype
-                            )
+                            value = np.load(io.BytesIO(v)).astype(feature_spec.np_dtype)
                         elif (
                             isinstance(feature_spec, tfds.core.features.Tensor)
                             and feature_spec.shape == ()
                         ):
                             value = np.array(v, dtype=feature_spec.np_dtype)
-                        elif isinstance(
-                            feature_spec, tfds.core.features.Image
-                        ):
-                            value = np.load(io.BytesIO(v)).astype(
-                                feature_spec.np_dtype
-                            )
+                        elif isinstance(feature_spec, tfds.core.features.Image):
+                            value = np.load(io.BytesIO(v)).astype(feature_spec.np_dtype)
                         else:
                             value = v
 
@@ -265,7 +282,18 @@ class Dataset:
         additional_metadata: Optional[Dict[str, Any]] = None,
     ):
         """
-        Load the dataset.
+        Load robot data from Tensorflow Datasets.
+
+        Args:
+            name (str): Name of RT-X episodes, which can be found at [Tensorflow Datasets](https://www.tensorflow.org/datasets/catalog) under the Robotics category
+            split (optional str): the portion of data to load, see [Tensorflow Split API](https://www.tensorflow.org/datasets/splits)
+            additional_metadata (optional Dict[str, Any]): additional metadata to be associated with the loaded episodes
+
+        Example:
+            ```
+            >>> dataset.load_rtx_episodes(name="berkeley_autolab_ur5)
+            >>> dataset.load_rtx_episodes(name="berkeley_autolab_ur5", split="train[:10]", additional_metadata={"data_collector": "Alice", "custom_tag": "sample"})
+            ```
         """
 
         # this is only required if rtx format is used
@@ -325,26 +353,36 @@ class Dataset:
                         fog_epsiode.add(
                             feature=str(k),
                             value=v.numpy(),
-                            feature_type=FeatureType(
-                                tf_feature_spec=data_type[k]
-                            ),
+                            feature_type=FeatureType(tf_feature_spec=data_type[k]),
                         )
                         self.step_keys.append(k)
             fog_epsiode.close()
 
-    def get_episode_info(self):
+    def get_episode_info(self) -> pandas.DataFrame:
         """
-        Return the metadata as pandas dataframe.
+        Returns:
+            metadata of all episodes as `pandas.DataFrame`
         """
         return self.db_manager.get_episode_info_table()
 
-    def get_step_data(self):
+    def get_step_data(self) -> polars.LazyFrame:
         """
-        Return the all step data as lazy dataframe.
+        Returns:
+            step data of all episodes
         """
         return self.db_manager.get_step_table_all()
 
-    def get_step_data_by_episode_ids(self, episode_ids: List[int], as_lazy_frame = True):
+    def get_step_data_by_episode_ids(
+        self, episode_ids: List[int], as_lazy_frame=True
+    ) -> List[polars.LazyFrame] | List[polars.DataFrame]:
+        """
+        Args:
+            episode_ids (List[int]): list of episode ids
+            as_lazy_frame (bool): whether to return polars.LazyFrame or polars.DataFrame
+
+        Returns:
+            step data of each episode
+        """
         episodes = []
         for episode_id in episode_ids:
             if episode_id == None:
@@ -354,8 +392,17 @@ class Dataset:
             else:
                 episodes.append(self.db_manager.get_step_table(episode_id).collect())
         return episodes
-    
-    def read_by(self, episode_info: Any = None):
+
+    def read_by(self, episode_info: Any = None) -> List[polars.LazyFrame]:
+        """
+        To be used with `Dataset.get_episode_info`.
+
+        Args:
+            episode_info (pandas.DataFrame): episode metadata information to determine which episodes to read
+
+        Returns:
+            episodes filtered by `episode_info`
+        """
         episode_ids = list(episode_info["episode_id"])
         logger.info(f"Reading episodes as order: {episode_ids}")
         episodes = []
@@ -375,6 +422,11 @@ class Dataset:
         return episodes
 
     def pytorch_dataset_builder(self, metadata=None, **kwargs):
+        """
+        Used for loading current dataset as a PyTorch dataset.
+        To be used with `torch.utils.data.DataLoader`.
+        """
+
         import torch
         from torch.utils.data import Dataset
 
@@ -414,15 +466,22 @@ class Dataset:
         return pytorch_dataset
 
     def get_as_huggingface_dataset(self):
+        """
+        Load current dataset as a HuggingFace dataset.
+
+        TODO:
+            * currently the support for huggingg face dataset is limited.
+                it only shows its capability of easily returning a hf dataset
+            * add features from the episode metadata
+            * allow selecting episodes based on queries.
+                doing so requires creating a new copy of the dataset on disk
+        """
         import datasets
 
-        # TODO: currently the support for huggingg face dataset is limited 
-        # it only shows its capability of easily returning a hf dataset 
-        # TODO #1: add features from the episode metadata 
-        # TODO #2: allow selecting episodes based on queries 
-        # doing so requires creating a new copy of the dataset on disk 
         dataset_path = self.path + "/" + self.name
-        parquet_files = [os.path.join(dataset_path, f) for f in os.listdir(dataset_path)]
+        parquet_files = [
+            os.path.join(dataset_path, f) for f in os.listdir(dataset_path)
+        ]
 
-        hf_dataset = datasets.load_dataset('parquet', data_files=parquet_files)
+        hf_dataset = datasets.load_dataset("parquet", data_files=parquet_files)
         return hf_dataset
