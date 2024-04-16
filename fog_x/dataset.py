@@ -354,7 +354,7 @@ class Dataset:
 
         for tf_episode in ds:
             additional_metadata = {
-                "loading_method": f"{name}, {all}, {counter}",
+                "loading_method": f"{name}, all, {counter}",
             }
             
             logger.info(tf_episode)
