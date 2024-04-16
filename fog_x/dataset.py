@@ -397,7 +397,7 @@ class Dataset:
                             video_writers[feature_name] = cv2.VideoWriter(
                                 f"{output_path}.mp4",
                                 cv2.VideoWriter_fourcc(*"mp4v"),
-                                10,
+                                15,
                                 frame_size
                             )
                             additional_metadata[f"video_path_{feature_name}"] = output_filename
