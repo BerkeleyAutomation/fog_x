@@ -99,8 +99,8 @@ class Episode:
         """
         return self.db_manager.get_steps()
 
-    def close(self) -> None:
+    def close(self, save_data = True, save_metadata = True) -> None:
         """
         Saves the episode object.
         """
-        self.db_manager.close()
+        self.db_manager.close(save_data, save_metadata)

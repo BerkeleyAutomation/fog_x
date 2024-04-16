@@ -291,68 +291,11 @@ class Dataset:
                     writer._record_step(stepdata, is_new_episode=True)
 
 
-    def load_rtx_step_data_from_episode(
-            self, 
-            tf_episode: Dict[str, Any],
-            additional_metadata: Optional[Dict[str, Any]] = None,
-            data_type: Dict[str, Any] = {}
-    ): 
-        from tensorflow_datasets.core.features import (
-            FeaturesDict,
-            Image,
-            Scalar,
-            Tensor,
-            Text,
-        )
-
-        fog_episode = self.new_episode(
-            metadata=additional_metadata,
-        )
-        for step in tf_episode["steps"]:
-            for k, v in step.items():
-                if k == "observation" or k == "action":
-                    for k2, v2 in v.items():
-                        # TODO: abstract this to feature.py
-
-                        if (
-                            isinstance(data_type[k][k2], Tensor)
-                            and data_type[k][k2].shape != ()
-                        ):
-                            memfile = io.BytesIO()
-                            np.save(memfile, v2.numpy())
-                            value = memfile.getvalue()
-                        elif isinstance(data_type[k][k2], Image):
-                            memfile = io.BytesIO()
-                            np.save(memfile, v2.numpy())
-                            value = memfile.getvalue()
-                        else:
-                            value = v2.numpy()
-
-                        fog_episode.add(
-                            feature=str(k2),
-                            value=value,
-                            feature_type=FeatureType(
-                                tf_feature_spec=data_type[k][k2]
-                            ),
-                        )
-                        if k == "observation":
-                            self.obs_keys.append(k2)
-                        elif k == "action":
-                            self.act_keys.append(k2)
-                else:
-                    fog_episode.add(
-                        feature=str(k),
-                        value=v.numpy(),
-                        feature_type=FeatureType(tf_feature_spec=data_type[k]),
-                    )
-                    self.step_keys.append(k)
-        fog_episode.close()
-
     def load_rtx_episodes(
         self,
         name: str,
-        split: Optional[str],
-        additional_metadata: Optional[Dict[str, Any]] = None,
+        split: Optional[str] = None,
+        additional_metadata: Optional[Dict[str, Any]] = dict(),
     ):
         """
         Load robot data from Tensorflow Datasets.
@@ -375,17 +318,108 @@ class Dataset:
         from fog_x.rlds.utils import dataset2path
 
         b = tfds.builder_from_directory(builder_dir=dataset2path(name))
+
         ds = b.as_dataset(split=split)
 
         data_type = b.info.features["steps"]
 
         for tf_episode in ds:
             logger.info(tf_episode)
-            self.load_rtx_step_data_from_episode(
-                tf_episode, additional_metadata, data_type
-            )
-            
+            fog_episode = self.new_episode(
+                    metadata=additional_metadata,
+                )
+            for step in tf_episode["steps"]:
+                self._load_rtx_step_data_from_tf_step(
+                    step, fog_episode, additional_metadata, data_type, 
+                )
+            fog_episode.close()
 
+    def _prepare_rtx_metadata(
+        self,
+        name: str,
+    ):
+
+        # this is only required if rtx format is used
+        import tensorflow_datasets as tfds
+
+        from fog_x.rlds.utils import dataset2path
+
+        b = tfds.builder_from_directory(builder_dir=dataset2path(name))
+
+        ds = b.as_dataset(split="all")
+
+        data_type = b.info.features["steps"]
+
+        counter = 0
+
+        for tf_episode in ds:
+            additional_metadata = {
+                "loading_method": f"{name}, {all}, {counter}",
+            }
+            
+            logger.info(tf_episode)
+            fog_episode = self.new_episode(
+                    metadata=additional_metadata,
+                )
+            for step in tf_episode["steps"]:
+                self._load_rtx_step_data_from_tf_step(
+                    step, fog_episode, additional_metadata, data_type, 
+                )
+            fog_episode.close(save_data = False)
+            counter += 1
+
+    def _load_rtx_step_data_from_tf_step(
+            self, 
+            step: Dict[str, Any],
+            fog_episode : Episode,
+            additional_metadata: Optional[Dict[str, Any]] = None,
+            data_type: Dict[str, Any] = {},
+    ): 
+        from tensorflow_datasets.core.features import (
+            FeaturesDict,
+            Image,
+            Scalar,
+            Tensor,
+            Text,
+        )
+
+        for k, v in step.items():
+            if k == "observation" or k == "action":
+                for k2, v2 in v.items():
+                    # TODO: abstract this to feature.py
+
+                    if (
+                        isinstance(data_type[k][k2], Tensor)
+                        and data_type[k][k2].shape != ()
+                    ):
+                        memfile = io.BytesIO()
+                        np.save(memfile, v2.numpy())
+                        value = memfile.getvalue()
+                    elif isinstance(data_type[k][k2], Image):
+                        memfile = io.BytesIO()
+                        np.save(memfile, v2.numpy())
+                        value = memfile.getvalue()
+                    else:
+                        value = v2.numpy()
+                    fog_episode.add(
+                        feature=str(k2),
+                        value=value,
+                        feature_type=FeatureType(
+                            tf_feature_spec=data_type[k][k2]
+                        ),
+                    )
+                    if k == "observation":
+                        self.obs_keys.append(k2)
+                    elif k == "action":
+                        self.act_keys.append(k2)
+            else:
+                fog_episode.add(
+                    feature=str(k),
+                    value=v.numpy(),
+                    feature_type=FeatureType(tf_feature_spec=data_type[k]),
+                )
+                self.step_keys.append(k)
+        
 
     def get_episode_info(self) -> pandas.DataFrame:
         """

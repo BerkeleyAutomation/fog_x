@@ -105,10 +105,10 @@ class PolarsConnector:
             logger.debug("Only one table to merge.")
         self.tables[output_table] = merged_df
 
-        if clear_feature_tables:
-            for table_name in tables:
-                self.tables.pop(table_name)
-                logger.debug(f"Table {table_name} removed.")
+    def remove_tables(self, tables: List[str]):
+        for table_name in tables:
+            self.tables.pop(table_name)
+            logger.debug(f"Table {table_name} removed.")
 
     def select_table(self, table_name: str):
         # Return the DataFrame

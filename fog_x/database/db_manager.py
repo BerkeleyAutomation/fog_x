@@ -244,6 +244,8 @@ class DatabaseManager:
             clear_feature_tables = True,
         )
 
+        self.step_data_connector.remove_tables(table_names)
+
     # def get_table(
     #     self, table_name: Optional[str] = None, format: str = "pandas"
     # ):
@@ -276,45 +278,57 @@ class DatabaseManager:
         )
         return table_name
 
-    def close(self):
-        self.compact()
+    def close(self, save_data=True, save_metadata=True):
 
         update_dict = {"Finished": True}
-        compacted_table = self.step_data_connector.select_table(
-            f"{self.dataset_name}_{self.current_episode_id}"
-        )
+        if save_data:
+            self.compact()
+            compacted_table = self.step_data_connector.select_table(
+                f"{self.dataset_name}_{self.current_episode_id}"
+            )
+            for feature_name in self.features.keys():
+                if "count" in self.required_stats:
+                    update_dict[f"{feature_name}_count"] = compacted_table[
+                        feature_name
+                    ].count()
+                if "mean" in self.required_stats:
+                    update_dict[f"{feature_name}_mean"] = compacted_table[
+                        feature_name
+                    ].mean()
+                if "max" in self.required_stats:
+                    update_dict[f"{feature_name}_max"] = compacted_table[
+                        feature_name
+                    ].max()
+                if "min" in self.required_stats:
+                    update_dict[f"{feature_name}_min"] = compacted_table[
+                        feature_name
+                    ].min()
+            self.step_data_connector.save_table(
+                f"{self.dataset_name}_{self.current_episode_id}",
+            )
+            # TODO: this is a hack clear the old dataframe and load as a lazy frame  
+            # TODO: future iteration: serve as cache
+            self.step_data_connector.load_tables(
+                [self.current_episode_id],
+                [f"{self.dataset_name}_{self.current_episode_id}"],
+            )
+        else: 
+            for feature_name in self.features.keys():
+                feature_table = self.step_data_connector.select_table(
+                    self._get_feature_table_name(feature_name)
+                )
+                update_dict[f"{feature_name}_count"] = feature_table[feature_name].count()
 
-        for feature_name in self.features.keys():
-            if "count" in self.required_stats:
-                update_dict[f"{feature_name}_count"] = compacted_table[
-                    feature_name
-                ].count()
-            if "mean" in self.required_stats:
-                update_dict[f"{feature_name}_mean"] = compacted_table[
-                    feature_name
-                ].mean()
-            if "max" in self.required_stats:
-                update_dict[f"{feature_name}_max"] = compacted_table[
-                    feature_name
-                ].max()
-            if "min" in self.required_stats:
-                update_dict[f"{feature_name}_min"] = compacted_table[
-                    feature_name
-                ].min()
+            table_names = [
+                self._get_feature_table_name(feature_name)
+                for feature_name in self.features.keys()
+            ]
+            self.step_data_connector.remove_tables(table_names)
+
 
         # update the metadata field marking the episode as compacted
         self.episode_info_connector.update_data(
             self.dataset_name, self.current_episode_id, update_dict
-        )
-
-        self.step_data_connector.save_table(
-            f"{self.dataset_name}_{self.current_episode_id}",
-        )
-        
-        # TODO: this is a hack clear the old dataframe and load as a lazy frame  
-        self.step_data_connector.load_tables(
-            [self.current_episode_id],
-            [f"{self.dataset_name}_{self.current_episode_id}"],
         )
 
         self.episode_info_connector.save_table(
