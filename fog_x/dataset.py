@@ -341,6 +341,9 @@ class Dataset:
         self,
         name: str,
         export_path: Optional[str] = None,
+        sample_size = 20,
+        shuffle = False,
+        seed = 42,
     ):
 
         # this is only required if rtx format is used
@@ -350,11 +353,13 @@ class Dataset:
 
         b = tfds.builder_from_directory(builder_dir=dataset2path(name))
         ds = b.as_dataset(split="all")
+        if shuffle:
+            ds = ds.shuffle(sample_size, seed=seed)
         data_type = b.info.features["steps"]
         counter = 0
 
         if export_path == None:
-            export_path = self.path + "/viz"
+            export_path = self.path + "/" + self.name + "_viz"
         if not os.path.exists(export_path):
             os.makedirs(export_path)
 
@@ -364,7 +369,7 @@ class Dataset:
 
             additional_metadata = {
                 "load_from": name,
-                "load_index": f"all, {counter}",
+                "load_index": f"all, {shuffle}, {seed}, {counter}",
             }
             
             logger.info(tf_episode)
@@ -384,6 +389,8 @@ class Dataset:
                             output_filename = f"{self.name}_{counter}_{feature_name}"
                             output_path = f"{export_path}/{output_filename}"
 
+                            frame_size = (image.shape[1], image.shape[0])
+
                             # save the initial image
                             cv2.imwrite(f"{output_path}.jpg", image)
                             # save the video
@@ -391,7 +398,7 @@ class Dataset:
                                 f"{output_path}.mp4",
                                 cv2.VideoWriter_fourcc(*"mp4v"),
                                 10,
-                                (640, 480),
+                                frame_size
                             )
                             additional_metadata[f"video_path_{feature_name}"] = output_filename
 
@@ -409,6 +416,8 @@ class Dataset:
             video_writers = {}
             fog_episode.close(save_data = False, additional_metadata = additional_metadata)
             counter += 1
+            if counter > sample_size:
+                break
 
     def _load_rtx_step_data_from_tf_step(
             self, 
