@@ -329,9 +329,12 @@ class Dataset:
                     metadata=additional_metadata,
                 )
             for step in tf_episode["steps"]:
-                self._load_rtx_step_data_from_tf_step(
-                    step, fog_episode, additional_metadata, data_type, 
+                ret = self._load_rtx_step_data_from_tf_step(
+                    step, additional_metadata, data_type, 
                 )
+                for r in ret:
+                    fog_episode.add(**r)
+
             fog_episode.close()
 
     def _prepare_rtx_metadata(
@@ -362,16 +365,17 @@ class Dataset:
                     metadata=additional_metadata,
                 )
             for step in tf_episode["steps"]:
-                self._load_rtx_step_data_from_tf_step(
-                    step, fog_episode, additional_metadata, data_type, 
+                ret = self._load_rtx_step_data_from_tf_step(
+                    step, additional_metadata, data_type, 
                 )
+                for r in ret:
+                    fog_episode.add(**r)
             fog_episode.close(save_data = False)
             counter += 1
 
     def _load_rtx_step_data_from_tf_step(
             self, 
             step: Dict[str, Any],
-            fog_episode : Episode,
             additional_metadata: Optional[Dict[str, Any]] = None,
             data_type: Dict[str, Any] = {},
     ): 
@@ -382,6 +386,7 @@ class Dataset:
             Tensor,
             Text,
         )
+        ret = []
 
         for k, v in step.items():
             if k == "observation" or k == "action":
@@ -401,24 +406,44 @@ class Dataset:
                         value = memfile.getvalue()
                     else:
                         value = v2.numpy()
-                    fog_episode.add(
-                        feature=str(k2),
-                        value=value,
-                        feature_type=FeatureType(
-                            tf_feature_spec=data_type[k][k2]
-                        ),
+                    
+                    ret.append(
+                        {
+                            "feature": str(k2),
+                            "value": value,
+                            "feature_type": FeatureType(
+                                tf_feature_spec=data_type[k][k2]
+                            ),
+                        }
                     )
+                    # fog_episode.add(
+                    #     feature=str(k2),
+                    #     value=value,
+                    #     feature_type=FeatureType(
+                    #         tf_feature_spec=data_type[k][k2]
+                    #     ),
+                    # )
                     if k == "observation":
                         self.obs_keys.append(k2)
                     elif k == "action":
                         self.act_keys.append(k2)
             else:
-                fog_episode.add(
-                    feature=str(k),
-                    value=v.numpy(),
-                    feature_type=FeatureType(tf_feature_spec=data_type[k]),
+                # fog_episode.add(
+                #     feature=str(k),
+                #     value=v.numpy(),
+                #     feature_type=FeatureType(tf_feature_spec=data_type[k]),
+                # )
+                ret.append(
+                    {
+                        "feature": str(k),
+                        "value": v.numpy(),
+                        "feature_type": FeatureType(
+                            tf_feature_spec=data_type[k]
+                        ),
+                    }
                 )
                 self.step_keys.append(k)
+        return ret
         
 
     def get_episode_info(self) -> pandas.DataFrame:
