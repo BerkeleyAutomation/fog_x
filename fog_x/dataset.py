@@ -330,7 +330,7 @@ class Dataset:
                 )
             for step in tf_episode["steps"]:
                 ret = self._load_rtx_step_data_from_tf_step(
-                    step, additional_metadata, data_type, 
+                    step, data_type, 
                 )
                 for r in ret:
                     fog_episode.add(**r)
@@ -340,45 +340,79 @@ class Dataset:
     def _prepare_rtx_metadata(
         self,
         name: str,
+        export_path: Optional[str] = None,
     ):
 
         # this is only required if rtx format is used
         import tensorflow_datasets as tfds
-
         from fog_x.rlds.utils import dataset2path
+        import cv2
 
         b = tfds.builder_from_directory(builder_dir=dataset2path(name))
-
         ds = b.as_dataset(split="all")
-
         data_type = b.info.features["steps"]
-
         counter = 0
 
+        if export_path == None:
+            export_path = self.path + "/viz"
+        if not os.path.exists(export_path):
+            os.makedirs(export_path)
+
+        
         for tf_episode in ds:
+            video_writers = {}
+
             additional_metadata = {
                 "load_from": name,
                 "load_index": f"all, {counter}",
             }
             
             logger.info(tf_episode)
-            fog_episode = self.new_episode(
-                    metadata=additional_metadata,
-                )
+            fog_episode = self.new_episode()
+            
             for step in tf_episode["steps"]:
                 ret = self._load_rtx_step_data_from_tf_step(
-                    step, additional_metadata, data_type, 
+                    step, data_type, 
                 )
                 for r in ret:
+                    feature_name = r["feature"]
+                    if "image" in feature_name and "depth" not in feature_name:
+                        if feature_name not in video_writers:
+                            
+                            output_filename = f"{self.name}_{counter}_{feature_name}"
+                            output_path = f"{export_path}/{output_filename}"
+
+                            image = np.load(io.BytesIO(r["value"]))
+                            logger.info(f"feature: {feature_name}, image: {image}")
+
+                            # save the initial image
+                            cv2.imwrite(f"{output_path}.jpg", image)
+                            # save the video
+                            video_writers[feature_name] = cv2.VideoWriter(
+                                f"{output_path}.mp4",
+                                cv2.VideoWriter_fourcc(*"mp4v"),
+                                30,
+                                (640, 480),
+                            )
+                            additional_metadata[f"video_path_{feature_name}"] = output_filename
+                        video_writers[r["feature"]].write(image)
+
+                    if "instruction" in r["feature"]:
+                        natural_language_instruction = r["value"].decode("utf-8")
+                        additional_metadata["natural_language_instruction"] = natural_language_instruction
+
                     r["metadata_only"] = True
                     fog_episode.add(**r)
-            fog_episode.close(save_data = False)
+            
+            for _, video_writer in video_writers.items():
+                video_writer.release()
+            video_writers = {}
+            fog_episode.close(save_data = False, additional_metadata = additional_metadata)
             counter += 1
 
     def _load_rtx_step_data_from_tf_step(
             self, 
             step: Dict[str, Any],
-            additional_metadata: Optional[Dict[str, Any]] = None,
             data_type: Dict[str, Any] = {},
     ): 
         from tensorflow_datasets.core.features import (

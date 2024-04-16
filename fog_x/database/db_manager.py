@@ -324,7 +324,13 @@ class DatabaseManager:
             ]
             self.step_data_connector.remove_tables(table_names)
 
-
+        for metadata_key in additional_metadata.keys():
+            logger.debug(f"Adding metadata key {metadata_key} to the database")
+            self.episode_info_connector.add_column(
+                self.dataset_name,
+                metadata_key,
+                "str",  # TODO: support more types
+            )
         # update the metadata field marking the episode as compacted
         self.episode_info_connector.update_data(
             self.dataset_name, self.current_episode_id, additional_metadata
