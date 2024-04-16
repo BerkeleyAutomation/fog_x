@@ -206,6 +206,7 @@ class DatabaseManager:
         value: Any,
         timestamp: int,
         feature_type: Optional[FeatureType] = None,
+        metadata_only = False,
     ):
         if feature_name not in self.features.keys():
             logger.warning(
@@ -219,15 +220,16 @@ class DatabaseManager:
                 )
             self._initialize_feature(feature_name, feature_type)
 
-        # insert data into the table
-        self.step_data_connector.insert_data(
-            self._get_feature_table_name(feature_name),
-            {
-                "episode_id": self.current_episode_id,
-                "Timestamp": timestamp,
-                feature_name: value,
-            },
-        )
+        if not metadata_only:
+            # insert data into the table
+            self.step_data_connector.insert_data(
+                self._get_feature_table_name(feature_name),
+                {
+                    "episode_id": self.current_episode_id,
+                    "Timestamp": timestamp,
+                    feature_name: value,
+                },
+            )
 
     def compact(self):
         # create a table for the compacted data
@@ -278,9 +280,12 @@ class DatabaseManager:
         )
         return table_name
 
-    def close(self, save_data=True, save_metadata=True):
+    def close(self,  save_data=True, save_metadata=True, additional_metadata = None):
 
-        update_dict = {"Finished": True}
+        if additional_metadata is None:
+            additional_metadata = {}
+        logger.info(f"Closing the episode with metadata {additional_metadata}")
+        additional_metadata["Finished"] = True
         if save_data:
             self.compact()
             compacted_table = self.step_data_connector.select_table(
@@ -288,19 +293,19 @@ class DatabaseManager:
             )
             for feature_name in self.features.keys():
                 if "count" in self.required_stats:
-                    update_dict[f"{feature_name}_count"] = compacted_table[
+                    additional_metadata[f"{feature_name}_count"] = compacted_table[
                         feature_name
                     ].count()
                 if "mean" in self.required_stats:
-                    update_dict[f"{feature_name}_mean"] = compacted_table[
+                    additional_metadata[f"{feature_name}_mean"] = compacted_table[
                         feature_name
                     ].mean()
                 if "max" in self.required_stats:
-                    update_dict[f"{feature_name}_max"] = compacted_table[
+                    additional_metadata[f"{feature_name}_max"] = compacted_table[
                         feature_name
                     ].max()
                 if "min" in self.required_stats:
-                    update_dict[f"{feature_name}_min"] = compacted_table[
+                    additional_metadata[f"{feature_name}_min"] = compacted_table[
                         feature_name
                     ].min()
             self.step_data_connector.save_table(
@@ -313,12 +318,6 @@ class DatabaseManager:
                 [f"{self.dataset_name}_{self.current_episode_id}"],
             )
         else: 
-            for feature_name in self.features.keys():
-                feature_table = self.step_data_connector.select_table(
-                    self._get_feature_table_name(feature_name)
-                )
-                update_dict[f"{feature_name}_count"] = feature_table[feature_name].count()
-
             table_names = [
                 self._get_feature_table_name(feature_name)
                 for feature_name in self.features.keys()
@@ -328,7 +327,7 @@ class DatabaseManager:
 
         # update the metadata field marking the episode as compacted
         self.episode_info_connector.update_data(
-            self.dataset_name, self.current_episode_id, update_dict
+            self.dataset_name, self.current_episode_id, additional_metadata
         )
 
         self.episode_info_connector.save_table(

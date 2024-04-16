@@ -27,6 +27,7 @@ class Episode:
         value: Any,
         timestamp: Optional[int] = None,
         feature_type: Optional[FeatureType] = None,
+        metadata_only = False,
     ) -> None:
         """
         Add one feature step data.
@@ -51,7 +52,7 @@ class Episode:
             f"Adding {feature} with value {value} at timestamp {timestamp}"
         )
         if self.db_manager:
-            self.db_manager.add(feature, value, timestamp, feature_type)
+            self.db_manager.add(feature, value, timestamp, feature_type, metadata_only)
         else:
             logger.warning(
                 "No database manager provided, data will not be saved"
@@ -103,4 +104,4 @@ class Episode:
         """
         Saves the episode object.
         """
-        self.db_manager.close(save_data, save_metadata)
+        self.db_manager.close(save_data=save_data, save_metadata=save_metadata)

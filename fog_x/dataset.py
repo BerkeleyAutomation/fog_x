@@ -357,7 +357,8 @@ class Dataset:
 
         for tf_episode in ds:
             additional_metadata = {
-                "loading_method": f"{name}, all, {counter}",
+                "load_from": name,
+                "load_index": f"all, {counter}",
             }
             
             logger.info(tf_episode)
@@ -369,6 +370,7 @@ class Dataset:
                     step, additional_metadata, data_type, 
                 )
                 for r in ret:
+                    r["metadata_only"] = True
                     fog_episode.add(**r)
             fog_episode.close(save_data = False)
             counter += 1
