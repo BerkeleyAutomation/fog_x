@@ -17,4 +17,10 @@
 7. ROS / ROS2 
 8. recompaction to save space 
 9. CLI
-10. hugging face
+
+### For loader refactor 
+1. able to load from the saved dataset and recover semantics 
+2. able to generate gif and extract text message 
+3. generate dataset efficiently with {}
+
+
