@@ -374,16 +374,15 @@ class Dataset:
                 ret = self._load_rtx_step_data_from_tf_step(
                     step, data_type, 
                 )
+
                 for r in ret:
                     feature_name = r["feature"]
                     if "image" in feature_name and "depth" not in feature_name:
+                        image = np.load(io.BytesIO(r["value"]))
                         if feature_name not in video_writers:
                             
                             output_filename = f"{self.name}_{counter}_{feature_name}"
                             output_path = f"{export_path}/{output_filename}"
-
-                            image = np.load(io.BytesIO(r["value"]))
-                            logger.info(f"feature: {feature_name}, image: {image}")
 
                             # save the initial image
                             cv2.imwrite(f"{output_path}.jpg", image)
@@ -391,10 +390,11 @@ class Dataset:
                             video_writers[feature_name] = cv2.VideoWriter(
                                 f"{output_path}.mp4",
                                 cv2.VideoWriter_fourcc(*"mp4v"),
-                                30,
+                                10,
                                 (640, 480),
                             )
                             additional_metadata[f"video_path_{feature_name}"] = output_filename
+
                         video_writers[r["feature"]].write(image)
 
                     if "instruction" in r["feature"]:
