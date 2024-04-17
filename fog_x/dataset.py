@@ -2,7 +2,7 @@ import io
 import logging
 import os
 from typing import Any, Dict, List, Optional, Tuple
-
+import subprocess
 import numpy as np
 import polars
 import pandas
@@ -19,6 +19,19 @@ from fog_x.feature import FeatureType
 
 logger = logging.getLogger(__name__)
 
+
+
+def convert_to_h264(input_file, output_file):
+    
+    # FFmpeg command to convert video to H.264
+    command = [
+        'ffmpeg',
+        '-i', input_file,    # Input file
+        '-loglevel', 'error', # Suppress the logs
+        '-vcodec', 'h264', # Specify the codec
+        output_file          # Output file
+    ]
+    subprocess.run(command)
 
 class Dataset:
     """
@@ -337,6 +350,7 @@ class Dataset:
 
             fog_episode.close()
 
+
     def _prepare_rtx_metadata(
         self,
         name: str,
@@ -387,6 +401,7 @@ class Dataset:
                         if feature_name not in video_writers:
                             
                             output_filename = f"{self.name}_{counter}_{feature_name}"
+                            tmp_vid_output_path = f"/tmp/{output_filename}.mp4"
                             output_path = f"{export_path}/{output_filename}"
 
                             frame_size = (image.shape[1], image.shape[0])
@@ -395,12 +410,12 @@ class Dataset:
                             cv2.imwrite(f"{output_path}.jpg", image)
                             # save the video
                             video_writers[feature_name] = cv2.VideoWriter(
-                                f"{output_path}.mp4",
+                                tmp_vid_output_path,
                                 cv2.VideoWriter_fourcc(*"mp4v"),
-                                15,
+                                10,
                                 frame_size
                             )
-                            additional_metadata[f"video_path_{feature_name}"] = output_filename
+                            
 
                         video_writers[r["feature"]].write(image)
 
@@ -411,8 +426,16 @@ class Dataset:
                     r["metadata_only"] = True
                     fog_episode.add(**r)
             
-            for _, video_writer in video_writers.items():
+            for feature_name, video_writer in video_writers.items():
                 video_writer.release()
+                # need to convert to h264 to properly display over chrome / vscode 
+                output_filename = f"{self.name}_{counter}_{feature_name}"
+                tmp_vid_output_path = f"/tmp/{output_filename}.mp4"
+                vid_output_path = f"{export_path}/{output_filename}.mp4"
+                convert_to_h264(tmp_vid_output_path, vid_output_path)
+                if os.path.isfile(tmp_vid_output_path):
+                    os.remove(tmp_vid_output_path)
+                
             video_writers = {}
             fog_episode.close(save_data = False, additional_metadata = additional_metadata)
             counter += 1

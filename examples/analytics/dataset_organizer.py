@@ -68,14 +68,14 @@ dataset_id = 0
 for dataset_name in DATASETS:
     dataset = fog_x.dataset.Dataset(
         name=dataset_name,
-        path="~/test_dataset",
+        path="~/rtx_datasets",
     )
 
-    # dataset._prepare_rtx_metadata(
-    #     name=dataset_name,
-    #     sample_size = 10,
-    #     shuffle=True,
-    # )
+    dataset._prepare_rtx_metadata(
+        name=dataset_name,
+        sample_size = 20,
+        shuffle=True,
+    )
 
     info = dataset.get_episode_info()
 
