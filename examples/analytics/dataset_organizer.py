@@ -68,12 +68,17 @@ for dataset_name in DATASETS:
         path="~/rtx_datasets",
     )
 
-    dataset._prepare_rtx_metadata(
-        name=dataset_name,
-        sample_size = 10,
-        shuffle=True,
-    )
+    # dataset._prepare_rtx_metadata(
+    #     name=dataset_name,
+    #     sample_size = 10,
+    #     shuffle=True,
+    # )
 
+for dataset_name in DATASETS:
+    dataset = fog_x.dataset.Dataset(
+        name=dataset_name,
+        path="~/rtx_datasets",
+    )
     info = dataset.get_episode_info()
 
     for episode_metadata in info.iter_rows(named = True):

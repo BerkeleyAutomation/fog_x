@@ -7,7 +7,7 @@ RUN apt-get update && \
 
 COPY . /app
 WORKDIR /app
-RUN pip install .
+RUN pip install .[full]
 RUN pip3 install jupyter
 
 COPY . /
