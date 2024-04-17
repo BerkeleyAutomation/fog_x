@@ -170,7 +170,7 @@ class LazyFrameConnector(PolarsConnector):
             self.tables[table_name] = self.dataset.filter(
                 pl.col("episode_id") == episode_id
             )
-            logger.debug(f"Tables loaded from {self.tables}")
+            # logger.debug(f"Tables loaded from {self.tables}")
 
     def create_table(self, table_name: str):
         # Create a new DataFrame with specified columns
