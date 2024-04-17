@@ -1,8 +1,5 @@
 import fog_x
 
-
-
-
 DATASETS = [
     "fractal20220817_data",
     "kuka",
@@ -59,10 +56,10 @@ DATASETS = [
 ]
 
 
-objects = ["marker", "cloth", "cup", "object", "bottle", "block", "drawer", "lid", "mug"]
-tasks = ["put", "move", "pick", "remove", "take", "open", "close", "place", "turn", "push", 
+objects = ["NOTEXIST", "marker", "cloth", "cup", "object", "bottle", "block", "drawer", "lid", "mug"]
+tasks = ["NOTEXIST", "put", "move", "pick", "remove", "take", "open", "close", "place", "turn", "push", 
          "insert", "stack", "lift", "pour"] # things not in DROID
-views = ["wrist", "top", "other"]
+views = ["NOTEXIST", "wrist", "top", "other"]
 
 dataset_id = 0
 for dataset_name in DATASETS:
@@ -73,7 +70,7 @@ for dataset_name in DATASETS:
 
     dataset._prepare_rtx_metadata(
         name=dataset_name,
-        sample_size = 20,
+        sample_size = 10,
         shuffle=True,
     )
 
@@ -83,7 +80,7 @@ for dataset_name in DATASETS:
         instruction = episode_metadata["natural_language_instruction"]
 
         d = dict()
-        instruction = instruction.lower().replace(",", "").replace("\n", "")
+        instruction = instruction.lower().replace(",", "").replace("\n", "").replace("\"", "").replace("\'", "")
         d["dataset_id"] = f"dataset-{dataset_id}"
         d["info"] = instruction
         task_id = -1 
@@ -112,7 +109,6 @@ for dataset_name in DATASETS:
             for view in views:
                 if view in path:
                     view_id = views.index(view)
-                    break
             if view_id == -1:   
                 view_id = len(views) - 1
             

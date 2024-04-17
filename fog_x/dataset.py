@@ -433,6 +433,7 @@ class Dataset:
                 tmp_vid_output_path = f"/tmp/{output_filename}.mp4"
                 vid_output_path = f"{export_path}/{output_filename}.mp4"
                 convert_to_h264(tmp_vid_output_path, vid_output_path)
+                additional_metadata[f"video_path_{feature_name}"] = output_filename
                 if os.path.isfile(tmp_vid_output_path):
                     os.remove(tmp_vid_output_path)
                 
