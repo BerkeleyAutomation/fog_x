@@ -434,7 +434,8 @@ class Dataset:
         ret = []
 
         for k, v in step.items():
-            if k == "observation" or k == "action":
+            # logger.info(f"k {k} , v {v}")
+            if isinstance(v, dict): #and (k == "observation" or k == "action"):
                 for k2, v2 in v.items():
                     # TODO: abstract this to feature.py
 

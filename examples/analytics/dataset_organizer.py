@@ -15,7 +15,6 @@ DATASETS = [
     "viola",
     "berkeley_autolab_ur5",
     "toto",
-    "language_table",
     "columbia_cairlab_pusht_real",
     "stanford_kuka_multimodal_dataset_converted_externally_to_rlds",
     "nyu_rot_dataset_converted_externally_to_rlds",
@@ -56,7 +55,7 @@ DATASETS = [
     "cmu_stretch",
     "berkeley_gnm_recon",
     "berkeley_gnm_cory_hall",
-    "berkeley_gnm_sac_son",
+    # "berkeley_gnm_sac_son",
 ]
 
 for dataset_name in DATASETS:
@@ -70,5 +69,3 @@ for dataset_name in DATASETS:
         sample_size = 10,
         shuffle=True,
     )
-
-
