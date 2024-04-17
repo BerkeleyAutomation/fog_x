@@ -68,11 +68,11 @@ for dataset_name in DATASETS:
         path="~/rtx_datasets",
     )
 
-    # dataset._prepare_rtx_metadata(
-    #     name=dataset_name,
-    #     sample_size = 10,
-    #     shuffle=True,
-    # )
+    dataset._prepare_rtx_metadata(
+        name=dataset_name,
+        sample_size = 10,
+        shuffle=True,
+    )
 
 for dataset_name in DATASETS:
     dataset = fog_x.dataset.Dataset(
