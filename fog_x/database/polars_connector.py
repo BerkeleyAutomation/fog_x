@@ -146,9 +146,7 @@ class DataFrameConnector(PolarsConnector):
                 logger.debug(f"Table {table_name} does not exist in {path}.")
 
     def save_table(self, table_name: str):
-        self.tables[table_name].write_parquet(
-            f"{self.path}/{table_name}.parquet"
-        )
+        pq.write_table(self.tables[table_name].to_arrow(), f"{self.path}/{table_name}.parquet")
 
 
 class LazyFrameConnector(PolarsConnector):
