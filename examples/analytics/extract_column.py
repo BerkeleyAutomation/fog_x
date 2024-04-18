@@ -7,7 +7,7 @@ dataset = fog_x.dataset.Dataset(
 
 dataset.load_rtx_episodes(
     name="berkeley_autolab_ur5",
-    split="train[:1]",
+    split="train[:5]",
 )
 
 all_step_data = dataset.get_step_data() # get lazy polars frame of the entire dataset

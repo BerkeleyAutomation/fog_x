@@ -11,3 +11,4 @@ torch
 tensorflow
 tensorflow_datasets
 envlogger
+opencv-python

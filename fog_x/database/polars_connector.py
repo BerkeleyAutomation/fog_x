@@ -105,10 +105,10 @@ class PolarsConnector:
             logger.debug("Only one table to merge.")
         self.tables[output_table] = merged_df
 
-        if clear_feature_tables:
-            for table_name in tables:
-                self.tables.pop(table_name)
-                logger.debug(f"Table {table_name} removed.")
+    def remove_tables(self, tables: List[str]):
+        for table_name in tables:
+            self.tables.pop(table_name)
+            logger.debug(f"Table {table_name} removed.")
 
     def select_table(self, table_name: str):
         # Return the DataFrame
@@ -136,19 +136,23 @@ class DataFrameConnector(PolarsConnector):
 
 
     def load_tables(self, table_names: List[str]):
+        
         # load tables from the path
         for table_name in table_names:
             path = f"{self.path}/{table_name}.parquet"
-            if os.path.exists(os.path.expanduser(path)):
-                self.tables[table_name] = pl.read_parquet(path)
-                self.table_len[table_name] = len(self.tables[table_name])
-            else:
-                logger.debug(f"Table {table_name} does not exist in {path}.")
+            logger.info(f"Prepare to load table {table_name} loaded from {path}.")
+            # if os.path.exists(os.path.expanduser(path)):
+            #     self.tables[table_name] = pl.read_parquet(path)
+            #     self.table_len[table_name] = len(self.tables[table_name])
+            # else:
+            #     logger.debug(f"Table {table_name} does not exist in {path}.")
+            path = os.path.expanduser(path)
+            self.tables[table_name] = pl.from_arrow(pq.read_table(path))
+            self.table_len[table_name] = len(self.tables[table_name])
+            logger.info(f"Table {table_name} loaded from {path}.")
 
     def save_table(self, table_name: str):
-        self.tables[table_name].write_parquet(
-            f"{self.path}/{table_name}.parquet"
-        )
+        pq.write_table(self.tables[table_name].to_arrow(), f"{self.path}/{table_name}.parquet")
 
 
 class LazyFrameConnector(PolarsConnector):
@@ -170,7 +174,7 @@ class LazyFrameConnector(PolarsConnector):
             self.tables[table_name] = self.dataset.filter(
                 pl.col("episode_id") == episode_id
             )
-            logger.debug(f"Tables loaded from {self.tables}")
+            # logger.debug(f"Tables loaded from {self.tables}")
 
     def create_table(self, table_name: str):
         # Create a new DataFrame with specified columns

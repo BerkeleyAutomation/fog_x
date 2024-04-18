@@ -2,7 +2,7 @@ import io
 import logging
 import os
 from typing import Any, Dict, List, Optional, Tuple
-
+import subprocess
 import numpy as np
 import polars
 import pandas
@@ -19,6 +19,19 @@ from fog_x.feature import FeatureType
 
 logger = logging.getLogger(__name__)
 
+
+
+def convert_to_h264(input_file, output_file):
+    
+    # FFmpeg command to convert video to H.264
+    command = [
+        'ffmpeg',
+        '-i', input_file,    # Input file
+        '-loglevel', 'error', # Suppress the logs
+        '-vcodec', 'h264', # Specify the codec
+        output_file          # Output file
+    ]
+    subprocess.run(command)
 
 class Dataset:
     """
@@ -290,11 +303,12 @@ class Dataset:
                 else:
                     writer._record_step(stepdata, is_new_episode=True)
 
+
     def load_rtx_episodes(
         self,
         name: str,
-        split: Optional[str],
-        additional_metadata: Optional[Dict[str, Any]] = None,
+        split: Optional[str] = None,
+        additional_metadata: Optional[Dict[str, Any]] = dict(),
     ):
         """
         Load robot data from Tensorflow Datasets.
@@ -313,17 +327,11 @@ class Dataset:
 
         # this is only required if rtx format is used
         import tensorflow_datasets as tfds
-        from tensorflow_datasets.core.features import (
-            FeaturesDict,
-            Image,
-            Scalar,
-            Tensor,
-            Text,
-        )
 
         from fog_x.rlds.utils import dataset2path
 
         b = tfds.builder_from_directory(builder_dir=dataset2path(name))
+
         ds = b.as_dataset(split=split)
 
         data_type = b.info.features["steps"]
@@ -331,47 +339,182 @@ class Dataset:
         for tf_episode in ds:
             logger.info(tf_episode)
             fog_episode = self.new_episode(
-                metadata=additional_metadata,
-            )
+                    metadata=additional_metadata,
+                )
             for step in tf_episode["steps"]:
-                for k, v in step.items():
-                    if k == "observation" or k == "action":
-                        for k2, v2 in v.items():
-                            # TODO: abstract this to feature.py
+                ret = self._load_rtx_step_data_from_tf_step(
+                    step, data_type, 
+                )
+                for r in ret:
+                    fog_episode.add(**r)
 
-                            if (
-                                isinstance(data_type[k][k2], Tensor)
-                                and data_type[k][k2].shape != ()
-                            ):
-                                memfile = io.BytesIO()
-                                np.save(memfile, v2.numpy())
-                                value = memfile.getvalue()
-                            elif isinstance(data_type[k][k2], Image):
-                                memfile = io.BytesIO()
-                                np.save(memfile, v2.numpy())
-                                value = memfile.getvalue()
-                            else:
-                                value = v2.numpy()
-
-                            fog_episode.add(
-                                feature=str(k2),
-                                value=value,
-                                feature_type=FeatureType(
-                                    tf_feature_spec=data_type[k][k2]
-                                ),
-                            )
-                            if k == "observation":
-                                self.obs_keys.append(k2)
-                            elif k == "action":
-                                self.act_keys.append(k2)
-                    else:
-                        fog_episode.add(
-                            feature=str(k),
-                            value=v.numpy(),
-                            feature_type=FeatureType(tf_feature_spec=data_type[k]),
-                        )
-                        self.step_keys.append(k)
             fog_episode.close()
+
+
+    def _prepare_rtx_metadata(
+        self,
+        name: str,
+        export_path: Optional[str] = None,
+        sample_size = 20,
+        shuffle = False,
+        seed = 42,
+    ):
+
+        # this is only required if rtx format is used
+        import tensorflow_datasets as tfds
+        from fog_x.rlds.utils import dataset2path
+        import cv2
+
+        b = tfds.builder_from_directory(builder_dir=dataset2path(name))
+        ds = b.as_dataset(split="all")
+        if shuffle:
+            ds = ds.shuffle(sample_size, seed=seed)
+        data_type = b.info.features["steps"]
+        counter = 0
+
+        if export_path == None:
+            export_path = self.path + "/" + self.name + "_viz"
+        if not os.path.exists(export_path):
+            os.makedirs(export_path)
+
+        
+        for tf_episode in ds:
+            video_writers = {}
+
+            additional_metadata = {
+                "load_from": name,
+                "load_index": f"all, {shuffle}, {seed}, {counter}",
+            }
+            
+            logger.info(tf_episode)
+            fog_episode = self.new_episode()
+            
+            for step in tf_episode["steps"]:
+                ret = self._load_rtx_step_data_from_tf_step(
+                    step, data_type, 
+                )
+
+                for r in ret:
+                    feature_name = r["feature"]
+                    if "image" in feature_name and "depth" not in feature_name:
+                        image = np.load(io.BytesIO(r["value"]))
+                        if feature_name not in video_writers:
+                            
+                            output_filename = f"{self.name}_{counter}_{feature_name}"
+                            tmp_vid_output_path = f"/tmp/{output_filename}.mp4"
+                            output_path = f"{export_path}/{output_filename}"
+
+                            frame_size = (image.shape[1], image.shape[0])
+
+                            # save the initial image
+                            cv2.imwrite(f"{output_path}.jpg", image)
+                            # save the video
+                            video_writers[feature_name] = cv2.VideoWriter(
+                                tmp_vid_output_path,
+                                cv2.VideoWriter_fourcc(*"mp4v"),
+                                10,
+                                frame_size
+                            )
+                            
+
+                        video_writers[r["feature"]].write(image)
+
+                    if "instruction" in r["feature"]:
+                        natural_language_instruction = r["value"].decode("utf-8")
+                        additional_metadata["natural_language_instruction"] = natural_language_instruction
+
+                    r["metadata_only"] = True
+                    fog_episode.add(**r)
+            
+            for feature_name, video_writer in video_writers.items():
+                video_writer.release()
+                # need to convert to h264 to properly display over chrome / vscode 
+                output_filename = f"{self.name}_{counter}_{feature_name}"
+                tmp_vid_output_path = f"/tmp/{output_filename}.mp4"
+                vid_output_path = f"{export_path}/{output_filename}.mp4"
+                convert_to_h264(tmp_vid_output_path, vid_output_path)
+                additional_metadata[f"video_path_{feature_name}"] = output_filename
+                if os.path.isfile(tmp_vid_output_path):
+                    os.remove(tmp_vid_output_path)
+                
+            video_writers = {}
+            fog_episode.close(save_data = False, additional_metadata = additional_metadata)
+            counter += 1
+            if counter > sample_size:
+                break
+
+    def _load_rtx_step_data_from_tf_step(
+            self, 
+            step: Dict[str, Any],
+            data_type: Dict[str, Any] = {},
+    ): 
+        from tensorflow_datasets.core.features import (
+            FeaturesDict,
+            Image,
+            Scalar,
+            Tensor,
+            Text,
+        )
+        ret = []
+
+        for k, v in step.items():
+            # logger.info(f"k {k} , v {v}")
+            if isinstance(v, dict): #and (k == "observation" or k == "action"):
+                for k2, v2 in v.items():
+                    # TODO: abstract this to feature.py
+
+                    if (
+                        isinstance(data_type[k][k2], Tensor)
+                        and data_type[k][k2].shape != ()
+                    ):
+                        memfile = io.BytesIO()
+                        np.save(memfile, v2.numpy())
+                        value = memfile.getvalue()
+                    elif isinstance(data_type[k][k2], Image):
+                        memfile = io.BytesIO()
+                        np.save(memfile, v2.numpy())
+                        value = memfile.getvalue()
+                    else:
+                        value = v2.numpy()
+                    
+                    ret.append(
+                        {
+                            "feature": str(k2),
+                            "value": value,
+                            "feature_type": FeatureType(
+                                tf_feature_spec=data_type[k][k2]
+                            ),
+                        }
+                    )
+                    # fog_episode.add(
+                    #     feature=str(k2),
+                    #     value=value,
+                    #     feature_type=FeatureType(
+                    #         tf_feature_spec=data_type[k][k2]
+                    #     ),
+                    # )
+                    if k == "observation":
+                        self.obs_keys.append(k2)
+                    elif k == "action":
+                        self.act_keys.append(k2)
+            else:
+                # fog_episode.add(
+                #     feature=str(k),
+                #     value=v.numpy(),
+                #     feature_type=FeatureType(tf_feature_spec=data_type[k]),
+                # )
+                ret.append(
+                    {
+                        "feature": str(k),
+                        "value": v.numpy(),
+                        "feature_type": FeatureType(
+                            tf_feature_spec=data_type[k]
+                        ),
+                    }
+                )
+                self.step_keys.append(k)
+        return ret
+        
 
     def get_episode_info(self) -> pandas.DataFrame:
         """
