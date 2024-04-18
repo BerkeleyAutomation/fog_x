@@ -139,11 +139,14 @@ class DataFrameConnector(PolarsConnector):
         # load tables from the path
         for table_name in table_names:
             path = f"{self.path}/{table_name}.parquet"
-            if os.path.exists(os.path.expanduser(path)):
-                self.tables[table_name] = pl.read_parquet(path)
-                self.table_len[table_name] = len(self.tables[table_name])
-            else:
-                logger.debug(f"Table {table_name} does not exist in {path}.")
+            # if os.path.exists(os.path.expanduser(path)):
+            #     self.tables[table_name] = pl.read_parquet(path)
+            #     self.table_len[table_name] = len(self.tables[table_name])
+            # else:
+            #     logger.debug(f"Table {table_name} does not exist in {path}.")
+            path = os.path.expanduser(path)
+            self.tables[table_name] = pl.from_arrow(pq.read_table(path))
+            self.table_len[table_name] = len(self.tables[table_name])
 
     def save_table(self, table_name: str):
         pq.write_table(self.tables[table_name].to_arrow(), f"{self.path}/{table_name}.parquet")
