@@ -136,9 +136,11 @@ class DataFrameConnector(PolarsConnector):
 
 
     def load_tables(self, table_names: List[str]):
+        
         # load tables from the path
         for table_name in table_names:
             path = f"{self.path}/{table_name}.parquet"
+            logger.info(f"Prepare to load table {table_name} loaded from {path}.")
             # if os.path.exists(os.path.expanduser(path)):
             #     self.tables[table_name] = pl.read_parquet(path)
             #     self.table_len[table_name] = len(self.tables[table_name])
