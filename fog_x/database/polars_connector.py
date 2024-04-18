@@ -147,6 +147,7 @@ class DataFrameConnector(PolarsConnector):
             path = os.path.expanduser(path)
             self.tables[table_name] = pl.from_arrow(pq.read_table(path))
             self.table_len[table_name] = len(self.tables[table_name])
+            logger.info(f"Table {table_name} loaded from {path}.")
 
     def save_table(self, table_name: str):
         pq.write_table(self.tables[table_name].to_arrow(), f"{self.path}/{table_name}.parquet")
