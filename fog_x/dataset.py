@@ -79,13 +79,32 @@ class Dataset:
         self.replace_existing = replace_existing
         self.features = features
         self.enable_feature_inference = enable_feature_inference
-
         if episode_info_connector is None:
-            episode_info_connector = DataFrameConnector(f"{path}/")
+                episode_info_connector = DataFrameConnector(f"{path}/")
+        
         if step_data_connector is None:
             if not os.path.exists(f"{path}/{name}"):
                 os.makedirs(f"{path}/{name}")
-            step_data_connector = LazyFrameConnector(f"{path}/{name}")
+            try: 
+                step_data_connector = LazyFrameConnector(f"{path}/{name}")
+            except:
+                logger.info(f"Path does not exist. ({path}/{name})")
+                cloud_provider = path[:2]
+                if cloud_provider == "s3":
+                    logger.info(f"Creating {cloud_provider} bucket...")
+                    import boto3
+                    s3_client = boto3.client('s3')
+                    bucket_name = path[5:]
+                    s3_client.create_bucket(Bucket=bucket_name)
+                    s3_client.put_object(Bucket=bucket_name, Key=f"{name}/")
+                    logger.info(f"Bucket '{bucket_name}' created in AWS S3.")
+                    # Reinitialize step_data_connector
+                    step_data_connector = LazyFrameConnector(f"{path}/{name}") 
+                elif cloud_provider == "gs":
+                    logger.info(f"Creating {cloud_provider} bucket...")
+                    pass
+                else:
+                    logger.info(f"Unsupported cloud_provider {cloud_provider}.")
         self.db_manager = DatabaseManager(episode_info_connector, step_data_connector)
         self.db_manager.initialize_dataset(self.name, features)
 
