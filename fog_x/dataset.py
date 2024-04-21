@@ -95,7 +95,7 @@ class Dataset:
                     import boto3
                     s3_client = boto3.client('s3')
                     bucket_name = path[5:]
-                    s3_client.create_bucket(Bucket=bucket_name)
+                    # s3_client.create_bucket(Bucket=bucket_name)
                     s3_client.put_object(Bucket=bucket_name, Key=f"{name}/")
                     logger.info(f"Bucket '{bucket_name}' created in AWS S3.")
                     # Reinitialize step_data_connector

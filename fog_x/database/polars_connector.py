@@ -8,7 +8,7 @@ import pyarrow.dataset as ds
 import pyarrow.parquet as pq
 
 from fog_x.database.utils import _datasets_dtype_to_pld
-
+import smart_open
 logger = logging.getLogger(__name__)
 
 
@@ -139,17 +139,22 @@ class DataFrameConnector(PolarsConnector):
         
         # load tables from the path
         for table_name in table_names:
-            path = f"{self.path}/{table_name}.parquet"
+            path = self.path.strip("/")
+            path = f"{path}/{table_name}.parquet"
             logger.info(f"Prepare to load table {table_name} loaded from {path}.")
-            # if os.path.exists(os.path.expanduser(path)):
-            #     self.tables[table_name] = pl.read_parquet(path)
-            #     self.table_len[table_name] = len(self.tables[table_name])
-            # else:
-            #     logger.debug(f"Table {table_name} does not exist in {path}.")
+
+            # use smart_open to handle different file systems
             path = os.path.expanduser(path)
-            self.tables[table_name] = pl.from_arrow(pq.read_table(path))
-            self.table_len[table_name] = len(self.tables[table_name])
-            logger.info(f"Table {table_name} loaded from {path}.")
+            try:
+                with smart_open.open(path):
+                    self.tables[table_name] = pl.from_arrow(pq.read_table(path))
+                    self.table_len[table_name] = len(self.tables[table_name])
+                    logger.info(f"Table {table_name} loaded from {path}.")
+            except Exception as e:
+                logger.warn(f"Failed to load table {table_name} from {path}.")
+                continue 
+
+
 
     def save_table(self, table_name: str):
         pq.write_table(self.tables[table_name].to_arrow(), f"{self.path}/{table_name}.parquet")
