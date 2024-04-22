@@ -4,10 +4,15 @@
 5. efficient image storage 
 6. compare with standard tfds on loading and storage
 7. recover shema from save data
+4. need to describe lazily loaded frames, more metadata fields 
+
+### operations to be supported
+1. merge 
+2. migration
 
 ### known bugs 
 3. sql part is completely broken 
-4. need to describe lazily loaded frames, more metadata fields 
+5. gcp - cloud seems to read as //, need to clean up the paths 
 
 ### Big Steps 
 1. asynchonous writing, test with multiple processes & episodes 
