@@ -5,6 +5,10 @@
 6. compare with standard tfds on loading and storage
 7. recover shema from save data
 
+### operations to be supported
+1. merge 
+2. migration
+
 ### known bugs 
 3. sql part is completely broken 
 4. need to describe lazily loaded frames, more metadata fields 
