@@ -14,4 +14,4 @@ pip install fogx
 
 See [Usage Guide](./usage.md) for an overview of how to use Fog-X.
 
-You can also view [working examples on GitHub](https://github.com/KeplerC/fog_x/tree/main/examples).
+You can also view [working examples on GitHub](https://github.com/BerkeleyAutomation/fog_x/tree/main/examples).

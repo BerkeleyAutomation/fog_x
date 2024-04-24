@@ -16,10 +16,10 @@ echo "Description: $description";
 
 echo "Renaming project..."
 
-original_author="KeplerC"
+original_author="BerkeleyAutomation"
 original_name="fog_x"
 original_urlname="fog_x"
-original_description="Awesome fog_x created by KeplerC"
+original_description="Awesome fog_x created by BerkeleyAutomation"
 # for filename in $(find . -name "*.*") 
 for filename in $(git ls-files) 
 do

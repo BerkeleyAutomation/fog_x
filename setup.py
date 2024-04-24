@@ -32,11 +32,11 @@ def read_requirements(path):
 setup(
     name="fog_x",
     version=read("fog_x", "VERSION"),
-    description="Awesome fog_x created by KeplerC",
-    url="https://github.com/KeplerC/fog_x/",
+    description="Awesome fog_x created by BerkeleyAutomation",
+    url="https://github.com/BerkeleyAutomation/fog_x/",
     long_description=read("README.md"),
     long_description_content_type="text/markdown",
-    author="KeplerC",
+    author="BerkeleyAutomation",
     packages=find_packages(exclude=["tests", ".github"]),
     install_requires=read_requirements("requirements.txt"),
     entry_points={

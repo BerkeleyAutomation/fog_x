@@ -70,7 +70,7 @@ for dataset_name in DATASETS:
 
     dataset._prepare_rtx_metadata(
         name=dataset_name,
-        sample_size = 10,
+        sample_size = 100,
         shuffle=True,
     )
 

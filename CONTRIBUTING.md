@@ -10,7 +10,7 @@ This instructions are for linux base systems. (Linux, MacOS, BSD, etc.)
 - On github interface click on `Fork` button.
 - Clone your fork of this repo. `git clone git@github.com:YOUR_GIT_USERNAME/fog_x.git`
 - Enter the directory `cd fog_x`
-- Add upstream repo `git remote add upstream https://github.com/KeplerC/fog_x`
+- Add upstream repo `git remote add upstream https://github.com/BerkeleyAutomation/fog_x`
 
 ## Setting up your own virtual environment
 

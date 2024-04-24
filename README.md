@@ -1,11 +1,10 @@
 # 🦊 Fog-RT-X
 
-[![codecov](https://codecov.io/gh/KeplerC/fog_x/branch/main/graph/badge.svg?token=fog_x_token_here)](https://codecov.io/gh/KeplerC/fog_x)
-[![CI](https://github.com/KeplerC/fog_x/actions/workflows/main.yml/badge.svg)](https://github.com/KeplerC/fog_x/actions/workflows/main.yml)
-
 🦊 Fog-RT-X: An Efficient and Scalable Data Collection and Management Framework For Robotics Learning. Support [Open-X-Embodiment](https://robotics-transformer-x.github.io/), 🤗[HuggingFace](https://huggingface.co/). 
 
 🦊 Fog-RT-X considers both speed 🚀 and memory efficiency 📈 with active metadata and lazily-loaded trajectory data. It supports flexible and distributed dataset partitioning. 
+
+[Design Doc](https://docs.google.com/document/d/1woLQVLWsySGjFuz8aCsaLoc74dXQgIccnWRemjlNDws/edit#heading=h.irrfcedesnvr) | [Dataset Visualization](https://keplerc.github.io/openxvisualizer/)
 
 ## Install 
 
@@ -50,9 +49,9 @@ torch.utils.data.DataLoader(dataset.as_pytorch_dataset(desired_episodes))
 ```
 
 ## Design
-🦊 Fog-X recognizes most post-processing, analytics and management involves the trajectory-level data, such as tags, while actual trajectory steps are rarely read, written and transformed. Acessing and modifying trajectory data is very expensive and hard. 
+🦊 Fog-RT-X recognizes most post-processing, analytics and management involves the trajectory-level data, such as tags, while actual trajectory steps are rarely read, written and transformed. Acessing and modifying trajectory data is very expensive and hard. 
 
-As a result, 🦊 Fog-X proposes 
+As a result, 🦊 Fog-RT-X proposes 
 * a user-friendly metadata table via Pandas Datframe for speed and freedom
 * a LazyFrame from Polars for the trajectory dataset that only loads and transform the data if needed 
 * parquet as storage format for distributed storage and columnar support compared to tensorflow records 
@@ -61,6 +60,8 @@ As a result, 🦊 Fog-X proposes
 
 ## More Coming Soon!
 Currently we see a more than 60\% space saving on some existing RT-X datasets. This can be even more by re-paritioning the dataset. Our next steps can be found in the [planning doc](./design_doc/planning_doc.md). Feedback welcome through issues or PR to planning doc!
+
+We also note we are at a beta-testing phase. We make our best effort to be backward-compatible but interfaces may be unstable. 
 
 ## Development
 

@@ -576,7 +576,7 @@ class Dataset:
 
     def get_step_data_by_episode_ids(
         self, episode_ids: List[int], as_lazy_frame=True
-    ) -> List[polars.LazyFrame] | List[polars.DataFrame]:
+    ):
         """
         Args:
             episode_ids (List[int]): list of episode ids
