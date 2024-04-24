@@ -1,11 +1,11 @@
-# 🦊 Fog-X
+# 🦊 Fog-RT-X
 
 [![codecov](https://codecov.io/gh/KeplerC/fog_x/branch/main/graph/badge.svg?token=fog_x_token_here)](https://codecov.io/gh/KeplerC/fog_x)
 [![CI](https://github.com/KeplerC/fog_x/actions/workflows/main.yml/badge.svg)](https://github.com/KeplerC/fog_x/actions/workflows/main.yml)
 
-🦊 Fog-X: An Efficient and Scalable Data Collection and Management Framework For Robotics Learning. Support [Open-X-Embodiment](https://robotics-transformer-x.github.io/), 🤗[HuggingFace](https://huggingface.co/). 
+🦊 Fog-RT-X: An Efficient and Scalable Data Collection and Management Framework For Robotics Learning. Support [Open-X-Embodiment](https://robotics-transformer-x.github.io/), 🤗[HuggingFace](https://huggingface.co/). 
 
-🦊 Fog-X considers both speed 🚀 and memory efficiency 📈 with active metadata and lazily-loaded trajectory data. It supports flexible and distributed dataset partitioning. 
+🦊 Fog-RT-X considers both speed 🚀 and memory efficiency 📈 with active metadata and lazily-loaded trajectory data. It supports flexible and distributed dataset partitioning. 
 
 ## Install 
 

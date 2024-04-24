@@ -12,3 +12,6 @@ tensorflow
 tensorflow_datasets
 envlogger
 opencv-python
+# cloud
+boto3
+smart_open

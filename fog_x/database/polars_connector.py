@@ -139,7 +139,7 @@ class DataFrameConnector(PolarsConnector):
         
         # load tables from the path
         for table_name in table_names:
-            path = self.path.strip("/")
+            path = self.path.removesuffix("/")
             path = f"{path}/{table_name}.parquet"
             logger.info(f"Prepare to load table {table_name} loaded from {path}.")
 

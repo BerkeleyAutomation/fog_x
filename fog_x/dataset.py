@@ -100,7 +100,8 @@ class Dataset:
             * is replace_existing actually used anywhere?
         """
         self.name = name
-        path = os.path.expanduser(path).strip("/")
+        path = os.path.expanduser(path).removesuffix("/")
+        logger.info(f"Dataset path: {path}")
         self.path = path
         if path is None:
             raise ValueError("Path is required")
@@ -112,7 +113,7 @@ class Dataset:
         self.features = features
         self.enable_feature_inference = enable_feature_inference
         if episode_info_connector is None:
-                episode_info_connector = DataFrameConnector(f"{path}/")
+                episode_info_connector = DataFrameConnector(f"{path}")
         
         if step_data_connector is None:
             if not os.path.exists(f"{path}/{name}"):
@@ -437,6 +438,10 @@ class Dataset:
                     feature_name = r["feature"]
                     if "image" in feature_name and "depth" not in feature_name:
                         image = np.load(io.BytesIO(r["value"]))
+
+                        # convert from RGB to BGR
+                        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+                
                         if feature_name not in video_writers:
                             
                             output_filename = f"{self.name}_{counter}_{feature_name}"
