@@ -32,7 +32,7 @@ def read_requirements(path):
 setup(
     name="fog_x",
     version=read("fog_x", "VERSION"),
-    description="Awesome fog_x created by BerkeleyAutomation",
+    description="An Efficient and Scalable Data Collection and Management Framework For Robotics Learning",
     url="https://github.com/BerkeleyAutomation/fog_x/",
     long_description=read("README.md"),
     long_description_content_type="text/markdown",

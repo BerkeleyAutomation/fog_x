@@ -2,24 +2,27 @@
 
 🦊 Fog-RT-X: An Efficient and Scalable Data Collection and Management Framework For Robotics Learning. Support [Open-X-Embodiment](https://robotics-transformer-x.github.io/), 🤗[HuggingFace](https://huggingface.co/). 
 
-🦊 Fog-RT-X considers both speed 🚀 and memory efficiency 📈 with active metadata and lazily-loaded trajectory data. It supports flexible and distributed dataset partitioning. 
+🦊 Fog-RT-X considers both speed 🚀 and memory efficiency 📈 with active metadata and lazily-loaded trajectory data. It supports flexible and distributed dataset partitioning. It provides native support to cloud storage. 
 
 [Design Doc](https://docs.google.com/document/d/1woLQVLWsySGjFuz8aCsaLoc74dXQgIccnWRemjlNDws/edit#heading=h.irrfcedesnvr) | [Dataset Visualization](https://keplerc.github.io/openxvisualizer/)
 
 ## Install 
 
 ```bash
-pip install fogx
+pip install fog_x
 ```
 
 ## Usage
 
 ```py
-import fogx as fox 
+import fog_x
 
 # 🦊 Dataset Creation 
 # from distributed dataset storage 
-dataset = fox.Dataset(load_from = ["/tmp/rtx", "s3://fox_storage/"])  
+dataset = fog_x.Dataset(
+    name="demo_ds",
+    path="~/test_dataset", # can be AWS S3, Google Bucket! 
+)  
 
 # 🦊 Data collection: 
 # create a new trajectory
@@ -43,6 +46,7 @@ desired_episodes = episode_info.filter(episode_info["collector"] == "User 2")
 
 # 🦊 Data Sharing and Usage:
 # Export and share the dataset as standard Open-X-Embodiment format
+# it also supports hugging face, and more!
 dataset.export(desired_episodes, format="rtx")
 # Load with pytorch dataloader
 torch.utils.data.DataLoader(dataset.as_pytorch_dataset(desired_episodes))
