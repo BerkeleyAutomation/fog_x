@@ -5,7 +5,10 @@
 6. compare with standard tfds on loading and storage
 7. recover shema from save data
 4. need to describe lazily loaded frames, more metadata fields 
+8. support foxglove
+9. hugging face demo: convert and upload existing dataste to hugging face
 
+    
 ### operations to be supported
 1. merge 
 2. migration
