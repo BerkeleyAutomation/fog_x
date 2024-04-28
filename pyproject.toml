@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fog_x"
+version = "0.1.0.beta.3"
+dependencies = [
+    "pandas", 
+    "numpy",
+    "polars",
+    "pillow",
+    "pyarrow",
+    "opencv-python",
+    "sqlalchemy==1.4.51",
+]
+description = "An Efficient and Scalable Data Collection and Management Framework For Robotics Learning"
+readme = {file = "README.md", content-type = "text/markdown"}
+license = {file = "LICENSE"}
+keywords = ["robotics", "data", "management", "collection", "framework", "learning"]
+
+[project.optional-dependencies]
+hf = ["datasets"]
+rtx = ["tensorflow", "tensorflow_datasets", "envlogger"]
+aws = ["boto3", "smart_open"]
+torch = ["torch"]
+all = ["datasets", "tensorflow", "tensorflow_datasets", "envlogger", "boto3", "smart_open", "torch", "torchvision"]
+
+[project.urls]
+homepage = "https://github.com/BerkeleyAutomation/fog_x/"
