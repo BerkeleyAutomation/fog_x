@@ -106,7 +106,8 @@ class Dataset:
         if path is None:
             raise ValueError("Path is required")
         # create the folder if path doesn't exist
-        if not os.path.exists(path):
+        if self.path.startswith("/") and not os.path.exists(path):
+            logger.info(f"Creating directory {path}")
             os.makedirs(path)
 
         self.replace_existing = replace_existing
@@ -116,7 +117,7 @@ class Dataset:
                 episode_info_connector = DataFrameConnector(f"{path}")
         
         if step_data_connector is None:
-            if not os.path.exists(f"{path}/{name}"):
+            if self.path.startswith("/") and not os.path.exists(f"{path}/{name}"):
                 os.makedirs(f"{path}/{name}")
             try: 
                 step_data_connector = LazyFrameConnector(f"{path}/{name}")

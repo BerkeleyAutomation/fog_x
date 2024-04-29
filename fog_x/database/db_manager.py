@@ -1,10 +1,10 @@
 import logging
 from ast import literal_eval
 from typing import Any, Dict, List, Optional
-
+import numpy as np
 from fog_x.database.polars_connector import PolarsConnector
 from fog_x.feature import FeatureType
-
+import io
 logger = logging.getLogger(__name__)
 
 
@@ -221,6 +221,12 @@ class DatabaseManager:
             self._initialize_feature(feature_name, feature_type)
 
         if not metadata_only:
+            # TODO: any conversion is needed 
+            if isinstance(value, np.ndarray):
+                logger.debug(f"Converting numpy array to bytes")
+                memfile = io.BytesIO()
+                np.save(memfile, value)
+                value = memfile.getvalue()
             # insert data into the table
             self.step_data_connector.insert_data(
                 self._get_feature_table_name(feature_name),
