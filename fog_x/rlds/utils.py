@@ -1,6 +1,5 @@
 import numpy as np
 import tensorflow_datasets as tfds  # type: ignore
-from IPython import display
 from PIL import Image
 
 DATASETS = [
