@@ -359,7 +359,7 @@ class Dataset:
     def load_rtx_episodes(
         self,
         name: str,
-        split: Optional[str] = None,
+        split: str = "all",
         additional_metadata: Optional[Dict[str, Any]] = dict(),
     ):
         """

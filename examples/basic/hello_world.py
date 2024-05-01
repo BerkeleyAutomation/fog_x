@@ -1,24 +1,28 @@
 import fog_x
 
-# create a new dataset
+# 🦊 Dataset Creation 
+# from distributed dataset storage 
 dataset = fog_x.Dataset(
-    name="test_rtx",
-    path="/tmp/rtx",
+    name="demo_ds",
+    path="~/test_dataset", # can be AWS S3, Google Bucket! 
+)  
+
+# 🦊 Data collection: 
+# create a new trajectory
+episode = dataset.new_episode()
+# collect step data for the episode
+episode.add(feature = "arm_view", value = "image1.jpg")
+# Automatically time-aligns and saves the trajectory
+episode.close()
+
+# 🦊 Data Loading:
+# load from existing RT-X/Open-X datasets
+dataset.load_rtx_episodes(
+    name="berkeley_autolab_ur5",
+    additional_metadata={"collector": "User 2"}
 )
 
-# create a new episode / trajectory
-trajectory = dataset.new_episode()
-trajectory.add(feature="hello", value=1.0)
-trajectory.add(feature="world", value=2.0)
-trajectory.close()
-
-# iterate through the dataset
-for episode in dataset.read_by(
-    pandas_metadata=dataset.get_metadata_as_pandas_df()
-):
-    print(episode)
-
-# export the dataset as standard rt-x format
-dataset.export(
-    "/tmp/rtx_export", format="rtx", obs_keys=["hello"], act_keys=["world"]
-)
+# 🦊 Data Management and Analytics: 
+# Compute and memory efficient filter, map, aggregate, groupby
+episode_info = dataset.get_episode_info()
+desired_episodes = episode_info.filter(episode_info["collector"] == "User 2")
