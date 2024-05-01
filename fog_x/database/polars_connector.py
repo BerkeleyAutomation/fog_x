@@ -194,6 +194,7 @@ class LazyFrameConnector(PolarsConnector):
         #     pq.write_to_dataset(table, root_path=self.path)
         dataset = self.tables[table_name].to_arrow()
         # dataset = [self.dataset.to_table(), ]
+        logger.info(f"Save table {table_name} to {self.path}.")
         basename_template = f"{table_name}-{{i}}.parquet"
         ds.write_dataset(
             dataset,

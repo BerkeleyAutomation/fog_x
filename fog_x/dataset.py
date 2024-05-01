@@ -100,7 +100,18 @@ class Dataset:
             * is replace_existing actually used anywhere?
         """
         self.name = name
-        path = os.path.expanduser(path).removesuffix("/")
+
+        if path.startswith("."): # relative path
+            path = os.path.abspath(path).removesuffix("/")
+        elif path.startswith("~"): # home directory
+            path = os.path.expanduser(path).removesuffix("/")
+        elif path.startswith("/"): # absolute path
+            path = path.removesuffix("/")
+        elif path.startswith("s3://") or path.startswith("gs://"):
+            path = path.removesuffix("/")
+        else:
+            raise ValueError("Unsupported path format. Please use absolute path or relative path starting with '.' or '~'.")
+
         logger.info(f"Dataset path: {path}")
         self.path = path
         if path is None:
