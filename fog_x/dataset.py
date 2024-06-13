@@ -420,7 +420,10 @@ class Dataset:
         )
 
     def _build_rtx_episodes_from_tfds_builder(
+        self,
         builder,
+        split: str = "all",
+        additional_metadata: Optional[Dict[str, Any]] = dict(),
     ):
         """
         construct the dataset from the tfds builder
