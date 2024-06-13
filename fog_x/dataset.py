@@ -412,7 +412,7 @@ class Dataset:
         # this is only required if rtx format is used
         import tensorflow_datasets as tfds
 
-        b = tfds.builder(path)
+        b = tfds.builder_from_directory(path)
         self._build_rtx_episodes_from_tfds_builder(
             b,
             split=split,
