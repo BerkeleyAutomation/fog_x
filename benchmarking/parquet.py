@@ -13,9 +13,8 @@ from fog_x.dataset import Dataset
 DEBUG = False
 PATH += "/datasets/"
 NAME = "test_convert"
-
-
 dataset = Dataset(name=NAME, path=PATH)
+
 
 if DEBUG: # Debugging code for call tracing thru <fog_x>, collapse for readability
     if False:
@@ -102,26 +101,28 @@ def measure_traj(read_func, write_func):
     return read_time, write_time, data_size / MB
 
 
-fx_dict = {"name": "Fog-X",
-      "read_func": lambda path: SDC.tables[path.split("/")[-1].split("-")[0]].collect(),
-     "write_func": lambda path, data: data.write_parquet(path)
-}
-pl_dict = {"name": "Polars",
-      "read_func": lambda path: pl.read_parquet(path),
-     "write_func": lambda path, data: data.write_parquet(path)
-}
-pq_dict = {"name": "PyArrow",
-      "read_func": lambda path: pl.from_arrow(pq.read_table(path)),
-     "write_func": lambda path, data: pq.write_table(data.to_arrow(), path)
-}
-pd_dict = {"name": "Pandas",
-      "read_func": lambda path: pd.read_parquet(path),
-     "write_func": lambda path, data: data.to_parquet(path)
-}
+if __name__ == "__main__":
 
-for lib in [fx_dict, pl_dict, pq_dict, pd_dict]:
-    rt, wt, mb = measure_traj(lib["read_func"], lib["write_func"])
+    fx_dict = {"name": "Fog-X",
+        "read_func": lambda path: SDC.tables[path.split("/")[-1].split("-")[0]].collect(),
+        "write_func": lambda path, data: data.write_parquet(path)
+    }
+    pl_dict = {"name": "Polars",
+        "read_func": lambda path: pl.read_parquet(path),
+        "write_func": lambda path, data: data.write_parquet(path)
+    }
+    pq_dict = {"name": "PyArrow",
+        "read_func": lambda path: pl.from_arrow(pq.read_table(path)),
+        "write_func": lambda path, data: pq.write_table(data.to_arrow(), path)
+    }
+    pd_dict = {"name": "Pandas",
+        "read_func": lambda path: pd.read_parquet(path),
+        "write_func": lambda path, data: data.to_parquet(path)
+    }
 
-    print(f"\n{lib['name']}: \nData size = {mb:.4f} MB; Num. traj = {N}")
-    print(f"Read:  latency = {rt:.4f} s; throughput = {mb / rt :.4f} MB/s, {N / rt :.4f} traj/s")
-    print(f"Write: latency = {wt:.4f} s; throughput = {mb / wt :.4f} MB/s, {N / wt :.4f} traj/s")
+    for lib in [fx_dict, pl_dict, pq_dict, pd_dict]:
+        rt, wt, mb = measure_traj(lib["read_func"], lib["write_func"])
+
+        print(f"\n{lib['name']}: \nData size = {mb:.4f} MB; Num. traj = {N}")
+        print(f"Read:  latency = {rt:.4f} s; throughput = {mb / rt :.4f} MB/s, {N / rt :.4f} traj/s")
+        print(f"Write: latency = {wt:.4f} s; throughput = {mb / wt :.4f} MB/s, {N / wt :.4f} traj/s")
