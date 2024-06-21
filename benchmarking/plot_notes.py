@@ -57,47 +57,77 @@
 
 import matplotlib.pyplot as plt
 
-# Josh's data for Polars
-polars_read_latency = 43.7798
-polars_read_speed = 334.6640
-polars_read_throughput = 1.1649
+# Data for Fog-X
+fogx_read_latency_mb = 42.1416
+fogx_read_throughput_mb = 159.1630
+fogx_read_throughput_traj = 1.2102
+fogx_write_latency_mb = 258.8635
+fogx_write_throughput_mb = 25.9109
+fogx_write_throughput_traj = 0.1970
 
-polars_write_latency = 257.1229
-polars_write_speed = 56.9826
-polars_write_throughput = 0.1983
+# Data for Polars
+polars_read_latency_mb = 22.9974
+polars_read_throughput_mb = 291.6581
+polars_read_throughput_traj = 2.2176
+polars_write_latency_mb = 241.4137
+polars_write_throughput_mb = 27.7838
+polars_write_throughput_traj = 0.2113
 
-# above data for TensorFlow Record
-tf_read_latency = 16.76
-tf_read_speed = 484.53
-tf_read_throughput = 6.21
+# Data for PyArrow
+pyarrow_read_latency_mb = 27.9808
+pyarrow_read_throughput_mb = 239.7136
+pyarrow_read_throughput_traj = 1.8227
+pyarrow_write_latency_mb = 80.9986
+pyarrow_write_throughput_mb = 82.8086
+pyarrow_write_throughput_traj = 0.6296
 
-tf_write_latency = 44.17
-tf_write_speed = 183.84
-tf_write_throughput = 2.35
+# Data for Pandas
+pandas_read_latency_mb = 49.1056
+pandas_read_throughput_mb = 136.5909
+pandas_read_throughput_traj = 1.0386
+pandas_write_latency_mb = 103.6820
+pandas_write_throughput_mb = 64.6918
+pandas_write_throughput_traj = 0.4919
 
-labels = ['Polars Read', 'Polars Write', 'TF Record Read', 'TF Record Write']
+# Plotting
+labels = ['Fog-X', 'Polars', 'PyArrow', 'Pandas']
+read_latencies = [fogx_read_latency_mb, polars_read_latency_mb, pyarrow_read_latency_mb, pandas_read_latency_mb]
+read_throughputs_mb = [fogx_read_throughput_mb, polars_read_throughput_mb, pyarrow_read_throughput_mb, pandas_read_throughput_mb]
+read_throughputs_traj = [fogx_read_throughput_traj, polars_read_throughput_traj, pyarrow_read_throughput_traj, pandas_read_throughput_traj]
+write_latencies = [fogx_write_latency_mb, polars_write_latency_mb, pyarrow_write_latency_mb, pandas_write_latency_mb]
+write_throughputs_mb = [fogx_write_throughput_mb, polars_write_throughput_mb, pyarrow_write_throughput_mb, pandas_write_throughput_mb]
+write_throughputs_traj = [fogx_write_throughput_traj, polars_write_throughput_traj, pyarrow_write_throughput_traj, pandas_write_throughput_traj]
 
-latencies = [polars_read_latency, polars_write_latency, tf_read_latency, tf_write_latency]
-speeds = [polars_read_speed, polars_write_speed, tf_read_speed, tf_write_speed]
-throughputs = [polars_read_throughput, polars_write_throughput, tf_read_throughput, tf_write_throughput]
+fig, axes = plt.subplots(2, 3, figsize=(18, 10))
 
-#  latency plots
-plt.figure(figsize=(14, 8))
-plt.subplot(3, 1, 1)
-plt.bar(labels, latencies, color=['blue', 'green', 'orange', 'red'])
-plt.ylabel('Latency (s)')
-plt.title('Latency, Speed, and Throughput of Polars and TF Record Operations')
+# Plotting read latency and throughput
+axes[0, 0].bar(labels, read_latencies, color='blue')
+axes[0, 0].set_title('Read Latency (s)')
+axes[0, 1].bar(labels, read_throughputs_mb, color='green')
+axes[0, 1].set_title('Read Throughput (MB/s)')
+axes[0, 2].bar(labels, read_throughputs_traj, color='orange')
+axes[0, 2].set_title('Read Throughput (traj/s)')
 
-# speed plots
-plt.subplot(3, 1, 2)
-plt.bar(labels, speeds, color=['blue', 'green', 'orange', 'red'])
-plt.ylabel('Speed (MB/s)')
+# Plotting write latency and throughput
+axes[1, 0].bar(labels, write_latencies, color='blue')
+axes[1, 0].set_title('Write Latency (s)')
+axes[1, 1].bar(labels, write_throughputs_mb, color='green')
+axes[1, 1].set_title('Write Throughput (MB/s)')
+axes[1, 2].bar(labels, write_throughputs_traj, color='orange')
+axes[1, 2].set_title('Write Throughput (traj/s)')
 
-#  throughput plotting
-plt.subplot(3, 1, 3)
-plt.bar(labels, throughputs, color=['blue', 'green', 'orange', 'red'])
-plt.ylabel('Throughput (trajectories/second)')
-plt.xlabel('Operation')
+# Adding captions
+captions = [
+    f'Fog-X: Disk size = 6707.3818 MB, Num. traj = 51',
+    f'Polars: Disk size = 6707.3818 MB, Num. traj = 51',
+    f'PyArrow: Disk size = 6707.3818 MB, Num. traj = 51',
+    f'Pandas: Disk size = 6707.3818 MB, Num. traj = 51'
+]
 
+for ax, caption in zip(axes.flatten(), captions):
+    ax.annotate(caption, xy=(0.5, -0.3), xycoords='axes fraction',
+                ha='center', va='center', fontsize=10)
+
+# Adjust layout
 plt.tight_layout()
 plt.show()
