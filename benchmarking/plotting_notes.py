@@ -18,8 +18,27 @@
 # Read:  latency = 49.1056 s ; throughput = 136.5909 MB/s, 1.0386 traj/s
 # Write: latency = 103.6820 s; throughput = 64.6918 MB/s,  0.4919 traj/s
 
-# plotting + code
-# temporary plots:
+"""###"""
+
+# Arrow_REG: 
+# Data size = 14651.9697 MB ; Num. traj = 51
+# Read:  latency = 39.5354 s; throughput = 370.6041 MB/s, 1.2900 traj/s
+# Write: latency = 26.4765 s; throughput = 553.3952 MB/s, 1.9262 traj/s
+
+# Arrow_IPC: 
+# Data size = 14651.9697 MB ; Num. traj = 51
+# Read:  latency = 44.0609 s; throughput = 332.5391 MB/s, 1.1575 traj/s
+# Write: latency = 25.1574 s; throughput = 582.4108 MB/s, 2.0272 traj/s
+
+# Feather_FTH: 
+# Data size = 14651.9697 MB; Num. traj = 51
+# Read:  latency = 47.5646 s; throughput = 308.0433 MB/s, 1.0722 traj/s
+# Write: latency = 35.4595 s; throughput = 413.2030 MB/s, 1.4383 traj/s
+
+# Pandas_FTH: 
+# Data size = 14651.9697 MB; Num. traj = 51
+# Read:  latency = 26.6213 s; throughput = 550.3844 MB/s, 1.9158 traj/s
+# Write: latency = 45.9015 s; throughput = 319.2046 MB/s, 1.1111 traj/s
 
 import matplotlib.pyplot as plt
 

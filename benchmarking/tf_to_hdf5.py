@@ -5,7 +5,7 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-# NOTE: this code assumes you have the path: home/username/datasets/berkeley_autolab_ur5/TRAIN.tfrecord
+# NOTE: this code assumes you have the paths: home/username/datasets/berkeley_autolab_ur5/TRAIN.tfrecord
 
 def parse_tfrecord(raw_record):
     FLF = tf.io.FixedLenFeature
