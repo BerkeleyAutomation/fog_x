@@ -16,7 +16,7 @@ NAME = "test_convert"
 out_dir = PATH + "arrow_convert"
 
 
-def convert_parquet(in_dir):
+def pq_to_arrow(in_dir):
     table = pq.read_table(in_dir)
     file = in_dir.split("/")[-1].split("-")[0]
 
@@ -35,8 +35,7 @@ MB = 1024 * 1024
 
 if False:
     for i in range(N):
-        convert_parquet(f"{PATH}/{NAME}/{NAME}_{i}-0.parquet")
-
+        pq_to_arrow(f"{PATH}/{NAME}/{NAME}_{i}-0.parquet")
 
 def measure_traj(read_func, write_func, name):
     read_time, write_time, data_size = 0, 0, 0
@@ -84,6 +83,6 @@ if __name__ == "__main__":
     for lib in [reg_dict, ipc_dict, fth_dict, pd_dict]:
         rt, wt, mb = measure_traj(lib["read_func"], lib["write_func"], lib["name"])
 
-        print(f"\n{lib['name']}: \nData size = {mb:.4f} MB; Num. traj = {N}")
+        print(f"\n{lib['name']}: \nDisk size = {mb:.4f} MB; Num. traj = {N}")
         print(f"Read:  latency = {rt:.4f} s; throughput = {mb / rt :.4f} MB/s, {N / rt :.4f} traj/s")
         print(f"Write: latency = {wt:.4f} s; throughput = {mb / wt :.4f} MB/s, {N / wt :.4f} traj/s")
