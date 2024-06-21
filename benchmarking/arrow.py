@@ -24,12 +24,15 @@ def convert_parquet(in_dir):
         with pa.RecordBatchFileWriter(sink, table.schema) as w:
             w.write_table(table)
 
-    ft.write_feather(table, f"{out_dir}/fth/{file}.arrow", "wb")
+    ft.write_feather(table, f"{out_dir}/fth/{file}.arrow", "uncompressed")
 
 
 N = 51
 MB = 1024 * 1024
 
-if True:
+if False:
     for i in range(N):
         convert_parquet(f"{PATH}/{NAME}/{NAME}_{i}-0.parquet")
+
+if __name__ == "__main__":
+    exit()

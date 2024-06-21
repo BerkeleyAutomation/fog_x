@@ -1,9 +1,11 @@
 import os
+import sys
 import tensorflow as tf
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+# NOTE: this code assumes you have the path: home/username/datasets/berkeley_autolab_ur5/TRAIN.tfrecord
 
 def parse_tfrecord(raw_record):
     FLF = tf.io.FixedLenFeature
@@ -68,3 +70,23 @@ prefix  = "berkeley_autolab_ur5-train.tfrecord-"
 suffix  = ".parquet"
 
 tf_to_parquet(in_dir, out_dir, prefix, suffix)
+
+
+def disk_size(file):
+    return os.path.getsize(file)
+
+def tf_memory(tf_file):
+    dataset = tf.data.TFRecordDataset(tf_file)
+    return sys.getsizeof([record.numpy() for record in dataset])
+
+def pq_memory(pq_file):
+    return pq.read_table(pq_file).nbytes
+
+MB = 1024 * 1024
+tf_file = in_dir + prefix + "00000-of-00412"
+pq_file = out_dir + prefix + "00000.parquet"
+
+print(f"TFRecord size on disk: {disk_size(tf_file) / MB:.2f} MB")
+print(f"Parquet  size on disk: {disk_size(pq_file) / MB:.2f} MB")
+print(f"TFRecord size in memory: {tf_memory(tf_file) / MB:.2f} MB")
+print(f"Parquet  size in memory: {pq_memory(pq_file) / MB:.2f} MB")
