@@ -1,7 +1,7 @@
 # TF_Record: 
-# Disk size = 8039.7179 MB  ; Mem. size  = 8039.7164 MB;     Num. traj = 51
-# Read:  latency = 19.6558 s; throughput = 409.0250 MB/s,    2.5947 traj/s
-# Write: latency = 0.0526 s ; throughput = 152931.1876 MB/s, 970.1199 traj/s
+# Disk size = 8039.7179 MB  ; Num. traj = 51
+# Read:  latency = 15.5696 s; throughput = 516.3728 MB/s, 3.2756 traj/s
+# Write: latency = 36.6353 s; throughput = 219.4528 MB/s, 1.3921 traj/s
 
 """###"""
 
@@ -57,47 +57,139 @@
 
 import matplotlib.pyplot as plt
 
-# Josh's data for Polars
-polars_read_latency = 43.7798
-polars_read_speed = 334.6640
-polars_read_throughput = 1.1649
+metrics = {
+    "TF_Record": {
+        "Disk size": 8039.7179,
+        "Read latency": 15.5696,
+        "Read throughput MB/s": 516.3728,
+        "Read throughput traj/s": 3.2756,
+        "Write latency": 36.6353,
+        "Write throughput MB/s": 219.4528,
+        "Write throughput traj/s": 1.3921,
+    },
+    "Fog-X": {
+        "Disk size": 6707.3818,
+        "Read latency": 42.1416,
+        "Read throughput MB/s": 159.1630,
+        "Read throughput traj/s": 1.2102,
+        "Write latency": 258.8635,
+        "Write throughput MB/s": 25.9109,
+        "Write throughput traj/s": 0.1970,
+    },
+    "Polars": {
+        "Disk size": 6707.3818,
+        "Read latency": 22.9974,
+        "Read throughput MB/s": 291.6581,
+        "Read throughput traj/s": 2.2176,
+        "Write latency": 241.4137,
+        "Write throughput MB/s": 27.7838,
+        "Write throughput traj/s": 0.2113,
+    },
+    "PyArrow": {
+        "Disk size": 6707.3818,
+        "Read latency": 27.9808,
+        "Read throughput MB/s": 239.7136,
+        "Read throughput traj/s": 1.8227,
+        "Write latency": 80.9986,
+        "Write throughput MB/s": 82.8086,
+        "Write throughput traj/s": 0.6296,
+    },
+    "Pandas": {
+        "Disk size": 6707.3818,
+        "Read latency": 49.1056,
+        "Read throughput MB/s": 136.5909,
+        "Read throughput traj/s": 1.0386,
+        "Write latency": 103.6820,
+        "Write throughput MB/s": 64.6918,
+        "Write throughput traj/s": 0.4919,
+    },
+    "Arrow_REG": {
+        "Disk size": 14651.9697,
+        "Read latency": 39.5354,
+        "Read throughput MB/s": 370.6041,
+        "Read throughput traj/s": 1.29,
+        "Write latency": 26.4765,
+        "Write throughput MB/s": 553.3952,
+        "Write throughput traj/s": 1.9262,
+    },
+    "Arrow_IPC": {
+        "Disk size": 14651.9697,
+        "Read latency": 44.0609,
+        "Read throughput MB/s": 332.5391,
+        "Read throughput traj/s": 1.1575,
+        "Write latency": 25.1574,
+        "Write throughput MB/s": 582.4108,
+        "Write throughput traj/s": 2.0272,
+    },
+    "Feather_FTH": {
+        "Disk size": 14651.9697,
+        "Read latency": 47.5646,
+        "Read throughput MB/s": 308.0433,
+        "Read throughput traj/s": 1.0722,
+        "Write latency": 35.4595,
+        "Write throughput MB/s": 413.203,
+        "Write throughput traj/s": 1.4383,
+    },
+    "Pandas_FTH": {
+        "Disk size": 14651.9697,
+        "Read latency": 26.6213,
+        "Read throughput MB/s": 550.3844,
+        "Read throughput traj/s": 1.9158,
+        "Write latency": 45.9015,
+        "Write throughput MB/s": 319.2046,
+        "Write throughput traj/s": 1.1111,
+    },
+    "HDF5": {
+        "Disk size": 44319.6689,
+        "Read latency": 191.5964,
+        "Read throughput MB/s": 231.3179,
+        "Read throughput traj/s": 0.2662,
+        "Write latency": 129.6112,
+        "Write throughput MB/s": 341.9432,
+        "Write throughput traj/s": 0.3935,
+    },
+}
 
-polars_write_latency = 257.1229
-polars_write_speed = 56.9826
-polars_write_throughput = 0.1983
+# Metrics to plot
+metric_names = [
+    "Disk size", 
+    "Read latency", 
+    "Read throughput MB/s", 
+    "Read throughput traj/s", 
+    "Write latency", 
+    "Write throughput MB/s", 
+    "Write throughput traj/s"
+]
 
-# above data for TensorFlow Record
-tf_read_latency = 16.76
-tf_read_speed = 484.53
-tf_read_throughput = 6.21
+# Colors for each library
+colors = {
+    "TF_Record": "red",
+    "Fog-X": "orange",
+    "Polars": "yellow",
+    "PyArrow": "green",
+    "Pandas": "cyan",
+    "Arrow_REG": "blue",
+    "Arrow_IPC": "purple",
+    "Feather_FTH": "pink",
+    "Pandas_FTH": "brown",
+    "HDF5": "gray",
+}
 
-tf_write_latency = 44.17
-tf_write_speed = 183.84
-tf_write_throughput = 2.35
-
-labels = ['Polars Read', 'Polars Write', 'TF Record Read', 'TF Record Write']
-
-latencies = [polars_read_latency, polars_write_latency, tf_read_latency, tf_write_latency]
-speeds = [polars_read_speed, polars_write_speed, tf_read_speed, tf_write_speed]
-throughputs = [polars_read_throughput, polars_write_throughput, tf_read_throughput, tf_write_throughput]
-
-#  latency plots
-plt.figure(figsize=(14, 8))
-plt.subplot(3, 1, 1)
-plt.bar(labels, latencies, color=['blue', 'green', 'orange', 'red'])
-plt.ylabel('Latency (s)')
-plt.title('Latency, Speed, and Throughput of Polars and TF Record Operations')
-
-# speed plots
-plt.subplot(3, 1, 2)
-plt.bar(labels, speeds, color=['blue', 'green', 'orange', 'red'])
-plt.ylabel('Speed (MB/s)')
-
-#  throughput plotting
-plt.subplot(3, 1, 3)
-plt.bar(labels, throughputs, color=['blue', 'green', 'orange', 'red'])
-plt.ylabel('Throughput (trajectories/second)')
-plt.xlabel('Operation')
-
-plt.tight_layout()
-plt.show()
+# Create plots
+for metric in metric_names:
+    plt.figure(figsize=(10, 6))
+    libraries = []
+    values = []
+    for library, stats in metrics.items():
+        libraries.append(library)
+        values.append(stats[metric])
+    bars = plt.bar(libraries, values, color=[colors[lib] for lib in libraries])
+    plt.xlabel('Library')
+    plt.ylabel(metric)
+    plt.title(f'{metric} by Library')
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    
+    # Save the plot
+    plt.savefig(f'plots/{metric.replace("/", "_")}.png')
+    plt.close()

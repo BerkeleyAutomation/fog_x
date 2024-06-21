@@ -32,15 +32,15 @@ def measure_traj():
         disk_size += os.path.getsize(path)
         out_path = PATH + "temp.tfrecord"
 
-        with tf.io.TFRecordWriter(out_path) as w:
-            for record in TFRD(path):
-                data = record.numpy()
+        for record in TFRD(path):
+            data = record.numpy()
+            stop = time.time()
 
-                stop = time.time()
+            with tf.io.TFRecordWriter(out_path) as w:
                 w.write(data)
-                write_time = time.time() - stop
+            write_time += time.time() - stop
+            os.remove(out_path)
 
-        os.remove(out_path)
     return read_time, write_time, disk_size / MB, memr_size / MB
 
 
