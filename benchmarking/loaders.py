@@ -110,11 +110,11 @@ def iterate_rtx(loader, writer, n):
 
 rtx_loader = RTXLoader(PATH + "berkeley_autolab_ur5", f"train[:{N}]")
 rtx_writer = RTXWriter()
-# rt, wt, mb = iterate_rtx(rtx_loader, rtx_writer, N)
+rt, wt, mb = iterate_rtx(rtx_loader, rtx_writer, N)
 
-# print(f"\nRTX Data: \nMem. size = {mb:.4f} MB; Num. traj = {N}")
-# print(f"Read:  latency = {rt:.4f} s; throughput = {mb / rt :.4f} MB/s, {N / rt :.4f} traj/s")
-# print(f"Write: latency = {wt:.4f} s; throughput = {mb / wt :.4f} MB/s, {N / wt :.4f} traj/s")
+print(f"\nRTX Data: \nMem. size = {mb:.4f} MB; Num. traj = {N}")
+print(f"Read:  latency = {rt:.4f} s; throughput = {mb / rt :.4f} MB/s, {N / rt :.4f} traj/s")
+print(f"Write: latency = {wt:.4f} s; throughput = {mb / wt :.4f} MB/s, {N / wt :.4f} traj/s")
 
 
 class MVKWriter(BaseWriter):
