@@ -34,7 +34,7 @@ MB = 1024 * 1024
 
 if False:
     for i in range(N):
-        pq_to_hdf5(f"{PATH}/{NAME}/{NAME}_{i}-0.parquet")
+        pq_to_hdf5(f"{PATH}{NAME}/{NAME}_{i}-0.parquet")
 
 def measure_traj(read_func, write_func):
     read_time, write_time, data_size = 0, 0, 0
@@ -48,7 +48,7 @@ def measure_traj(read_func, write_func):
         read_time += time.time() - stop
 
         data_size += os.path.getsize(path)
-        path = f"{PATH}temp.hdf5"
+        path = PATH + "/temp.hdf5"
 
         stop = time.time()
         write_func(path, traj)

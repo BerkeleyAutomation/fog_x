@@ -32,7 +32,7 @@ def measure_traj(read_func, write_func):
         read_time += time.time() - stop
 
         data_size += os.path.getsize(path)
-        path = PATH + "temp.parquet"
+        path = PATH + "/temp.parquet"
 
         stop = time.time()
         write_func(path, traj)

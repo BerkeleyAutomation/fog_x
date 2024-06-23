@@ -19,7 +19,7 @@ def measure_traj():
 
     for i in range(N):
         print(f"Measuring trajectory {i}")
-        path = f"{PATH}{NAME}/{NAME}-train.tfrecord-{str(i).zfill(5)}-of-00412"
+        path = f"{PATH}/{NAME}/{NAME}-train.tfrecord-{str(i).zfill(5)}-of-00412"
 
         TFRD = tf.data.TFRecordDataset
         stop = time.time()
@@ -30,7 +30,7 @@ def measure_traj():
         read_time += time.time() - stop
 
         disk_size += os.path.getsize(path)
-        out_path = PATH + "temp.tfrecord"
+        out_path = PATH + "/temp.tfrecord"
 
         for record in TFRD(path):
             data = record.numpy()
