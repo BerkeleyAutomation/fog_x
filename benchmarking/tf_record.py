@@ -3,7 +3,8 @@ import sys
 import time
 import numpy as np
 
-PATH = os.path.expanduser("~")
+PATH = "/shared/ryanhoque/datasets/datasets/"
+os.path.expanduser("~")
 sys.path.append(PATH + "/fog_x_fork")
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = "2"
