@@ -51,7 +51,7 @@ def measure_traj(read_func, write_func, name):
         read_time += time.time() - stop
 
         data_size += os.path.getsize(path)
-        path = f"{PATH}temp.{extn}"
+        path = f"{PATH}/temp.{extn}"
 
         stop = time.time()
         write_func(path, traj)
