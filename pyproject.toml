@@ -14,6 +14,7 @@ dependencies = [
     "opencv-python",
     "sqlalchemy==1.4.51",
     "smart_open",
+    "tqdm",
 ]
 description = "An Efficient and Scalable Data Collection and Management Framework For Robotics Learning"
 readme = {file = "README.md", content-type = "text/markdown"}
