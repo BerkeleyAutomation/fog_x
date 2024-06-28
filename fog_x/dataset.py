@@ -6,6 +6,7 @@ import subprocess
 import numpy as np
 import polars
 import pandas
+from tqdm import tqdm
 
 from fog_x.database import (
     DatabaseConnector,
@@ -432,12 +433,13 @@ class Dataset:
 
         data_type = builder.info.features["steps"]
 
-        for tf_episode in ds:
-            logger.info(tf_episode)
+        pbar_len = len(ds)
+        for i, tf_episode in tqdm(enumerate(ds), position=0, desc="Episodes", total=pbar_len):
+            logger.debug(tf_episode)
             fog_episode = self.new_episode(
                     metadata=additional_metadata,
                 )
-            for step in tf_episode["steps"]:
+            for step in tqdm(tf_episode["steps"], position=1, desc="Steps"):
                 ret = self._load_rtx_step_data_from_tf_step(
                     step, data_type, 
                 )
