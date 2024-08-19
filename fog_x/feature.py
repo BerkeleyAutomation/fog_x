@@ -2,12 +2,8 @@ import logging
 from typing import Any, List, Optional, Tuple
 
 import numpy as np
-from sqlalchemy import Float, Integer, LargeBinary, String
-
-from fog_x.database.utils import type_np2sql, type_py2sql
 
 logger = logging.getLogger(__name__)
-
 
 SUPPORTED_DTYPES = [
     "null",
@@ -167,18 +163,6 @@ class FeatureType:
             return Tensor(shape=self.shape, dtype=tf_detype)
         else:
             raise ValueError(f"Unsupported conversion to tf feature: {self}")
-
-    def to_sql_type(self):
-        """
-        Convert to sql type
-        """
-        if self.is_np:
-            return LargeBinary
-        else:
-            try:
-                return type_np2sql(self.dtype)
-            except:
-                return LargeBinary
 
     def to_pld_storage_type(self):
         if len(self.shape) == 0:
