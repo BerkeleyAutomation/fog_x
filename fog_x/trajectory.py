@@ -13,15 +13,24 @@ class Trajectory:
     def __init__(self, 
                  path: Text) -> None:
         self.path = path
+        self.container_file = av.open(self.path, mode='w')
         
         # check if the path exists 
         # if exists, load the data
         # if not, create a new file
-        if os.path.exists(self.path):
-            # self.container_file = av.open(path, mode='r')
-            self._create_container_file() # TODO: placeholder to develop create
-        else:
-            self._create_container_file()
+        # if os.path.exists(self.path):
+        #     self.container_file = av.open(self.path, mode='w', format = "matroska")
+        # else:
+        #     logger.info(f"creating a new trajectory at {self.path}")
+        #     try:
+        #         # os.makedirs(os.path.dirname(self.path), exist_ok=True)
+        #         io_handle = open(self.path, 'w')
+        #         self.container_file = av.open(self.path, mode='w', format = "matroska", io_open = io_handle)
+        #     except Exception as e:
+        #         logger.error(f"error creating the trajectory file: {e}")
+        #         raise
+            
+        self.feature_name_to_stream = {} # feature_name: stream
     
     def __len__(self):
         raise NotImplementedError
@@ -32,9 +41,57 @@ class Trajectory:
     def __next__(self):
         raise NotImplementedError
 
-    def _create_container_file(self):
-        self.container_file = av.open(self.path, mode='w')
-        self.feature_name_to_stream = {} # feature_name: stream
+    def close(self):
+        """
+        close the container file
+        """
+        try:
+            for stream in self.container_file.streams:
+                for packet in stream.encode():
+                    self.container_file.mux(packet)
+        except av.error.EOFError:
+            pass  # This exception is expected and means the encoder is fully flushed
+
+        self.container_file.close()
+
+    def load(self):
+        """
+        load the container file
+        
+        workflow:
+        - check if a cached mmap/hdf5 file exists
+        - if exists, load the file
+        - otherwise: load the container file with entire vla trajctory 
+        """
+        self._load_from_container()
+        
+        
+    
+    def _load_from_cache(self):
+        raise NotImplementedError
+    
+    def _load_from_container(self):
+        """
+        
+        load the container file with entire vla trajctory
+        
+        workflow:
+        - get schema of the container file
+        - preallocate decoded streams 
+        - decode frame by frame and store in the preallocated memory
+
+        Raises:
+            NotImplementedError: _description_
+        """
+        
+        container = av.open(self.path)
+        streams = container.streams
+        
+        for packet in container.demux(list(streams)):
+            for frame in packet.decode():
+                print(frame)
+        
+        raise NotImplementedError
 
 
     def add(
@@ -67,14 +124,19 @@ class Trajectory:
 
         feature_type = FeatureType.from_data(data)
         encoding = self.get_encoding_of_feature(data, None)
-
+        
         # check if the feature is already in the container
         # if not, create a new stream
         if feature not in self.feature_name_to_stream:
-            self.feature_name_to_stream[feature] = self.container_file.add_stream(
+            logger.info("Adding Feature name: %s, Feature type: %s, Encoding: %s", feature, feature_type, encoding)
+            stream = self.container_file.add_stream(
                 encoding, 
                 rate=1
             )
+            stream.metadata['feature_name'] = feature
+            stream.metadata['feature_type'] = str(feature_type)
+            self.feature_name_to_stream[feature] = stream
+            
         
         # get the stream
         stream = self.feature_name_to_stream[feature]
@@ -87,8 +149,16 @@ class Trajectory:
         packet = self._encode_frame(data, stream, timestamp)
 
         # write the packet to the container
-        self.container_file.mux(packet)
+        if packet:
+            self.container_file.mux(packet)
 
+    def add_by_dict(
+        self,
+        data: Dict[str, Any],
+        timestamp: Optional[int] = None,
+    ) -> None:
+        raise NotImplementedError
+    
     def _encode_frame(self, 
                       data: Any, 
                       stream: Any, 
@@ -117,17 +187,8 @@ class Trajectory:
             packet.dts = timestamp
         return packet
 
-    def close(self):
-        """
-        close the container file
-        """
-        self.container_file.close()
-
     def _create_frame(self, image_array, stream, frame_index):
-        frame = av.VideoFrame.from_ndarray(np.array(image_array), format='rgb24')
-        frame.pict_type = 'NONE'
-        frame.time_base = stream.time_base
-        frame.dts = frame_index
+        frame = av.VideoFrame.from_ndarray(np.array(image_array, dtype=np.uint8), format='rgb24')
         return frame
     
     def _create_frame_depth(self, image_array, stream):
@@ -143,13 +204,6 @@ class Trajectory:
         frame.time_base = stream.time_base
         return frame
 
-    def add_by_dict(
-        self,
-        data: Dict[str, Any],
-        timestamp: Optional[int] = None,
-    ) -> None:
-        raise NotImplementedError
-    
     def get_encoding_of_feature(self, feature_value : Any, feature_type: Optional[FeatureType]) -> Text:
         """
         get the encoding of the feature value
@@ -168,6 +222,4 @@ class Trajectory:
             vid_coding = "rawvideo"
         return vid_coding
         
-    def load(self):
-        raise NotImplementedError
 
