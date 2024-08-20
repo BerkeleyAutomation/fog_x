@@ -54,8 +54,8 @@ class FeatureType:
             self.from_tf_feature_type(tf_feature_spec)
         elif dtype is not None:
             self._set(dtype, shape)
-        else:
-            raise ValueError("Either dtype or data must be provided")
+
+
 
     def __str__(self):
         return f"dtype={self.dtype}, shape={self.shape})"
@@ -108,21 +108,23 @@ class FeatureType:
         self._set(str(dtype), shape)
         return self
 
+    @classmethod
     def from_data(self, data: Any):
         """
         Infer feature type from the provided data.
         """
+        feature_type = FeatureType()
         if isinstance(data, np.ndarray):
-            self._set(data.dtype.name, data.shape)
+            feature_type._set(data.dtype.name, data.shape)
         elif isinstance(data, list):
             dtype = type(data[0]).__name__
             shape = (len(data),)
-            self._set(dtype.name, shape)
+            feature_type._set(dtype.name, shape)
         else:
             dtype = type(data).__name__
             shape = ()
-            self._set(dtype, shape)
-        return self
+            feature_type._set(dtype, shape)
+        return feature_type
 
     def to_tf_feature_type(self):
         """
