@@ -7,7 +7,7 @@ import os
 from fog_x import FeatureType 
 import pickle
 logger = logging.getLogger(__name__)
-
+from fractions import Fraction
 
 class Trajectory:
     def __init__(self, 
@@ -18,7 +18,7 @@ class Trajectory:
         # if exists, load the data
         # if not, create a new file
         if os.path.exists(self.path):
-            self.load()
+            self.container_file = av.open(self.path, mode='r')
         else:
             logger.info(f"creating a new trajectory at {self.path}")
             try:
@@ -53,10 +53,15 @@ class Trajectory:
         try:
             ts = self._get_current_timestamp()
             for stream in self.container_file.streams:
-                for packet in stream.encode():
-                    packet.pts = ts
-                    packet.dts = ts
-                    self.container_file.mux(packet)
+                print(stream)
+                try:
+                    packets = stream.encode(None) 
+                    for packet in packets:
+                        packet.pts = ts
+                        packet.dts = ts
+                        self.container_file.mux(packet)
+                except Exception as e:
+                    print(e)
         except av.error.EOFError:
             pass  # This exception is expected and means the encoder is fully flushed
 
@@ -102,6 +107,17 @@ class Trajectory:
         
         container.close()
 
+    def init_feature_stream(self, feature_dict: Dict):
+        """
+        initialize the feature stream with the feature name and its type
+        args:
+            feature_dict: dictionary of feature name and its type
+        """
+        for feature, feature_type in feature_dict.items():
+            encoding = self.get_encoding_of_feature(None, feature_type)
+            self.feature_name_to_stream[feature] = self._add_stream_to_container(
+                self.container_file, feature, encoding, feature_type
+            )
 
     def add(
         self,
@@ -137,25 +153,9 @@ class Trajectory:
         
         # check if the feature is already in the container
         # if not, create a new stream
+        # Check if the feature is already in the container
         if feature not in self.feature_name_to_stream:
-            logger.info("Adding Feature name: %s, Feature type: %s, Encoding: %s", feature, feature_type, encoding)
-            stream = self.container_file.add_stream(
-                encoding, 
-            )
-            if encoding == "libx264":
-                # todo: set resolution 
-                if feature_type.dtype == np.float32:
-                    stream.width = 640
-                    stream.height = 480
-                else:
-                    stream.width = 640
-                    stream.height = 480
-            # stream.metadata['feature_name'] = feature
-            # stream.metadata['feature_type'] = str(feature_type)
-            from fractions import Fraction
-            stream.time_base = Fraction(1, 1000)
-            self.feature_name_to_stream[feature] = stream
-            
+            self._on_new_stream(feature, encoding, feature_type)
         
         # get the stream
         stream = self.feature_name_to_stream[feature]
@@ -172,7 +172,6 @@ class Trajectory:
 
         # write the packet to the container
         for packet in packets:
-            print(f"feature: {feature}, packet: {packet}")
             self.container_file.mux(packet)
 
     def add_by_dict(
@@ -222,8 +221,76 @@ class Trajectory:
             packet.time_base = stream.time_base
         return packets
 
+    def _on_new_stream(self, new_feature, encoding, feature_type):
+        if new_feature in self.feature_name_to_stream:
+            return
+        
+        if not self.feature_name_to_stream:
+            logger.info(f"Creating a new stream for the first feature {new_feature}")
+            self.feature_name_to_stream[new_feature] = self._add_stream_to_container(
+                self.container_file, new_feature, encoding, feature_type
+            )
+        else:
+            logger.info(f"Adding a new stream for the feature {new_feature}")
+            # a workaround because we cannot add new streams to an existing container
+            # Close current container
+            self.close()
+            
+            # Move the original file to a temporary location
+            temp_path = self.path + ".temp"
+            os.rename(self.path, temp_path)
+            
+            # Open the original container for reading
+            original_container = av.open(temp_path, mode='r')
+            original_streams = list(original_container.streams)
+            print(original_streams)
+            
+            # Create a new container
+            new_container = av.open(self.path, mode='w')
+            
+            # Add existing streams to the new container
+            stream_map = {}
+            for stream in original_streams:
+                new_stream = new_container.add_stream(template=stream)
+                stream_map[stream.index] = new_stream
+
+            # Add new feature stream
+            new_stream = self._add_stream_to_container(new_container, new_feature, encoding, feature_type)
+            stream_map[new_stream.index] = new_stream
+            
+            # Remux existing packets
+            for packet in original_container.demux(original_streams):
+                packet.stream = stream_map[packet.stream.index]
+                print(packet)
+                def is_packet_valid(packet):
+                    return packet.pts is not None and packet.dts is not None
+                if is_packet_valid(packet):
+                    new_container.mux(packet)
+                else:
+                    logger.warning(f"Invalid packet: {packet}")
+            
+            original_container.close()
+            os.remove(temp_path)
+            
+            # Reopen the new container for writing new data
+            self.container_file = new_container
+            self.feature_name_to_stream[new_feature] = new_stream
+            print(self.feature_name_to_stream)
+        
+    def _add_stream_to_container(self, container, feature_name, encoding, feature_type):
+        stream = container.add_stream(encoding)
+        if encoding == "libx264":
+            stream.width = feature_type.shape[0]
+            stream.height = feature_type.shape[1]
+        stream.metadata['feature_name'] = feature_name
+        stream.metadata['feature_type'] = str(feature_type)
+        stream.time_base = Fraction(1, 1000)
+        return stream
+        
+    
     def _create_frame(self, image_array, stream):
         frame = av.VideoFrame.from_ndarray(np.array(image_array, dtype=np.uint8), format='rgb24')
+        frame.pict_type = "NONE"
         return frame
     
     def _create_frame_depth(self, image_array, stream):
