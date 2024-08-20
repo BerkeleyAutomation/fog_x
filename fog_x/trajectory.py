@@ -13,24 +13,29 @@ class Trajectory:
     def __init__(self, 
                  path: Text) -> None:
         self.path = path
-        self.container_file = av.open(self.path, mode='w')
-        
+
         # check if the path exists 
         # if exists, load the data
         # if not, create a new file
-        # if os.path.exists(self.path):
-        #     self.container_file = av.open(self.path, mode='w', format = "matroska")
-        # else:
-        #     logger.info(f"creating a new trajectory at {self.path}")
-        #     try:
-        #         # os.makedirs(os.path.dirname(self.path), exist_ok=True)
-        #         io_handle = open(self.path, 'w')
-        #         self.container_file = av.open(self.path, mode='w', format = "matroska", io_open = io_handle)
-        #     except Exception as e:
-        #         logger.error(f"error creating the trajectory file: {e}")
-        #         raise
+        if os.path.exists(self.path):
+            self.load()
+        else:
+            logger.info(f"creating a new trajectory at {self.path}")
+            try:
+                # os.makedirs(os.path.dirname(self.path), exist_ok=True)
+                # self.container_file = av.open(self.path, mode='w', format = "matroska")
+                self.container_file = av.open(self.path, mode='w')
+            except Exception as e:
+                logger.error(f"error creating the trajectory file: {e}")
+                raise
             
         self.feature_name_to_stream = {} # feature_name: stream
+        
+        self.start_time = time.time()
+    
+    def _get_current_timestamp(self):
+        current_time = (time.time() - self.start_time) * 1000
+        return current_time
     
     def __len__(self):
         raise NotImplementedError
@@ -46,8 +51,11 @@ class Trajectory:
         close the container file
         """
         try:
+            ts = self._get_current_timestamp()
             for stream in self.container_file.streams:
                 for packet in stream.encode():
+                    packet.pts = ts
+                    packet.dts = ts
                     self.container_file.mux(packet)
         except av.error.EOFError:
             pass  # This exception is expected and means the encoder is fully flushed
@@ -88,10 +96,11 @@ class Trajectory:
         streams = container.streams
         
         for packet in container.demux(list(streams)):
+            print(packet.stream.metadata)
             for frame in packet.decode():
                 print(frame)
         
-        raise NotImplementedError
+        container.close()
 
 
     def add(
@@ -121,6 +130,7 @@ class Trajectory:
         - if it is a string or int, create a packet and encode it
         - else raise an error
         """
+        # logger.info("Adding Feature name: %s", feature)
 
         feature_type = FeatureType.from_data(data)
         encoding = self.get_encoding_of_feature(data, None)
@@ -131,25 +141,38 @@ class Trajectory:
             logger.info("Adding Feature name: %s, Feature type: %s, Encoding: %s", feature, feature_type, encoding)
             stream = self.container_file.add_stream(
                 encoding, 
-                rate=1
             )
-            stream.metadata['feature_name'] = feature
-            stream.metadata['feature_type'] = str(feature_type)
+            if encoding == "libx264":
+                # todo: set resolution 
+                if feature_type.dtype == np.float32:
+                    stream.width = 640
+                    stream.height = 480
+                else:
+                    stream.width = 640
+                    stream.height = 480
+            # stream.metadata['feature_name'] = feature
+            # stream.metadata['feature_type'] = str(feature_type)
+            from fractions import Fraction
+            stream.time_base = Fraction(1, 1000)
             self.feature_name_to_stream[feature] = stream
             
         
         # get the stream
         stream = self.feature_name_to_stream[feature]
+        print(f"stream: {stream}")
 
         # get the timestamp
         if timestamp is None:
-            timestamp = time.time_ns()
-        
+            timestamp = self._get_current_timestamp()
+        else:
+            logger.warning("Using custom timestamp, may cause misalignment")
+            
         # encode the frame
-        packet = self._encode_frame(data, stream, timestamp)
+        packets = self._encode_frame(data, stream, timestamp)
 
         # write the packet to the container
-        if packet:
+        for packet in packets:
+            print(f"feature: {feature}, packet: {packet}")
             self.container_file.mux(packet)
 
     def add_by_dict(
@@ -162,7 +185,7 @@ class Trajectory:
     def _encode_frame(self, 
                       data: Any, 
                       stream: Any, 
-                      timestamp: int) -> av.Packet:
+                      timestamp: int) -> List[av.Packet]:
         """
         encode the frame and write it to the stream file, return the packet
         args:
@@ -178,22 +201,35 @@ class Trajectory:
             if feature_type.dtype == np.float32:
                 frame = self._create_frame_depth(data, stream)
             else:
-                frame = self._create_frame(data, stream, timestamp)
+                frame = self._create_frame(data, stream)
+            frame.pts = timestamp
             frame.dts = timestamp
-            packet = stream.encode(frame)
+            frame.time_base = stream.time_base
+            packets = stream.encode(frame)
         else:
             packet = av.Packet(pickle.dumps(data))
-            packet.stream = stream
             packet.dts = timestamp
-        return packet
+            packet.pts = timestamp
+            packet.time_base = stream.time_base
+            packet.stream = stream
+            
+            print(packet.stream)
+            packets = [packet]
+            
+        for packet in packets:
+            packet.pts = timestamp
+            packet.dts = timestamp
+            packet.time_base = stream.time_base
+        return packets
 
-    def _create_frame(self, image_array, stream, frame_index):
+    def _create_frame(self, image_array, stream):
         frame = av.VideoFrame.from_ndarray(np.array(image_array, dtype=np.uint8), format='rgb24')
         return frame
     
     def _create_frame_depth(self, image_array, stream):
         image_array = np.array(image_array)
         # if float, convert to uint8
+        # TODO: this is a hack, need to fix it
         if image_array.dtype == np.float32:
             image_array = (image_array * 255).astype(np.uint8)
         # if 3 dim, convert to 2 dim
