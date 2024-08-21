@@ -6,7 +6,7 @@ path = "/tmp/output.vla"
 # remove the existing file
 import os
 os.system(f"rm -rf {path}")
-
+os.system(f"rm -rf /tmp/*.cache")
 
 # 🦊 Data collection: 
 # create a new trajectory

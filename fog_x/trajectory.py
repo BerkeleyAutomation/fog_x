@@ -6,6 +6,7 @@ import numpy as np
 import os 
 from fog_x import FeatureType 
 import pickle
+import h5py
 logger = logging.getLogger(__name__)
 from fractions import Fraction
 
@@ -13,6 +14,7 @@ class Trajectory:
     def __init__(self, 
                  path: Text) -> None:
         self.path = path
+        self.cache_file_name = "/tmp/fog_" + os.path.basename(self.path) + ".cache"
         self.feature_name_to_stream = {} # feature_name: stream
         self.feature_name_to_feature_type = {} # feature_name: feature_type
         
@@ -74,7 +76,11 @@ class Trajectory:
         - if exists, load the file
         - otherwise: load the container file with entire vla trajctory 
         """
-        self._load_from_container()
+        
+        if os.path.exists(self.cache_file_name):
+            self._load_from_cache()
+        else:
+            self._load_from_container()
         
         
     
@@ -94,32 +100,50 @@ class Trajectory:
         """
         
         container = av.open(self.path)
+        h5_cache = h5py.File(self.cache_file_name, "w")
         streams = container.streams
         
-        # recover the feature name and its type
+        # preallocate memory for the streams in h5
         for stream in streams:
             print(stream.metadata)
             feature_name = stream.metadata['FEATURE_NAME']
             feature_type = FeatureType.from_str(stream.metadata['FEATURE_TYPE'])
             self.feature_name_to_stream[feature_name] = stream
             self.feature_name_to_feature_type[feature_name] = feature_type
-        
+            # Preallocate arrays with the shape [None, X, Y, Z] 
+            # where X, Y, Z are the dimensions of the feature
+            
+            logger.info(f"creating a cache for {feature_name} with shape {feature_type.shape}")
+            h5_cache.create_dataset(
+                feature_name,
+                (0,) + feature_type.shape,
+                maxshape=(None,) + feature_type.shape,
+                dtype=feature_type.dtype,
+            )
+            
+        # decode the frames and store in the preallocated memory
+            
         for packet in container.demux(list(streams)):
             feature_name = packet.stream.metadata["FEATURE_NAME"]
-            print(f"feature_name: {feature_name}")
             feature_type = self.feature_name_to_feature_type[feature_name]
             feature_codec = packet.stream.codec_context.codec.name
             if feature_codec == "h264":
                 frames = packet.decode()
                 for frame in frames:
-                    # print(frame.to_ndarray())
-                    continue
+                    data = frame.to_ndarray(format="rgb24").reshape(feature_type.shape)
+                    h5_cache[feature_name].resize(
+                        h5_cache[feature_name].shape[0] + 1, axis=0
+                    )
+                    h5_cache[feature_name][-1] = data
             else:
                 packet_in_bytes = bytes(packet)
                 if packet_in_bytes:
                     # decode the packet
                     data = pickle.loads(packet_in_bytes)
-                    print(data)
+                    h5_cache[feature_name].resize(
+                        h5_cache[feature_name].shape[0] + 1, axis=0
+                    )
+                    h5_cache[feature_name][-1] = data
                 else:
                     print(f"Empty packet in {feature_name}")
 

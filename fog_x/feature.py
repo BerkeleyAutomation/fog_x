@@ -134,7 +134,8 @@ class FeatureType:
         print(f"feature_str: {feature_str}")
         dtype, shape = feature_str.split(";")
         dtype = dtype.split("=")[1]
-        shape = tuple(shape.split("=")[1][1:-2]) # strip brackets
+        shape = eval(shape.split("=")[1][:-1]) # strip brackets
+        print(f"dtype: {dtype}; shape: {shape}")
         return FeatureType(dtype=dtype, shape=shape)
 
     def to_tf_feature_type(self):
