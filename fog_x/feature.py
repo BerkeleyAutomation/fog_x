@@ -58,7 +58,7 @@ class FeatureType:
 
 
     def __str__(self):
-        return f"dtype={self.dtype}, shape={self.shape})"
+        return f"dtype={self.dtype}; shape={self.shape})"
 
     def __repr__(self):
         return self.__str__()
@@ -125,6 +125,17 @@ class FeatureType:
             shape = ()
             feature_type._set(dtype, shape)
         return feature_type
+
+    @classmethod
+    def from_str(self, feature_str: str):
+        """
+        Parse a string representation of the feature type.
+        """
+        print(f"feature_str: {feature_str}")
+        dtype, shape = feature_str.split(";")
+        dtype = dtype.split("=")[1]
+        shape = tuple(shape.split("=")[1][1:-2]) # strip brackets
+        return FeatureType(dtype=dtype, shape=shape)
 
     def to_tf_feature_type(self):
         """

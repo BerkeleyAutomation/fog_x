@@ -2,7 +2,7 @@ import fog_x
 import numpy as np
 import time 
 
-path = "/tmp/output.mkv"
+path = "/tmp/output.vla"
 # remove the existing file
 import os
 os.system(f"rm -rf {path}")
@@ -14,8 +14,8 @@ traj = fog_x.Trajectory(
     path = path
 )
 
-traj.init_feature_stream(
-    {
+traj.init_feature_streams(
+    feature_spec = {
         "arm_view": fog_x.FeatureType(dtype="uint8", shape=(640, 480, 3)),
         "gripper_pose": fog_x.FeatureType(dtype="float32", shape=(4, 4)),
         "view": fog_x.FeatureType(dtype="uint8", shape=(640, 480, 3)),

@@ -13,25 +13,24 @@ class Trajectory:
     def __init__(self, 
                  path: Text) -> None:
         self.path = path
-
+        self.feature_name_to_stream = {} # feature_name: stream
+        self.feature_name_to_feature_type = {} # feature_name: feature_type
+        
         # check if the path exists 
         # if exists, load the data
         # if not, create a new file
         if os.path.exists(self.path):
-            self.container_file = av.open(self.path, mode='r')
+            logger.info(f"loading the trajectory from {self.path}")
+            self.load()
         else:
             logger.info(f"creating a new trajectory at {self.path}")
             try:
                 # os.makedirs(os.path.dirname(self.path), exist_ok=True)
-                # self.container_file = av.open(self.path, mode='w', format = "matroska")
-                self.container_file = av.open(self.path, mode='w')
+                self.container_file = av.open(self.path, mode='w', format = "matroska")
             except Exception as e:
                 logger.error(f"error creating the trajectory file: {e}")
-                raise
-            
-        self.feature_name_to_stream = {} # feature_name: stream
-        
-        self.start_time = time.time()
+                raise 
+            self.start_time = time.time()
     
     def _get_current_timestamp(self):
         current_time = (time.time() - self.start_time) * 1000
@@ -92,27 +91,47 @@ class Trajectory:
         - preallocate decoded streams 
         - decode frame by frame and store in the preallocated memory
 
-        Raises:
-            NotImplementedError: _description_
         """
         
         container = av.open(self.path)
         streams = container.streams
         
-        for packet in container.demux(list(streams)):
-            print(packet.stream.metadata)
-            for frame in packet.decode():
-                print(frame)
+        # recover the feature name and its type
+        for stream in streams:
+            print(stream.metadata)
+            feature_name = stream.metadata['FEATURE_NAME']
+            feature_type = FeatureType.from_str(stream.metadata['FEATURE_TYPE'])
+            self.feature_name_to_stream[feature_name] = stream
+            self.feature_name_to_feature_type[feature_name] = feature_type
         
+        for packet in container.demux(list(streams)):
+            feature_name = packet.stream.metadata["FEATURE_NAME"]
+            print(f"feature_name: {feature_name}")
+            feature_type = self.feature_name_to_feature_type[feature_name]
+            feature_codec = packet.stream.codec_context.codec.name
+            if feature_codec == "h264":
+                frames = packet.decode()
+                for frame in frames:
+                    # print(frame.to_ndarray())
+                    continue
+            else:
+                packet_in_bytes = bytes(packet)
+                if packet_in_bytes:
+                    # decode the packet
+                    data = pickle.loads(packet_in_bytes)
+                    print(data)
+                else:
+                    print(f"Empty packet in {feature_name}")
+
         container.close()
 
-    def init_feature_stream(self, feature_dict: Dict):
+    def init_feature_streams(self, feature_spec: Dict):
         """
         initialize the feature stream with the feature name and its type
         args:
             feature_dict: dictionary of feature name and its type
         """
-        for feature, feature_type in feature_dict.items():
+        for feature, feature_type in feature_spec.items():
             encoding = self.get_encoding_of_feature(None, feature_type)
             self.feature_name_to_stream[feature] = self._add_stream_to_container(
                 self.container_file, feature, encoding, feature_type
@@ -149,6 +168,7 @@ class Trajectory:
 
         feature_type = FeatureType.from_data(data)
         encoding = self.get_encoding_of_feature(data, None)
+        self.feature_name_to_feature_type[feature] = feature_type
         
         # check if the feature is already in the container
         # if not, create a new stream
@@ -280,8 +300,8 @@ class Trajectory:
         if encoding == "libx264":
             stream.width = feature_type.shape[0]
             stream.height = feature_type.shape[1]
-        stream.metadata['feature_name'] = feature_name
-        stream.metadata['feature_type'] = str(feature_type)
+        stream.metadata['FEATURE_NAME'] = feature_name
+        stream.metadata['FEATURE_TYPE'] = str(feature_type)
         stream.time_base = Fraction(1, 1000)
         return stream
         
