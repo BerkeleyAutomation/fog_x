@@ -130,7 +130,7 @@ class Trajectory:
             if feature_codec == "h264":
                 frames = packet.decode()
                 for frame in frames:
-                    data = frame.to_ndarray(format="rgb24").reshape(feature_type.shape)
+                    data = frame.to_ndarray(format="yuv420p").reshape(feature_type.shape)
                     h5_cache[feature_name].resize(
                         h5_cache[feature_name].shape[0] + 1, axis=0
                     )
@@ -331,7 +331,7 @@ class Trajectory:
         
     
     def _create_frame(self, image_array, stream):
-        frame = av.VideoFrame.from_ndarray(np.array(image_array, dtype=np.uint8), format='rgb24')
+        frame = av.VideoFrame.from_ndarray(np.array(image_array, dtype=np.uint8))
         frame.pict_type = "NONE"
         return frame
     

@@ -11,6 +11,7 @@ dependencies = [
     "smart_open",
     "av",
     "requests",
+    "h5py",
 ]
 description = "An Efficient and Scalable Data Collection and Management Framework For Robotics Learning"
 readme = {file = "README.md", content-type = "text/markdown"}
