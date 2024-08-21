@@ -53,7 +53,6 @@ class Trajectory:
         try:
             ts = self._get_current_timestamp()
             for stream in self.container_file.streams:
-                print(stream)
                 try:
                     packets = stream.encode(None) 
                     for packet in packets:
@@ -159,7 +158,6 @@ class Trajectory:
         
         # get the stream
         stream = self.feature_name_to_stream[feature]
-        print(f"stream: {stream}")
 
         # get the timestamp
         if timestamp is None:
@@ -212,7 +210,6 @@ class Trajectory:
             packet.time_base = stream.time_base
             packet.stream = stream
             
-            print(packet.stream)
             packets = [packet]
             
         for packet in packets:
@@ -243,7 +240,6 @@ class Trajectory:
             # Open the original container for reading
             original_container = av.open(temp_path, mode='r')
             original_streams = list(original_container.streams)
-            print(original_streams)
             
             # Create a new container
             new_container = av.open(self.path, mode='w')
@@ -252,19 +248,22 @@ class Trajectory:
             stream_map = {}
             for stream in original_streams:
                 new_stream = new_container.add_stream(template=stream)
+                new_stream.options = stream.options
+                for key, value in stream.metadata.items():
+                    new_stream.metadata[key] = value
                 stream_map[stream.index] = new_stream
 
             # Add new feature stream
-            new_stream = self._add_stream_to_container(new_container, new_feature, encoding, feature_type)
-            stream_map[new_stream.index] = new_stream
+            # new_stream = self._add_stream_to_container(new_container, new_feature, encoding, feature_type)
+            # stream_map[new_stream.index] = new_stream
             
             # Remux existing packets
             for packet in original_container.demux(original_streams):
-                packet.stream = stream_map[packet.stream.index]
-                print(packet)
+                
                 def is_packet_valid(packet):
                     return packet.pts is not None and packet.dts is not None
                 if is_packet_valid(packet):
+                    packet.stream = stream_map[packet.stream.index]
                     new_container.mux(packet)
                 else:
                     logger.warning(f"Invalid packet: {packet}")
@@ -275,7 +274,6 @@ class Trajectory:
             # Reopen the new container for writing new data
             self.container_file = new_container
             self.feature_name_to_stream[new_feature] = new_stream
-            print(self.feature_name_to_stream)
         
     def _add_stream_to_container(self, container, feature_name, encoding, feature_type):
         stream = container.add_stream(encoding)
