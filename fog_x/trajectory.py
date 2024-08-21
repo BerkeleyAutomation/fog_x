@@ -1,3 +1,4 @@
+from fractions import Fraction
 import logging
 import time
 from typing import Any, Dict, List, Optional, Text
@@ -9,7 +10,6 @@ import pickle
 import h5py
 
 logger = logging.getLogger(__name__)
-from fractions import Fraction
 
 logging.getLogger("libav").setLevel(logging.CRITICAL)
 
@@ -26,7 +26,8 @@ class Trajectory:
             . Defaults to 5.
         """
         self.path = path
-        self.cache_file_name = "/tmp/fog_" + os.path.basename(self.path) + ".cache"
+        self.cache_file_name = "/tmp/fog_" + \
+            os.path.basename(self.path) + ".cache"
         self.feature_name_to_stream = {}  # feature_name: stream
         self.feature_name_to_feature_type = {}  # feature_name: feature_type
 
@@ -40,7 +41,8 @@ class Trajectory:
             logger.info(f"creating a new trajectory at {self.path}")
             try:
                 # os.makedirs(os.path.dirname(self.path), exist_ok=True)
-                self.container_file = av.open(self.path, mode="w", format="matroska")
+                self.container_file = av.open(
+                    self.path, mode="w", format="matroska")
             except Exception as e:
                 logger.error(f"error creating the trajectory file: {e}")
                 raise
@@ -114,91 +116,6 @@ class Trajectory:
 
         return self
 
-    def _load_from_cache(self):
-        """
-        load the cached file with entire vla trajctory
-        """
-        h5_cache = h5py.File(self.cache_file_name, "r")
-        for feature_name, feature_data in h5_cache.items():
-            self.feature_name_to_stream[feature_name] = None
-            self.feature_name_to_feature_type[feature_name] = FeatureType.from_str(
-                feature_data.attrs["FEATURE_TYPE"]
-            )
-        return h5_cache
-
-    def _load_from_container(self):
-        """
-
-        load the container file with entire vla trajctory
-
-        workflow:
-        - get schema of the container file
-        - preallocate decoded streams
-        - decode frame by frame and store in the preallocated memory
-
-        """
-
-        container = av.open(self.path, mode="r", format="matroska")
-        h5_cache = h5py.File(self.cache_file_name, "w")
-        streams = container.streams
-
-        # preallocate memory for the streams in h5
-        for stream in streams:
-            if stream.metadata.get("FEATURE_NAME") is None:
-                logger.debug(f"Skipping stream without FEATURE_NAME: {stream}")
-                continue
-            feature_name = stream.metadata["FEATURE_NAME"]
-            feature_type = FeatureType.from_str(stream.metadata["FEATURE_TYPE"])
-            self.feature_name_to_stream[feature_name] = stream
-            self.feature_name_to_feature_type[feature_name] = feature_type
-            # Preallocate arrays with the shape [None, X, Y, Z]
-            # where X, Y, Z are the dimensions of the feature
-
-            logger.debug(
-                f"creating a cache for {feature_name} with shape {feature_type.shape}"
-            )
-            h5_cache.create_dataset(
-                feature_name,
-                (0,) + feature_type.shape,
-                maxshape=(None,) + feature_type.shape,
-                dtype=feature_type.dtype,
-            )
-
-        # decode the frames and store in the preallocated memory
-
-        for packet in container.demux(list(streams)):
-            if packet.stream.metadata.get("FEATURE_NAME") is None:
-                logger.debug(f"Skipping packet without FEATURE_NAME: {packet}")
-                continue
-            feature_name = packet.stream.metadata["FEATURE_NAME"]
-            feature_type = self.feature_name_to_feature_type[feature_name]
-            logger.debug(
-                f"Decoding {feature_name} with shape {feature_type.shape} and dtype {feature_type.dtype}"
-            )
-            feature_codec = packet.stream.codec_context.codec.name
-            if feature_codec == "h264":
-                frames = packet.decode()
-                for frame in frames:
-                    data = frame.to_ndarray(format="rgb24").reshape(feature_type.shape)
-                    h5_cache[feature_name].resize(
-                        h5_cache[feature_name].shape[0] + 1, axis=0
-                    )
-                    h5_cache[feature_name][-1] = data
-            else:
-                packet_in_bytes = bytes(packet)
-                if packet_in_bytes:
-                    # decode the packet
-                    data = pickle.loads(packet_in_bytes)
-                    h5_cache[feature_name].resize(
-                        h5_cache[feature_name].shape[0] + 1, axis=0
-                    )
-                    h5_cache[feature_name][-1] = data
-                else:
-                    logger.debug(f"Skipping empty packet: {packet}")
-
-        container.close()
-        return h5_cache
-
     def init_feature_streams(self, feature_spec: Dict):
         """
         initialize the feature stream with the feature name and its type
@@ -206,7 +123,7 @@ class Trajectory:
             feature_dict: dictionary of feature name and its type
         """
         for feature, feature_type in feature_spec.items():
-            encoding = self.get_encoding_of_feature(None, feature_type)
+            encoding = self._get_encoding_of_feature(None, feature_type)
             self.feature_name_to_stream[feature] = self._add_stream_to_container(
                 self.container_file, feature, encoding, feature_type
             )
@@ -241,7 +158,7 @@ class Trajectory:
         # logger.info("Adding Feature name: %s", feature)
 
         feature_type = FeatureType.from_data(data)
-        encoding = self.get_encoding_of_feature(data, None)
+        encoding = self._get_encoding_of_feature(data, None)
         self.feature_name_to_feature_type[feature] = feature_type
 
         # check if the feature is already in the container
@@ -273,6 +190,95 @@ class Trajectory:
     ) -> None:
         raise NotImplementedError
 
+    def _load_from_cache(self):
+        """
+        load the cached file with entire vla trajctory
+        """
+        h5_cache = h5py.File(self.cache_file_name, "r")
+        for feature_name, feature_data in h5_cache.items():
+            self.feature_name_to_stream[feature_name] = None
+            self.feature_name_to_feature_type[feature_name] = FeatureType.from_str(
+                feature_data.attrs["FEATURE_TYPE"]
+            )
+        return h5_cache
+
+    def _load_from_container(self):
+        """
+
+        load the container file with entire vla trajctory
+
+        workflow:
+        - get schema of the container file
+        - preallocate decoded streams
+        - decode frame by frame and store in the preallocated memory
+
+        """
+
+        container = av.open(self.path, mode="r", format="matroska")
+        h5_cache = h5py.File(self.cache_file_name, "w")
+        streams = container.streams
+
+        # preallocate memory for the streams in h5
+        for stream in streams:
+            if stream.metadata.get("FEATURE_NAME") is None:
+                logger.debug(f"Skipping stream without FEATURE_NAME: {stream}")
+                continue
+            feature_name = stream.metadata["FEATURE_NAME"]
+            feature_type = FeatureType.from_str(
+                stream.metadata["FEATURE_TYPE"])
+            self.feature_name_to_stream[feature_name] = stream
+            self.feature_name_to_feature_type[feature_name] = feature_type
+            # Preallocate arrays with the shape [None, X, Y, Z]
+            # where X, Y, Z are the dimensions of the feature
+
+            logger.debug(
+                f"creating a cache for {
+                    feature_name} with shape {feature_type.shape}"
+            )
+            h5_cache.create_dataset(
+                feature_name,
+                (0,) + feature_type.shape,
+                maxshape=(None,) + feature_type.shape,
+                dtype=feature_type.dtype,
+            )
+
+        # decode the frames and store in the preallocated memory
+
+        for packet in container.demux(list(streams)):
+            if packet.stream.metadata.get("FEATURE_NAME") is None:
+                logger.debug(f"Skipping packet without FEATURE_NAME: {packet}")
+                continue
+            feature_name = packet.stream.metadata["FEATURE_NAME"]
+            feature_type = self.feature_name_to_feature_type[feature_name]
+            logger.debug(
+                f"Decoding {feature_name} with shape {
+                    feature_type.shape} and dtype {feature_type.dtype}"
+            )
+            feature_codec = packet.stream.codec_context.codec.name
+            if feature_codec == "h264":
+                frames = packet.decode()
+                for frame in frames:
+                    data = frame.to_ndarray(
+                        format="rgb24").reshape(feature_type.shape)
+                    h5_cache[feature_name].resize(
+                        h5_cache[feature_name].shape[0] + 1, axis=0
+                    )
+                    h5_cache[feature_name][-1] = data
+            else:
+                packet_in_bytes = bytes(packet)
+                if packet_in_bytes:
+                    # decode the packet
+                    data = pickle.loads(packet_in_bytes)
+                    h5_cache[feature_name].resize(
+                        h5_cache[feature_name].shape[0] + 1, axis=0
+                    )
+                    h5_cache[feature_name][-1] = data
+                else:
+                    logger.debug(f"Skipping empty packet: {packet}")
+
+        container.close()
+        return h5_cache
+
     def _encode_frame(self, data: Any, stream: Any, timestamp: int) -> List[av.Packet]:
         """
         encode the frame and write it to the stream file, return the packet
@@ -283,7 +289,7 @@ class Trajectory:
         return:
             packet: encoded packet
         """
-        encoding = self.get_encoding_of_feature(data, None)
+        encoding = self._get_encoding_of_feature(data, None)
         feature_type = FeatureType.from_data(data)
         if encoding == "libx264":
             if feature_type.dtype == np.float32:
@@ -325,7 +331,8 @@ class Trajectory:
                 raise ValueError("No pre-initialized h264 streams available")
 
         if not self.feature_name_to_stream:
-            logger.info(f"Creating a new stream for the first feature {new_feature}")
+            logger.info(
+                f"Creating a new stream for the first feature {new_feature}")
             self.feature_name_to_stream[new_feature] = self._add_stream_to_container(
                 self.container_file, new_feature, new_encoding, new_feature_type
             )
@@ -340,7 +347,8 @@ class Trajectory:
             os.rename(self.path, temp_path)
 
             # Open the original container for reading
-            original_container = av.open(temp_path, mode="r", format="matroska")
+            original_container = av.open(
+                temp_path, mode="r", format="matroska")
             original_streams = list(original_container.streams)
 
             # Create a new container
@@ -360,9 +368,10 @@ class Trajectory:
             for stream in original_streams:
                 stream_feature = stream.metadata.get("FEATURE_NAME")
                 if stream_feature is None:
-                    logger.debug(f"Skipping stream without FEATURE_NAME: {stream}")
+                    logger.debug(
+                        f"Skipping stream without FEATURE_NAME: {stream}")
                     continue
-                stream_encoding = self.get_encoding_of_feature(
+                stream_encoding = self._get_encoding_of_feature(
                     None, self.feature_name_to_feature_type[stream_feature]
                 )
                 stream_feature_type = self.feature_name_to_feature_type[stream_feature]
@@ -414,7 +423,8 @@ class Trajectory:
         return stream
 
     def _create_frame(self, image_array, stream):
-        frame = av.VideoFrame.from_ndarray(np.array(image_array, dtype=np.uint8))
+        frame = av.VideoFrame.from_ndarray(
+            np.array(image_array, dtype=np.uint8))
         frame.pict_type = "NONE"
         return frame
 
@@ -432,7 +442,7 @@ class Trajectory:
         frame.time_base = stream.time_base
         return frame
 
-    def get_encoding_of_feature(
+    def _get_encoding_of_feature(
         self, feature_value: Any, feature_type: Optional[FeatureType]
     ) -> Text:
         """
