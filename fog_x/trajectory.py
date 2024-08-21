@@ -9,14 +9,18 @@ import pickle
 import h5py
 logger = logging.getLogger(__name__)
 from fractions import Fraction
+logging.getLogger('libav').setLevel(logging.CRITICAL)
 
 class Trajectory:
     def __init__(self, 
-                 path: Text) -> None:
+                 path: Text, 
+                 num_pre_initialized_h264_streams:int = 5) -> None:
         self.path = path
         self.cache_file_name = "/tmp/fog_" + os.path.basename(self.path) + ".cache"
         self.feature_name_to_stream = {} # feature_name: stream
         self.feature_name_to_feature_type = {} # feature_name: feature_type
+    
+
         
         # check if the path exists 
         # if exists, load the data
@@ -32,6 +36,11 @@ class Trajectory:
             except Exception as e:
                 logger.error(f"error creating the trajectory file: {e}")
                 raise 
+            
+            self.num_pre_initialized_h264_streams = num_pre_initialized_h264_streams
+            self.pre_initialized_image_streams = [] # a list of pre-initialized h264 streams
+            self._pre_initialize_h264_streams(num_pre_initialized_h264_streams)
+            
             self.start_time = time.time()
     
     def _get_current_timestamp(self):
@@ -46,7 +55,18 @@ class Trajectory:
     
     def __next__(self):
         raise NotImplementedError
-
+    
+    def _pre_initialize_h264_streams(self, num_streams: int):
+        """
+        Pre-initialize a configurable number of H.264 video streams.
+        """
+        for i in range(num_streams):
+            encoding = "libx264"
+            stream = self.container_file.add_stream(encoding)
+            stream.time_base = Fraction(1, 1000)
+            stream.pix_fmt = "yuv420p"
+            self.pre_initialized_image_streams.append(stream)
+            
     def close(self):
         """
         close the container file
@@ -61,7 +81,7 @@ class Trajectory:
                         packet.dts = ts
                         self.container_file.mux(packet)
                 except Exception as e:
-                    print(e)
+                    logger.error(f"Error flushing stream {stream}: {e}")
         except av.error.EOFError:
             pass  # This exception is expected and means the encoder is fully flushed
 
@@ -99,13 +119,15 @@ class Trajectory:
 
         """
         
-        container = av.open(self.path)
+        container = av.open(self.path, mode='r', format='matroska')
         h5_cache = h5py.File(self.cache_file_name, "w")
         streams = container.streams
         
         # preallocate memory for the streams in h5
         for stream in streams:
-            print(stream.metadata)
+            if stream.metadata.get('FEATURE_NAME') is None:
+                logger.debug(f"Skipping stream without FEATURE_NAME: {stream}")
+                continue
             feature_name = stream.metadata['FEATURE_NAME']
             feature_type = FeatureType.from_str(stream.metadata['FEATURE_TYPE'])
             self.feature_name_to_stream[feature_name] = stream
@@ -113,7 +135,7 @@ class Trajectory:
             # Preallocate arrays with the shape [None, X, Y, Z] 
             # where X, Y, Z are the dimensions of the feature
             
-            logger.info(f"creating a cache for {feature_name} with shape {feature_type.shape}")
+            logger.debug(f"creating a cache for {feature_name} with shape {feature_type.shape}")
             h5_cache.create_dataset(
                 feature_name,
                 (0,) + feature_type.shape,
@@ -124,8 +146,12 @@ class Trajectory:
         # decode the frames and store in the preallocated memory
             
         for packet in container.demux(list(streams)):
+            if packet.stream.metadata.get('FEATURE_NAME') is None:
+                logger.debug(f"Skipping packet without FEATURE_NAME: {packet}")
+                continue
             feature_name = packet.stream.metadata["FEATURE_NAME"]
             feature_type = self.feature_name_to_feature_type[feature_name]
+            logger.debug(f"Decoding {feature_name} with shape {feature_type.shape} and dtype {feature_type.dtype}")
             feature_codec = packet.stream.codec_context.codec.name
             if feature_codec == "h264":
                 frames = packet.decode()
@@ -145,7 +171,7 @@ class Trajectory:
                     )
                     h5_cache[feature_name][-1] = data
                 else:
-                    print(f"Empty packet in {feature_name}")
+                    logger.debug(f"Skipping empty packet: {packet}")
 
         container.close()
 
@@ -266,6 +292,17 @@ class Trajectory:
         if new_feature in self.feature_name_to_stream:
             return
         
+        if new_encoding == "libx264":
+            # use pre-initialized h264 streams
+            if self.pre_initialized_image_streams:
+                stream = self.pre_initialized_image_streams.pop()
+                stream.metadata['FEATURE_NAME'] = new_feature
+                stream.metadata['FEATURE_TYPE'] = str(new_feature_type)
+                self.feature_name_to_stream[new_feature] = stream
+                return 
+            else:
+                raise ValueError("No pre-initialized h264 streams available")
+        
         if not self.feature_name_to_stream:
             logger.info(f"Creating a new stream for the first feature {new_feature}")
             self.feature_name_to_stream[new_feature] = self._add_stream_to_container(
@@ -288,32 +325,40 @@ class Trajectory:
             # Create a new container
             new_container = av.open(self.path, mode='w', format='matroska')
             
+            # reset the pre-initialized h264 streams
+            self.pre_initialized_image_streams = []
+            # preinitialize  h264 streams
+            for i in range(self.num_pre_initialized_h264_streams):
+                encoding = "libx264"
+                stream = new_container.add_stream(encoding)
+                stream.time_base = Fraction(1, 1000)
+                self.pre_initialized_image_streams.append(stream)
+                
             # Add existing streams to the new container
-            stream_map = {}
+            d_original_stream_id_to_new_container_stream = {}
             for stream in original_streams:
-                feature = stream.metadata.get('FEATURE_NAME')
-                if feature is None:
-                    logger.warning(f"Skipping stream without FEATURE_NAME: {stream}")
+                stream_feature = stream.metadata.get('FEATURE_NAME')
+                if stream_feature is None:
+                    logger.debug(f"Skipping stream without FEATURE_NAME: {stream}")
                     continue
-                encoding = self.get_encoding_of_feature(None, self.feature_name_to_feature_type[feature])
-                feature_type = self.feature_name_to_feature_type[feature]
-                new_stream = self._add_stream_to_container(new_container, feature, encoding, feature_type)
+                stream_encoding = self.get_encoding_of_feature(None, self.feature_name_to_feature_type[stream_feature])
+                stream_feature_type = self.feature_name_to_feature_type[stream_feature]
+                stream_in_updated_container = self._add_stream_to_container(new_container, stream_feature, stream_encoding, stream_feature_type)
                 # new_stream.options = stream.options
                 for key, value in stream.metadata.items():
-                    new_stream.metadata[key] = value
-                stream_map[stream.index] = new_stream
+                    stream_in_updated_container.metadata[key] = value
+                d_original_stream_id_to_new_container_stream[stream.index] = stream_in_updated_container
 
             # Add new feature stream
             new_stream = self._add_stream_to_container(new_container, new_feature, new_encoding, new_feature_type)
-            stream_map[new_stream.index] = new_stream
+            d_original_stream_id_to_new_container_stream[new_stream.index] = new_stream
             
             # Remux existing packets
             for packet in original_container.demux(original_streams):
-                
                 def is_packet_valid(packet):
                     return packet.pts is not None and packet.dts is not None
                 if is_packet_valid(packet):
-                    packet.stream = stream_map[packet.stream.index]
+                    packet.stream = d_original_stream_id_to_new_container_stream[packet.stream.index]
                     new_container.mux(packet)
                 else:
                     pass

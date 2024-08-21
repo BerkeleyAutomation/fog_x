@@ -131,11 +131,9 @@ class FeatureType:
         """
         Parse a string representation of the feature type.
         """
-        print(f"feature_str: {feature_str}")
         dtype, shape = feature_str.split(";")
         dtype = dtype.split("=")[1]
         shape = eval(shape.split("=")[1][:-1]) # strip brackets
-        print(f"dtype: {dtype}; shape: {shape}")
         return FeatureType(dtype=dtype, shape=shape)
 
     def to_tf_feature_type(self):
