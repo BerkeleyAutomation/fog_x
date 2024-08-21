@@ -16,6 +16,15 @@ logging.getLogger("libav").setLevel(logging.CRITICAL)
 
 class Trajectory:
     def __init__(self, path: Text, num_pre_initialized_h264_streams: int = 5) -> None:
+        """
+        Args:
+            path (Text): path to the trajectory file
+            num_pre_initialized_h264_streams (int, optional): 
+                Number of pre-initialized H.264 video streams to use when adding new features.
+                we pre initialize a configurable number of H.264 video streams to avoid the overhead of creating new streams for each feature.
+                otherwise we need to remux everytime 
+            . Defaults to 5.
+        """
         self.path = path
         self.cache_file_name = "/tmp/fog_" + os.path.basename(self.path) + ".cache"
         self.feature_name_to_stream = {}  # feature_name: stream
