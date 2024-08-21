@@ -19,15 +19,14 @@ class Trajectory:
         """
         Args:
             path (Text): path to the trajectory file
-            num_pre_initialized_h264_streams (int, optional): 
+            num_pre_initialized_h264_streams (int, optional):
                 Number of pre-initialized H.264 video streams to use when adding new features.
                 we pre initialize a configurable number of H.264 video streams to avoid the overhead of creating new streams for each feature.
-                otherwise we need to remux everytime 
+                otherwise we need to remux everytime
             . Defaults to 5.
         """
         self.path = path
-        self.cache_file_name = "/tmp/fog_" + \
-            os.path.basename(self.path) + ".cache"
+        self.cache_file_name = "/tmp/fog_" + os.path.basename(self.path) + ".cache"
         self.feature_name_to_stream = {}  # feature_name: stream
         self.feature_name_to_feature_type = {}  # feature_name: feature_type
 
@@ -41,8 +40,7 @@ class Trajectory:
             logger.info(f"creating a new trajectory at {self.path}")
             try:
                 # os.makedirs(os.path.dirname(self.path), exist_ok=True)
-                self.container_file = av.open(
-                    self.path, mode="w", format="matroska")
+                self.container_file = av.open(self.path, mode="w", format="matroska")
             except Exception as e:
                 logger.error(f"error creating the trajectory file: {e}")
                 raise
@@ -224,16 +222,14 @@ class Trajectory:
                 logger.debug(f"Skipping stream without FEATURE_NAME: {stream}")
                 continue
             feature_name = stream.metadata["FEATURE_NAME"]
-            feature_type = FeatureType.from_str(
-                stream.metadata["FEATURE_TYPE"])
+            feature_type = FeatureType.from_str(stream.metadata["FEATURE_TYPE"])
             self.feature_name_to_stream[feature_name] = stream
             self.feature_name_to_feature_type[feature_name] = feature_type
             # Preallocate arrays with the shape [None, X, Y, Z]
             # where X, Y, Z are the dimensions of the feature
 
             logger.debug(
-                f"creating a cache for {
-                    feature_name} with shape {feature_type.shape}"
+                f"creating a cache for {feature_name} with shape {feature_type.shape}"
             )
             h5_cache.create_dataset(
                 feature_name,
@@ -250,16 +246,14 @@ class Trajectory:
                 continue
             feature_name = packet.stream.metadata["FEATURE_NAME"]
             feature_type = self.feature_name_to_feature_type[feature_name]
-            logger.debug(
-                f"Decoding {feature_name} with shape {
-                    feature_type.shape} and dtype {feature_type.dtype}"
+            logger.info(
+                f"Decoding {feature_name} with shape {feature_type.shape} and dtype {feature_type.dtype} with time {packet.dts}"
             )
             feature_codec = packet.stream.codec_context.codec.name
             if feature_codec == "h264":
                 frames = packet.decode()
                 for frame in frames:
-                    data = frame.to_ndarray(
-                        format="rgb24").reshape(feature_type.shape)
+                    data = frame.to_ndarray(format="rgb24").reshape(feature_type.shape)
                     h5_cache[feature_name].resize(
                         h5_cache[feature_name].shape[0] + 1, axis=0
                     )
@@ -331,8 +325,7 @@ class Trajectory:
                 raise ValueError("No pre-initialized h264 streams available")
 
         if not self.feature_name_to_stream:
-            logger.info(
-                f"Creating a new stream for the first feature {new_feature}")
+            logger.info(f"Creating a new stream for the first feature {new_feature}")
             self.feature_name_to_stream[new_feature] = self._add_stream_to_container(
                 self.container_file, new_feature, new_encoding, new_feature_type
             )
@@ -347,8 +340,7 @@ class Trajectory:
             os.rename(self.path, temp_path)
 
             # Open the original container for reading
-            original_container = av.open(
-                temp_path, mode="r", format="matroska")
+            original_container = av.open(temp_path, mode="r", format="matroska")
             original_streams = list(original_container.streams)
 
             # Create a new container
@@ -368,8 +360,7 @@ class Trajectory:
             for stream in original_streams:
                 stream_feature = stream.metadata.get("FEATURE_NAME")
                 if stream_feature is None:
-                    logger.debug(
-                        f"Skipping stream without FEATURE_NAME: {stream}")
+                    logger.debug(f"Skipping stream without FEATURE_NAME: {stream}")
                     continue
                 stream_encoding = self._get_encoding_of_feature(
                     None, self.feature_name_to_feature_type[stream_feature]
@@ -423,8 +414,7 @@ class Trajectory:
         return stream
 
     def _create_frame(self, image_array, stream):
-        frame = av.VideoFrame.from_ndarray(
-            np.array(image_array, dtype=np.uint8))
+        frame = av.VideoFrame.from_ndarray(np.array(image_array, dtype=np.uint8))
         frame.pict_type = "NONE"
         return frame
 
