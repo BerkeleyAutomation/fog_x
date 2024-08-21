@@ -130,7 +130,7 @@ class Trajectory:
             if feature_codec == "h264":
                 frames = packet.decode()
                 for frame in frames:
-                    data = frame.to_ndarray(format="yuv420p").reshape(feature_type.shape)
+                    data = frame.to_ndarray(format="rgb24").reshape(feature_type.shape)
                     h5_cache[feature_name].resize(
                         h5_cache[feature_name].shape[0] + 1, axis=0
                     )
@@ -262,18 +262,18 @@ class Trajectory:
             packet.time_base = stream.time_base
         return packets
 
-    def _on_new_stream(self, new_feature, encoding, feature_type):
+    def _on_new_stream(self, new_feature, new_encoding, new_feature_type):
         if new_feature in self.feature_name_to_stream:
             return
         
         if not self.feature_name_to_stream:
             logger.info(f"Creating a new stream for the first feature {new_feature}")
             self.feature_name_to_stream[new_feature] = self._add_stream_to_container(
-                self.container_file, new_feature, encoding, feature_type
+                self.container_file, new_feature, new_encoding, new_feature_type
             )
         else:
             logger.info(f"Adding a new stream for the feature {new_feature}")
-            # a workaround because we cannot add new streams to an existing container
+            # Following is a workaround because we cannot add new streams to an existing container
             # Close current container
             self.close()
             
@@ -282,24 +282,30 @@ class Trajectory:
             os.rename(self.path, temp_path)
             
             # Open the original container for reading
-            original_container = av.open(temp_path, mode='r')
+            original_container = av.open(temp_path, mode='r', format='matroska')
             original_streams = list(original_container.streams)
             
             # Create a new container
-            new_container = av.open(self.path, mode='w')
+            new_container = av.open(self.path, mode='w', format='matroska')
             
             # Add existing streams to the new container
             stream_map = {}
             for stream in original_streams:
-                new_stream = new_container.add_stream(template=stream)
-                new_stream.options = stream.options
+                feature = stream.metadata.get('FEATURE_NAME')
+                if feature is None:
+                    logger.warning(f"Skipping stream without FEATURE_NAME: {stream}")
+                    continue
+                encoding = self.get_encoding_of_feature(None, self.feature_name_to_feature_type[feature])
+                feature_type = self.feature_name_to_feature_type[feature]
+                new_stream = self._add_stream_to_container(new_container, feature, encoding, feature_type)
+                # new_stream.options = stream.options
                 for key, value in stream.metadata.items():
                     new_stream.metadata[key] = value
                 stream_map[stream.index] = new_stream
 
             # Add new feature stream
-            # new_stream = self._add_stream_to_container(new_container, new_feature, encoding, feature_type)
-            # stream_map[new_stream.index] = new_stream
+            new_stream = self._add_stream_to_container(new_container, new_feature, new_encoding, new_feature_type)
+            stream_map[new_stream.index] = new_stream
             
             # Remux existing packets
             for packet in original_container.demux(original_streams):
@@ -310,7 +316,7 @@ class Trajectory:
                     packet.stream = stream_map[packet.stream.index]
                     new_container.mux(packet)
                 else:
-                    logger.warning(f"Invalid packet: {packet}")
+                    pass
             
             original_container.close()
             os.remove(temp_path)
