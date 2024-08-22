@@ -15,10 +15,12 @@ logging.getLogger("libav").setLevel(logging.CRITICAL)
 
 
 class Trajectory:
-    def __init__(self, 
-                 path: Text, 
-                 num_pre_initialized_h264_streams: int = 5, 
-                 feature_name_separator:Text = "/") -> None:
+    def __init__(
+        self,
+        path: Text,
+        num_pre_initialized_h264_streams: int = 5,
+        feature_name_separator: Text = "/",
+    ) -> None:
         """
         Args:
             path (Text): path to the trajectory file
@@ -159,14 +161,13 @@ class Trajectory:
         - if value is numpy array, create a frame and encode it
         - if it is a string or int, create a packet and encode it
         - else raise an error
-        
+
         Exceptions:
             raise an error if the value is a dictionary
         """
-        
+
         if type(data) == dict:
             raise ValueError("Use add_by_dict for dictionary")
-    
 
         feature_type = FeatureType.from_data(data)
         encoding = self._get_encoding_of_feature(data, None)
@@ -218,8 +219,8 @@ class Trajectory:
         """
         if type(data) != dict:
             raise ValueError("Use add for non-dictionary data")
-        
-        def flatten_dict(d, parent_key='', sep='_'):
+
+        def flatten_dict(d, parent_key="", sep="_"):
             items = []
             for k, v in d.items():
                 new_key = parent_key + sep + k if parent_key else k
@@ -228,12 +229,11 @@ class Trajectory:
                 else:
                     items.append((new_key, v))
             return dict(items)
-        
+
         flatten_dict_data = flatten_dict(data, sep=self.feature_name_separator)
         timestamp = self._get_current_timestamp() if timestamp is None else timestamp
         for feature, value in flatten_dict_data.items():
             self.add(feature, value, timestamp)
-            
 
     @classmethod
     def from_list_of_dicts(cls, data: List[Dict[str, Any]], path: Text) -> "Trajectory":
@@ -244,7 +244,6 @@ class Trajectory:
         for step in data:
             traj.add_by_dict(step)
         return traj
-
 
     def _load_from_cache(self):
         """
@@ -383,12 +382,12 @@ class Trajectory:
                 raise ValueError("No pre-initialized h264 streams available")
 
         if not self.feature_name_to_stream:
-            logger.info(f"Creating a new stream for the first feature {new_feature}")
+            logger.debug(f"Creating a new stream for the first feature {new_feature}")
             self.feature_name_to_stream[new_feature] = self._add_stream_to_container(
                 self.container_file, new_feature, new_encoding, new_feature_type
             )
         else:
-            logger.info(f"Adding a new stream for the feature {new_feature}")
+            logger.debug(f"Adding a new stream for the feature {new_feature}")
             # Following is a workaround because we cannot add new streams to an existing container
             # Close current container
             self.close()
