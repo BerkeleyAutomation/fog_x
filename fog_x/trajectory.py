@@ -14,6 +14,16 @@ logger = logging.getLogger(__name__)
 logging.getLogger("libav").setLevel(logging.CRITICAL)
 
 
+def flatten_dict(d, parent_key="", sep="_"):
+    items = []
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
+
 class Trajectory:
     def __init__(
         self,
@@ -218,17 +228,7 @@ class Trajectory:
         - if dictionary, need to flatten it and add each feature separately
         """
         if type(data) != dict:
-            raise ValueError("Use add for non-dictionary data")
-
-        def flatten_dict(d, parent_key="", sep="_"):
-            items = []
-            for k, v in d.items():
-                new_key = parent_key + sep + k if parent_key else k
-                if isinstance(v, dict):
-                    items.extend(flatten_dict(v, new_key, sep=sep).items())
-                else:
-                    items.append((new_key, v))
-            return dict(items)
+            raise ValueError("Use add for non-dictionary data, type is ", type(data))
 
         flatten_dict_data = flatten_dict(data, sep=self.feature_name_separator)
         timestamp = self._get_current_timestamp() if timestamp is None else timestamp
@@ -239,11 +239,57 @@ class Trajectory:
     def from_list_of_dicts(cls, data: List[Dict[str, Any]], path: Text) -> "Trajectory":
         """
         Create a Trajectory object from a list of dictionaries.
+        
+        args:
+            data (List[Dict[str, Any]]): list of dictionaries
+            path (Text): path to the trajectory file
+        
+        Example:
+        original_trajectory = [
+            {"feature1": "value1", "feature2": "value2"},
+            {"feature1": "value3", "feature2": "value4"},
+        ]
+        
+        trajectory = Trajectory.from_list_of_dicts(original_trajectory, path="/tmp/fog_x/output.vla")
         """
         traj = cls(path)
         for step in data:
             traj.add_by_dict(step)
         return traj
+    
+    @classmethod
+    def from_dict_of_lists(cls, data: Dict[str, List[Any]], path: Text, feature_name_separator:Text = "/") -> "Trajectory":
+        """ 
+        Create a Trajectory object from a dictionary of lists.
+
+        Args:
+            data (Dict[str, List[Any]]): dictionary of lists. Assume list length is the same for all features.
+            path (Text): path to the trajectory file
+
+        Returns:
+            Trajectory: _description_
+            
+        Example:
+        original_trajectory = {
+            "feature1": ["value1", "value3"],
+            "feature2": ["value2", "value4"],
+        }
+        
+        trajectory = Trajectory.from_dict_of_lists(original_trajectory, path="/tmp/fog_x/output.vla")
+        """
+        traj = cls(path, feature_name_separator=feature_name_separator)
+        # flatten the data such that all data starts and put feature name with separator
+        flatten_dict_data = flatten_dict(data, sep=traj.feature_name_separator)
+        
+        # Check if all lists have the same length
+        list_lengths = [len(v) for v in flatten_dict_data.values()]
+        if len(set(list_lengths)) != 1:
+            raise ValueError("All lists must have the same length", [(k, len(v)) for k, v in flatten_dict_data.items()])
+        
+        for i in range(list_lengths[0]):
+            step = {k: v[i] for k, v in flatten_dict_data.items()}
+            traj.add_by_dict(step)
+        return traj    
 
     def _load_from_cache(self):
         """

@@ -117,6 +117,8 @@ class FeatureType:
         feature_type = FeatureType()
         if isinstance(data, np.ndarray):
             feature_type._set(data.dtype.name, data.shape)
+        elif isinstance(data, np.bool_):
+            feature_type._set("bool", ())
         elif isinstance(data, list):
             dtype = type(data[0]).__name__
             shape = (len(data),)
