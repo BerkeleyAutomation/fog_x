@@ -24,6 +24,7 @@ def _flatten_dict(d, parent_key="", sep="_"):
             items.append((new_key, v))
     return dict(items)
 
+
 class Trajectory:
     def __init__(
         self,
@@ -51,7 +52,7 @@ class Trajectory:
         self.cache_file_name = "/tmp/fog_" + hex_hash + ".cache"
         self.feature_name_to_stream = {}  # feature_name: stream
         self.feature_name_to_feature_type = {}  # feature_name: feature_type
-        self.trajectory_data = None # trajectory_data
+        self.trajectory_data = None  # trajectory_data
 
         # check if the path exists
         # if not, create a new file and start data collection
@@ -94,10 +95,10 @@ class Trajectory:
         """
         get the value of the feature
         return hdf5-ed data
-        """ 
+        """
         if self.trajectory_data is None:
             self.trajectory_data = self.load()
-        
+
         return self.trajectory_data[key]
 
     def close(self):
@@ -241,27 +242,29 @@ class Trajectory:
     def from_list_of_dicts(cls, data: List[Dict[str, Any]], path: Text) -> "Trajectory":
         """
         Create a Trajectory object from a list of dictionaries.
-        
+
         args:
             data (List[Dict[str, Any]]): list of dictionaries
             path (Text): path to the trajectory file
-        
+
         Example:
         original_trajectory = [
             {"feature1": "value1", "feature2": "value2"},
             {"feature1": "value3", "feature2": "value4"},
         ]
-        
+
         trajectory = Trajectory.from_list_of_dicts(original_trajectory, path="/tmp/fog_x/output.vla")
         """
         traj = cls(path)
         for step in data:
             traj.add_by_dict(step)
         return traj
-    
+
     @classmethod
-    def from_dict_of_lists(cls, data: Dict[str, List[Any]], path: Text, feature_name_separator:Text = "/") -> "Trajectory":
-        """ 
+    def from_dict_of_lists(
+        cls, data: Dict[str, List[Any]], path: Text, feature_name_separator: Text = "/"
+    ) -> "Trajectory":
+        """
         Create a Trajectory object from a dictionary of lists.
 
         Args:
@@ -270,28 +273,31 @@ class Trajectory:
 
         Returns:
             Trajectory: _description_
-            
+
         Example:
         original_trajectory = {
             "feature1": ["value1", "value3"],
             "feature2": ["value2", "value4"],
         }
-        
+
         trajectory = Trajectory.from_dict_of_lists(original_trajectory, path="/tmp/fog_x/output.vla")
         """
         traj = cls(path, feature_name_separator=feature_name_separator)
         # flatten the data such that all data starts and put feature name with separator
         _flatten_dict_data = _flatten_dict(data, sep=traj.feature_name_separator)
-        
+
         # Check if all lists have the same length
         list_lengths = [len(v) for v in _flatten_dict_data.values()]
         if len(set(list_lengths)) != 1:
-            raise ValueError("All lists must have the same length", [(k, len(v)) for k, v in _flatten_dict_data.items()])
-        
+            raise ValueError(
+                "All lists must have the same length",
+                [(k, len(v)) for k, v in _flatten_dict_data.items()],
+            )
+
         for i in range(list_lengths[0]):
             step = {k: v[i] for k, v in _flatten_dict_data.items()}
             traj.add_by_dict(step)
-        return traj    
+        return traj
 
     def _load_from_cache(self):
         """
