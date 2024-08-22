@@ -32,6 +32,7 @@ SUPPORTED_DTYPES = [
     "string",
     "str",
     "large_string",
+    "object",
 ]
 
 

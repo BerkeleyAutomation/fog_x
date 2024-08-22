@@ -15,7 +15,10 @@ logging.getLogger("libav").setLevel(logging.CRITICAL)
 
 
 class Trajectory:
-    def __init__(self, path: Text, num_pre_initialized_h264_streams: int = 5) -> None:
+    def __init__(self, 
+                 path: Text, 
+                 num_pre_initialized_h264_streams: int = 5, 
+                 feature_name_separator:Text = "/") -> None:
         """
         Args:
             path (Text): path to the trajectory file
@@ -24,8 +27,12 @@ class Trajectory:
                 we pre initialize a configurable number of H.264 video streams to avoid the overhead of creating new streams for each feature.
                 otherwise we need to remux everytime
             . Defaults to 5.
+            feature_name_separator (Text, optional):
+                Delimiter to separate feature names in the container file.
+                Defaults to "/".
         """
         self.path = path
+        self.feature_name_separator = feature_name_separator
         self.cache_file_name = "/tmp/fog_" + os.path.basename(self.path) + ".cache"
         self.feature_name_to_stream = {}  # feature_name: stream
         self.feature_name_to_feature_type = {}  # feature_name: feature_type
@@ -137,7 +144,7 @@ class Trajectory:
 
         Args:
             feature (str): name of the feature
-            value (Any): value associated with the feature
+            value (Any): value associated with the feature; except dictionary
             timestamp (optional int): nanoseconds since the Epoch.
                 If not provided, the current time is used.
 
@@ -152,8 +159,14 @@ class Trajectory:
         - if value is numpy array, create a frame and encode it
         - if it is a string or int, create a packet and encode it
         - else raise an error
+        
+        Exceptions:
+            raise an error if the value is a dictionary
         """
-        # logger.info("Adding Feature name: %s", feature)
+        
+        if type(data) == dict:
+            raise ValueError("Use add_by_dict for dictionary")
+    
 
         feature_type = FeatureType.from_data(data)
         encoding = self._get_encoding_of_feature(data, None)
@@ -172,7 +185,7 @@ class Trajectory:
         if timestamp is None:
             timestamp = self._get_current_timestamp()
         else:
-            logger.warning("Using custom timestamp, may cause misalignment")
+            logger.debug("Using custom timestamp, may cause misalignment")
 
         # encode the frame
         packets = self._encode_frame(data, stream, timestamp)
@@ -186,7 +199,52 @@ class Trajectory:
         data: Dict[str, Any],
         timestamp: Optional[int] = None,
     ) -> None:
-        raise NotImplementedError
+        """
+        add one value to video container file
+        data might be nested dictionary of values for each feature
+
+        Args:
+            data (Dict[str, Any]): dictionary of feature name and value
+            timestamp (optional int): nanoseconds since the Epoch.
+                If not provided, the current time is used.
+                assume the timestamp is same for all the features within the dictionary
+
+        Examples:
+            >>> trajectory.add_by_dict({'feature1': 'image1.jpg'})
+
+        Logic:
+        - check the data see if it is a dictionary
+        - if dictionary, need to flatten it and add each feature separately
+        """
+        if type(data) != dict:
+            raise ValueError("Use add for non-dictionary data")
+        
+        def flatten_dict(d, parent_key='', sep='_'):
+            items = []
+            for k, v in d.items():
+                new_key = parent_key + sep + k if parent_key else k
+                if isinstance(v, dict):
+                    items.extend(flatten_dict(v, new_key, sep=sep).items())
+                else:
+                    items.append((new_key, v))
+            return dict(items)
+        
+        flatten_dict_data = flatten_dict(data, sep=self.feature_name_separator)
+        timestamp = self._get_current_timestamp() if timestamp is None else timestamp
+        for feature, value in flatten_dict_data.items():
+            self.add(feature, value, timestamp)
+            
+
+    @classmethod
+    def from_list_of_dicts(cls, data: List[Dict[str, Any]], path: Text) -> "Trajectory":
+        """
+        Create a Trajectory object from a list of dictionaries.
+        """
+        traj = cls(path)
+        for step in data:
+            traj.add_by_dict(step)
+        return traj
+
 
     def _load_from_cache(self):
         """
@@ -286,7 +344,7 @@ class Trajectory:
         encoding = self._get_encoding_of_feature(data, None)
         feature_type = FeatureType.from_data(data)
         if encoding == "libx264":
-            if feature_type.dtype == np.float32:
+            if feature_type.dtype == "float32":
                 frame = self._create_frame_depth(data, stream)
             else:
                 frame = self._create_frame(data, stream)
