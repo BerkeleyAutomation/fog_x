@@ -14,12 +14,12 @@ logger = logging.getLogger(__name__)
 logging.getLogger("libav").setLevel(logging.CRITICAL)
 
 
-def flatten_dict(d, parent_key="", sep="_"):
+def _flatten_dict(d, parent_key="", sep="_"):
     items = []
     for k, v in d.items():
         new_key = parent_key + sep + k if parent_key else k
         if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
+            items.extend(_flatten_dict(v, new_key, sep=sep).items())
         else:
             items.append((new_key, v))
     return dict(items)
@@ -45,17 +45,17 @@ class Trajectory:
         """
         self.path = path
         self.feature_name_separator = feature_name_separator
-        self.cache_file_name = "/tmp/fog_" + os.path.basename(self.path) + ".cache"
+        # self.cache_file_name = "/tmp/fog_" + os.path.basename(self.path) + ".cache"
+        # use hex hash of the path for the cache file name
+        hex_hash = hex(abs(hash(self.path)))[2:]
+        self.cache_file_name = "/tmp/fog_" + hex_hash + ".cache"
         self.feature_name_to_stream = {}  # feature_name: stream
         self.feature_name_to_feature_type = {}  # feature_name: feature_type
+        self.trajectory_data = None # trajectory_data
 
         # check if the path exists
-        # if exists, load the data
-        # if not, create a new file
-        if os.path.exists(self.path):
-            logger.info(f"loading the trajectory from {self.path}")
-            self.load()
-        else:
+        # if not, create a new file and start data collection
+        if not os.path.exists(self.path):
             logger.info(f"creating a new trajectory at {self.path}")
             try:
                 # os.makedirs(os.path.dirname(self.path), exist_ok=True)
@@ -79,12 +79,6 @@ class Trajectory:
     def __len__(self):
         raise NotImplementedError
 
-    def __iter___(self):
-        raise NotImplementedError
-
-    def __next__(self):
-        raise NotImplementedError
-
     def _pre_initialize_h264_streams(self, num_streams: int):
         """
         Pre-initialize a configurable number of H.264 video streams.
@@ -95,6 +89,16 @@ class Trajectory:
             stream.time_base = Fraction(1, 1000)
             stream.pix_fmt = "yuv420p"
             self.pre_initialized_image_streams.append(stream)
+
+    def __getitem__(self, key):
+        """
+        get the value of the feature
+        return hdf5-ed data
+        """ 
+        if self.trajectory_data is None:
+            self.trajectory_data = self.load()
+        
+        return self.trajectory_data[key]
 
     def close(self):
         """
@@ -127,11 +131,9 @@ class Trajectory:
         """
 
         if os.path.exists(self.cache_file_name):
-            self._load_from_cache()
+            return self._load_from_cache()
         else:
-            self._load_from_container()
-
-        return self
+            return self._load_from_container()
 
     def init_feature_streams(self, feature_spec: Dict):
         """
@@ -152,7 +154,7 @@ class Trajectory:
         timestamp: Optional[int] = None,
     ) -> None:
         """
-        add one value to video container file
+        add one value to container file
 
         Args:
             feature (str): name of the feature
@@ -211,7 +213,7 @@ class Trajectory:
         timestamp: Optional[int] = None,
     ) -> None:
         """
-        add one value to video container file
+        add one value to container file
         data might be nested dictionary of values for each feature
 
         Args:
@@ -230,9 +232,9 @@ class Trajectory:
         if type(data) != dict:
             raise ValueError("Use add for non-dictionary data, type is ", type(data))
 
-        flatten_dict_data = flatten_dict(data, sep=self.feature_name_separator)
+        _flatten_dict_data = _flatten_dict(data, sep=self.feature_name_separator)
         timestamp = self._get_current_timestamp() if timestamp is None else timestamp
-        for feature, value in flatten_dict_data.items():
+        for feature, value in _flatten_dict_data.items():
             self.add(feature, value, timestamp)
 
     @classmethod
@@ -279,15 +281,15 @@ class Trajectory:
         """
         traj = cls(path, feature_name_separator=feature_name_separator)
         # flatten the data such that all data starts and put feature name with separator
-        flatten_dict_data = flatten_dict(data, sep=traj.feature_name_separator)
+        _flatten_dict_data = _flatten_dict(data, sep=traj.feature_name_separator)
         
         # Check if all lists have the same length
-        list_lengths = [len(v) for v in flatten_dict_data.values()]
+        list_lengths = [len(v) for v in _flatten_dict_data.values()]
         if len(set(list_lengths)) != 1:
-            raise ValueError("All lists must have the same length", [(k, len(v)) for k, v in flatten_dict_data.items()])
+            raise ValueError("All lists must have the same length", [(k, len(v)) for k, v in _flatten_dict_data.items()])
         
         for i in range(list_lengths[0]):
-            step = {k: v[i] for k, v in flatten_dict_data.items()}
+            step = {k: v[i] for k, v in _flatten_dict_data.items()}
             traj.add_by_dict(step)
         return traj    
 
@@ -349,7 +351,7 @@ class Trajectory:
                 continue
             feature_name = packet.stream.metadata["FEATURE_NAME"]
             feature_type = self.feature_name_to_feature_type[feature_name]
-            logger.info(
+            logger.debug(
                 f"Decoding {feature_name} with shape {feature_type.shape} and dtype {feature_type.dtype} with time {packet.dts}"
             )
             feature_codec = packet.stream.codec_context.codec.name
