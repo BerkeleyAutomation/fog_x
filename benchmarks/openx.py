@@ -6,197 +6,169 @@ from concurrent.futures import ThreadPoolExecutor
 import glob
 import time
 import numpy as np
-from fog_x.loader import RLDSLoader
-from fog_x.loader import VLALoader
+from fog_x.loader import RLDSLoader, VLALoader
 
 # Constants
 DEFAULT_EXP_DIR = "/tmp/fog_x"
-DEFAULT_NUMBER_OF_TRAJECTORIES = 20
+DEFAULT_NUMBER_OF_TRAJECTORIES = 5
 DEFAULT_DATASET_NAMES = ["berkeley_autolab_ur5"]
-DATA_URL_TEMPLATE = "gs://gresearch/robotics/{dataset_name}/0.1.0/{dataset_name}-train.tfrecord-{index:05d}-*"
-LOCAL_FILE_TEMPLATE = (
-    "{exp_dir}/{dataset_name}/{dataset_name}-train.tfrecord-{index:05d}-*"
-)
-FEATURE_JSON_URL_TEMPLATE = "gs://gresearch/robotics/{dataset_name}/0.1.0/features.json"
-DATASET_INFO_JSON_URL_TEMPLATE = (
-    "gs://gresearch/robotics/{dataset_name}/0.1.0/dataset_info.json"
-)
 CACHE_DIR = "/tmp/fog_x/cache"
 
-def clear_cache():
-    """Clears the cache directory."""
-    if os.path.exists(CACHE_DIR):
-        subprocess.run(["rm", "-rf", CACHE_DIR], check=True)
+class DatasetHandler:
+    """Base class to handle dataset-related operations."""
+
+    DATA_URL_TEMPLATE = "gs://gresearch/robotics/{dataset_name}/0.1.0/{dataset_name}-train.tfrecord-{index:05d}-*"
+    LOCAL_FILE_TEMPLATE = "{exp_dir}/{dataset_type}/{dataset_name}/{dataset_name}-train.tfrecord-{index:05d}-*"
+    FEATURE_JSON_URL_TEMPLATE = "gs://gresearch/robotics/{dataset_name}/0.1.0/features.json"
+    DATASET_INFO_JSON_URL_TEMPLATE = "gs://gresearch/robotics/{dataset_name}/0.1.0/dataset_info.json"
+
+    def __init__(self, exp_dir, dataset_name, num_trajectories, dataset_type):
+        self.exp_dir = exp_dir
+        self.dataset_name = dataset_name
+        self.num_trajectories = num_trajectories
+        self.dataset_type = dataset_type
+        self.dataset_dir = os.path.join(exp_dir, dataset_type, dataset_name)
+
+    def clear_cache(self):
+        """Clears the cache directory."""
+        if os.path.exists(CACHE_DIR):
+            subprocess.run(["rm", "-rf", CACHE_DIR], check=True)
+
+    def check_and_download_file(self, url, local_path):
+        """Checks if a file is already downloaded; if not, downloads it."""
+        if not os.path.exists(local_path):
+            subprocess.run(["gsutil", "-m", "cp", url, local_path], check=True)
+        else:
+            print(f"File {local_path} already exists. Skipping download.")
+    def check_and_download_trajectory(self, trajectory_index):
+        """Checks if a trajectory and associated JSON files are already downloaded; if not, downloads them."""
+        os.makedirs(self.dataset_dir, exist_ok=True)
+
+        # Check and download the trajectory files
+        local_file_pattern = self.LOCAL_FILE_TEMPLATE.format(
+            exp_dir=self.exp_dir, dataset_type=self.dataset_type, dataset_name=self.dataset_name, index=trajectory_index
+        )
         
-
-def check_and_download_file(url, local_path):
-    """Checks if a file is already downloaded; if not, downloads it."""
-    if not os.path.exists(local_path):
-        subprocess.run(["gsutil", "-m", "cp", url, local_path], check=True)
-    else:
-        print(f"File {local_path} already exists. Skipping download.")
-
-
-def check_and_download_trajectory(exp_dir, dataset_name, trajectory_index):
-    """Checks if a trajectory and associated JSON files are already downloaded; if not, downloads them."""
-    # Create a directory for each dataset
-    dataset_dir = os.path.join(exp_dir, dataset_name)
-    os.makedirs(dataset_dir, exist_ok=True)
-
-    # Check and download the trajectory files
-    local_file_pattern = LOCAL_FILE_TEMPLATE.format(
-        exp_dir=exp_dir, dataset_name=dataset_name, index=trajectory_index
-    )
-    if not any(os.path.exists(file) for file in glob.glob(local_file_pattern)):
-        data_url = DATA_URL_TEMPLATE.format(
-            dataset_name=dataset_name, index=trajectory_index
-        )
-        subprocess.run(["gsutil", "-m", "cp", data_url, dataset_dir], check=True)
-    else:
-        print(
-            f"Trajectory {trajectory_index} of dataset {dataset_name} already exists in {dataset_dir}. Skipping download."
+        # Ensure no files with .gstmp postfix are considered valid
+        valid_files_exist = any(
+            os.path.exists(file) and not file.endswith(".gstmp") for file in glob.glob(local_file_pattern)
         )
 
-    # Check and download the feature.json file
-    feature_json_local_path = os.path.join(dataset_dir, "features.json")
-    feature_json_url = FEATURE_JSON_URL_TEMPLATE.format(dataset_name=dataset_name)
-    check_and_download_file(feature_json_url, feature_json_local_path)
+        if not valid_files_exist:
+            data_url = self.DATA_URL_TEMPLATE.format(
+                dataset_name=self.dataset_name, index=trajectory_index
+            )
+            subprocess.run(["gsutil", "-m", "cp", data_url, self.dataset_dir], check=True)
+        else:
+            print(f"Trajectory {trajectory_index} of dataset {self.dataset_name} already exists in {self.dataset_dir}. Skipping download.")
 
-    # Check and download the dataset_info.json file
-    dataset_info_json_local_path = os.path.join(dataset_dir, "dataset_info.json")
-    dataset_info_json_url = DATASET_INFO_JSON_URL_TEMPLATE.format(
-        dataset_name=dataset_name
-    )
-    check_and_download_file(dataset_info_json_url, dataset_info_json_local_path)
+        # Check and download the feature.json file
+        feature_json_local_path = os.path.join(self.dataset_dir, "features.json")
+        feature_json_url = self.FEATURE_JSON_URL_TEMPLATE.format(dataset_name=self.dataset_name)
+        self.check_and_download_file(feature_json_url, feature_json_local_path)
 
+        # Check and download the dataset_info.json file
+        dataset_info_json_local_path = os.path.join(self.dataset_dir, "dataset_info.json")
+        dataset_info_json_url = self.DATASET_INFO_JSON_URL_TEMPLATE.format(dataset_name=self.dataset_name)
+        self.check_and_download_file(dataset_info_json_url, dataset_info_json_local_path)
 
-def download_data(exp_dir, dataset_names, num_trajectories):
-    """Downloads the specified number of trajectories from each dataset concurrently if not already downloaded."""
-    with ThreadPoolExecutor() as executor:
-        futures = []
-        for dataset_name in dataset_names:
-            for i in range(num_trajectories):
-                futures.append(
-                    executor.submit(
-                        check_and_download_trajectory, exp_dir, dataset_name, i
-                    )
-                )
-        for future in futures:
-            future.result()  # Will raise an exception if any download failed
+    def download_data(self):
+        """Downloads the specified number of trajectories from the dataset concurrently if not already downloaded."""
+        with ThreadPoolExecutor() as executor:
+            futures = [
+                executor.submit(self.check_and_download_trajectory, i)
+                for i in range(self.num_trajectories)
+            ]
+            for future in futures:
+                future.result()
 
-
-def measure_file_size(dataset_dir):
-    """Calculates the total size of all files in the dataset directory."""
-    total_size = 0
-    for dirpath, dirnames, filenames in os.walk(dataset_dir):
-        for f in filenames:
-            fp = os.path.join(dirpath, f)
-            total_size += os.path.getsize(fp)
-    return total_size
-
-
-def measure_loading_time_rlds(path, num_trajectories):
-    """Measures the time taken to load data into memory using a specified loader function."""
-    start_time = time.time()
-    loader = RLDSLoader(path, split=f"train[:{num_trajectories}]")
-    for data in loader:
-        #  use np array to force loading
-        data
-
-    end_time = time.time()
-    loading_time = end_time - start_time
-    print(
-        f"Loaded {len(loader)} trajectories in {loading_time:.2f} seconds start time {start_time} end time {end_time}"
-    )
-    return loading_time, num_trajectories
-
-def measure_loading_time_vla(path, num_trajectories):
-    """Measures the time taken to load data into memory using a specified loader function."""
-    start_time = time.time()
-    loader = VLALoader(path, cache_dir=CACHE_DIR)
-    for data in loader:
-        #  use np array to force loading
-        data["action"]
-
-    end_time = time.time()
-    loading_time = end_time - start_time
-    print(
-        f"Loaded {len(loader)} trajectories in {loading_time:.2f} seconds start time {start_time} end time {end_time}"
-    )
-    return loading_time, num_trajectories
+    def measure_file_size(self):
+        """Calculates the total size of all files in the dataset directory."""
+        total_size = sum(
+            os.path.getsize(os.path.join(dirpath, f))
+            for dirpath, dirnames, filenames in os.walk(self.dataset_dir)
+            for f in filenames
+        )
+        return total_size
 
 
-def convert_data_to_vla_format(loader, output_dir):
-    """Converts data to VLA format and saves it to the specified output directory."""
-    for index, data_traj in enumerate(loader):
-        output_path = os.path.join(output_dir, f"output_{index}.vla")
-        fog_x.Trajectory.from_list_of_dicts(data_traj, path=output_path)
+class RLDSHandler(DatasetHandler):
+    """Handles RLDS dataset operations, including loading and measuring loading times."""
+
+    def __init__(self, exp_dir, dataset_name, num_trajectories):
+        super().__init__(exp_dir, dataset_name, num_trajectories, dataset_type="rlds")
+
+    def measure_loading_time(self):
+        """Measures the time taken to load data into memory using RLDSLoader."""
+        start_time = time.time()
+        loader = RLDSLoader(self.dataset_dir, split=f"train[:{self.num_trajectories}]")
+        for data in loader:
+            data  # Force loading
+
+        end_time = time.time()
+        loading_time = end_time - start_time
+        print(f"Loaded {len(loader)} trajectories in {loading_time:.2f} seconds start time {start_time} end time {end_time}")
+        return loading_time, len(loader)
+
+
+class VLAHandler(DatasetHandler):
+    """Handles VLA dataset operations, including loading, converting, and measuring loading times."""
+
+    def __init__(self, exp_dir, dataset_name, num_trajectories):
+        super().__init__(exp_dir, dataset_name, num_trajectories, dataset_type="vla")
+
+    def measure_loading_time(self):
+        """Measures the time taken to load data into memory using VLALoader."""
+        start_time = time.time()
+        loader = VLALoader(self.dataset_dir, cache_dir=CACHE_DIR)
+        for data in loader:
+            data["action"]  # Force loading
+
+        end_time = time.time()
+        loading_time = end_time - start_time
+        print(f"Loaded {len(loader)} trajectories in {loading_time:.2f} seconds start time {start_time} end time {end_time}")
+        return loading_time, len(loader)
+    
+    def convert_data_to_vla_format(self, loader):
+        """Converts data to VLA format and saves it to the same directory."""
+        for index, data_traj in enumerate(loader):
+            output_path = os.path.join(self.dataset_dir, f"output_{index}.vla")
+            fog_x.Trajectory.from_list_of_dicts(data_traj, path=output_path)
+
 
 
 def main():
     # Parse command-line arguments
-    parser = argparse.ArgumentParser(
-        description="Download, process, and read RLDS data."
-    )
-    parser.add_argument(
-        "--exp_dir", type=str, default=DEFAULT_EXP_DIR, help="Experiment directory."
-    )
-    parser.add_argument(
-        "--num_trajectories",
-        type=int,
-        default=DEFAULT_NUMBER_OF_TRAJECTORIES,
-        help="Number of trajectories to download.",
-    )
-    parser.add_argument(
-        "--dataset_names",
-        nargs="+",
-        default=DEFAULT_DATASET_NAMES,
-        help="List of dataset names to download.",
-    )
-
+    parser = argparse.ArgumentParser(description="Download, process, and read RLDS data.")
+    parser.add_argument("--exp_dir", type=str, default=DEFAULT_EXP_DIR, help="Experiment directory.")
+    parser.add_argument("--num_trajectories", type=int, default=DEFAULT_NUMBER_OF_TRAJECTORIES, help="Number of trajectories to download.")
+    parser.add_argument("--dataset_names", nargs="+", default=DEFAULT_DATASET_NAMES, help="List of dataset names to download.")
     args = parser.parse_args()
 
-    # Create output directory if it doesn't exist
-    output_dir = os.path.join(args.exp_dir, "output")
-    os.makedirs(output_dir, exist_ok=True)
-
-    # Download data concurrently
-    download_data(args.exp_dir, args.dataset_names, args.num_trajectories)
-
-    # Iterate through datasets and measure file size and loading time for both formats
     for dataset_name in args.dataset_names:
-        dataset_dir = os.path.join(args.exp_dir, dataset_name)
-        file_size = measure_file_size(dataset_dir)
+        print(f"Processing dataset: {dataset_name}")
 
-        # Measure loading time for RLDS format
-        rlds_loading_time, num_loaded_rlds = measure_loading_time_rlds(
-             dataset_dir, args.num_trajectories
-        )
+        # Process RLDS data
+        rlds_handler = RLDSHandler(args.exp_dir, dataset_name, args.num_trajectories)
+        rlds_handler.download_data()
+        rlds_file_size = rlds_handler.measure_file_size()
+        rlds_loading_time, num_loaded_rlds = rlds_handler.measure_loading_time()
 
-        print(f"Dataset: {dataset_name}")
-        print(f"Total file size: {file_size / (1024 * 1024):.2f} MB")
-        print(
-            f"RLDS format loading time for {num_loaded_rlds} trajectories: {rlds_loading_time:.2f} seconds"
-        )
-        print(
-            f"RLDS format throughput: {num_loaded_rlds / rlds_loading_time:.2f} trajectories per second"
-        )
+        print(f"Total RLDS file size: {rlds_file_size / (1024 * 1024):.2f} MB")
+        print(f"RLDS format loading time for {num_loaded_rlds} trajectories: {rlds_loading_time:.2f} seconds")
+        print(f"RLDS format throughput: {num_loaded_rlds / rlds_loading_time:.2f} trajectories per second")
 
-        # Convert data to VLA format
-        loader = RLDSLoader(path=dataset_dir, split=f"train[:{args.num_trajectories}]")
-        convert_data_to_vla_format(loader, output_dir)
+        # Process VLA data
+        vla_handler = VLAHandler(args.exp_dir, dataset_name, args.num_trajectories)
+        loader = RLDSLoader(rlds_handler.dataset_dir, split=f"train[:{args.num_trajectories}]")
+        
+        vla_handler.convert_data_to_vla_format(loader)
+        vla_loading_time, num_loaded_vla = vla_handler.measure_loading_time()
 
-        # Measure loading time for VLA format
-        vla_loading_time, num_loaded_vla = measure_loading_time_vla(
-             output_dir, args.num_trajectories
-        )
-
-        print(
-            f"VLA format loading time for {num_loaded_vla} trajectories: {vla_loading_time:.2f} seconds"
-        )
-        print(
-            f"VLA format throughput: {num_loaded_vla / vla_loading_time:.2f} trajectories per second\n"
-        )
+        vla_file_size = vla_handler.measure_file_size()
+        print(f"Total VLA file size: {vla_file_size / (1024 * 1024):.2f} MB")
+        print(f"VLA format loading time for {num_loaded_vla} trajectories: {vla_loading_time:.2f} seconds")
+        print(f"VLA format throughput: {num_loaded_vla / vla_loading_time:.2f} trajectories per second\n")
 
 
 if __name__ == "__main__":
