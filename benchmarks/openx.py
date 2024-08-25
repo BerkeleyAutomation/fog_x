@@ -6,11 +6,13 @@ from concurrent.futures import ThreadPoolExecutor
 import glob
 import time
 import numpy as np
-from fog_x.loader import RLDSLoader, VLALoader
+from fog_x.loader import RLDSLoader, VLALoader, HDF5Loader
+import tensorflow as tf # this prevents tensorflow printed logs
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 # Constants
 DEFAULT_EXP_DIR = "/tmp/fog_x"
-DEFAULT_NUMBER_OF_TRAJECTORIES = 5
+DEFAULT_NUMBER_OF_TRAJECTORIES = 2
 DEFAULT_DATASET_NAMES = ["berkeley_autolab_ur5"]
 CACHE_DIR = "/tmp/fog_x/cache/"
 
@@ -33,6 +35,7 @@ class DatasetHandler:
         """Clears the cache directory."""
         if os.path.exists(CACHE_DIR):
             subprocess.run(["rm", "-rf", CACHE_DIR], check=True)
+        
 
     def check_and_download_file(self, url, local_path):
         """Checks if a file is already downloaded; if not, downloads it."""
@@ -117,6 +120,7 @@ class VLAHandler(DatasetHandler):
 
     def __init__(self, exp_dir, dataset_name, num_trajectories):
         super().__init__(exp_dir, dataset_name, num_trajectories, dataset_type="vla")
+        self.trajectories_objects = []
 
     def measure_loading_time(self):
         """Measures the time taken to load data into memory using VLALoader."""
@@ -134,10 +138,54 @@ class VLAHandler(DatasetHandler):
         """Converts data to VLA format and saves it to the same directory."""
         for index, data_traj in enumerate(loader):
             output_path = os.path.join(self.dataset_dir, f"output_{index}.vla")
-            fog_x.Trajectory.from_list_of_dicts(data_traj, path=output_path)
+            self.trajectories_objects.append(fog_x.Trajectory.from_list_of_dicts(data_traj, path=output_path))
 
 
+class HDF5Handler:
+    """Handles HDF5 dataset operations, including conversion and measuring file sizes."""
 
+    def __init__(self, exp_dir, dataset_name):
+        self.hdf5_dir = os.path.join(exp_dir, "hdf5", dataset_name)
+        if not os.path.exists(self.hdf5_dir):
+            os.makedirs(self.hdf5_dir)
+
+    def convert_data_to_hdf5(self, trajectories_objects):
+        """Converts data to HDF5 format and saves it to the same directory."""
+        for index, trajectory in enumerate(trajectories_objects):
+            trajectory.to_hdf5(path=f"{self.hdf5_dir}/output_{index}.h5")
+            
+    def measure_file_size(self):
+        """Calculates the total size of all files in the HDF5 directory."""
+        total_size = sum(
+            os.path.getsize(os.path.join(dirpath, f))
+            for dirpath, dirnames, filenames in os.walk(self.hdf5_dir)
+            for f in filenames
+        )
+        return total_size
+
+
+    def measure_loading_time(self):
+        """Measures the time taken to load data into memory using HDF5Loader."""
+        start_time = time.time()
+        loader = HDF5Loader(path=os.path.join(self.hdf5_dir, "*.h5"))
+        
+        def _recursively_load_h5_data(data):
+            for key in data.keys():
+                if isinstance(data[key], dict):
+                    _recursively_load_h5_data(data[key])
+                else:
+                    (key, np.array(data[key]))
+        
+        count = 0
+        for data in loader:
+            # recursively load all data
+            _recursively_load_h5_data(data)
+        
+        end_time = time.time()
+        loading_time = end_time - start_time
+        print(f"Loaded {count} trajectories in {loading_time:.2f} seconds start time {start_time} end time {end_time}")
+        return loading_time, count
+    
 def main():
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="Download, process, and read RLDS data.")
@@ -170,6 +218,18 @@ def main():
         print(f"Total VLA file size: {vla_file_size / (1024 * 1024):.2f} MB")
         print(f"VLA format loading time for {num_loaded_vla} trajectories: {vla_loading_time:.2f} seconds")
         print(f"VLA format throughput: {num_loaded_vla / vla_loading_time:.2f} trajectories per second\n")
+
+        # Convert VLA to HDF5 and benchmark
+        hdf5_handler = HDF5Handler(args.exp_dir, dataset_name)
+        hdf5_handler.convert_data_to_hdf5(vla_handler.trajectories_objects)
+        hdf5_file_size = hdf5_handler.measure_file_size()
+        print(f"Total HDF5 file size: {hdf5_file_size / (1024 * 1024):.2f} MB")
+
+        
+        # Measure HDF5 loading time
+        hdf5_loading_time, num_loaded_hdf5 = hdf5_handler.measure_loading_time()
+        print(f"HDF5 format loading time for {num_loaded_hdf5} trajectories: {hdf5_loading_time:.2f} seconds")
+        print(f"HDF5 format throughput: {num_loaded_hdf5 / hdf5_loading_time:.2f} trajectories per second\n")
 
 
 if __name__ == "__main__":

@@ -131,10 +131,13 @@ class Trajectory:
             pass  # This exception is expected and means the encoder is fully flushed
 
         self.container_file.close()
+        self.trajectory_data = None
 
     def load(self):
         """
         load the container file
+        
+        returns the container file
 
         workflow:
         - check if a cached mmap/hdf5 file exists
@@ -143,9 +146,11 @@ class Trajectory:
         """
 
         if os.path.exists(self.cache_file_name):
-            return self._load_from_cache()
+            self.trajectory_data = self._load_from_cache()
         else:
-            return self._load_from_container()
+            self.trajectory_data = self._load_from_container()
+        
+        return self.trajectory_data
 
     def init_feature_streams(self, feature_spec: Dict):
         """
@@ -315,11 +320,6 @@ class Trajectory:
         load the cached file with entire vla trajctory
         """
         h5_cache = h5py.File(self.cache_file_name, "r")
-        for feature_name, feature_data in h5_cache.items():
-            self.feature_name_to_stream[feature_name] = None
-            self.feature_name_to_feature_type[feature_name] = FeatureType.from_str(
-                feature_data.attrs["FEATURE_TYPE"]
-            )
         return h5_cache
 
     def _load_from_container(self):
@@ -378,12 +378,13 @@ class Trajectory:
                 continue
             feature_name = packet.stream.metadata["FEATURE_NAME"]
             feature_type = self.feature_name_to_feature_type[feature_name]
-            logger.debug(
+            logger.info(
                 f"Decoding {feature_name} with shape {feature_type.shape} and dtype {feature_type.dtype} with time {packet.dts}"
             )
             feature_codec = packet.stream.codec_context.codec.name
             if feature_codec == "h264":
                 frames = packet.decode()
+                
                 for frame in frames:
                     data = frame.to_ndarray(format="rgb24").reshape(feature_type.shape)
                     h5_cache[feature_name].resize(
@@ -403,8 +404,22 @@ class Trajectory:
                     logger.debug(f"Skipping empty packet: {packet}")
 
         container.close()
+        h5_cache.close()
+        h5_cache = h5py.File(self.cache_file_name, "r")
         return h5_cache
 
+    def to_hdf5(self, path: Text):
+        """
+        convert the container file to hdf5 file
+        """
+        
+        if not self.trajectory_data:
+            self.load()
+
+        # directly copy the cache file to the hdf5 file
+        os.rename(self.cache_file_name, path)
+    
+        
     def _encode_frame(self, data: Any, stream: Any, timestamp: int) -> List[av.Packet]:
         """
         encode the frame and write it to the stream file, return the packet
