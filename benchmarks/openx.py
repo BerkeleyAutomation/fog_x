@@ -21,7 +21,13 @@ FEATURE_JSON_URL_TEMPLATE = "gs://gresearch/robotics/{dataset_name}/0.1.0/featur
 DATASET_INFO_JSON_URL_TEMPLATE = (
     "gs://gresearch/robotics/{dataset_name}/0.1.0/dataset_info.json"
 )
+CACHE_DIR = "/tmp/fog_x/cache"
 
+def clear_cache():
+    """Clears the cache directory."""
+    if os.path.exists(CACHE_DIR):
+        subprocess.run(["rm", "-rf", CACHE_DIR], check=True)
+        
 
 def check_and_download_file(url, local_path):
     """Checks if a file is already downloaded; if not, downloads it."""
@@ -89,13 +95,28 @@ def measure_file_size(dataset_dir):
     return total_size
 
 
-def measure_loading_time(loader_func, path, num_trajectories):
+def measure_loading_time_rlds(path, num_trajectories):
     """Measures the time taken to load data into memory using a specified loader function."""
     start_time = time.time()
-    loader = loader_func(path, split=f"train[:{num_trajectories}]")
+    loader = RLDSLoader(path, split=f"train[:{num_trajectories}]")
     for data in loader:
         #  use np array to force loading
         data
+
+    end_time = time.time()
+    loading_time = end_time - start_time
+    print(
+        f"Loaded {len(loader)} trajectories in {loading_time:.2f} seconds start time {start_time} end time {end_time}"
+    )
+    return loading_time, num_trajectories
+
+def measure_loading_time_vla(path, num_trajectories):
+    """Measures the time taken to load data into memory using a specified loader function."""
+    start_time = time.time()
+    loader = VLALoader(path, cache_dir=CACHE_DIR)
+    for data in loader:
+        #  use np array to force loading
+        data["action"]
 
     end_time = time.time()
     loading_time = end_time - start_time
@@ -109,17 +130,7 @@ def convert_data_to_vla_format(loader, output_dir):
     """Converts data to VLA format and saves it to the specified output directory."""
     for index, data_traj in enumerate(loader):
         output_path = os.path.join(output_dir, f"output_{index}.vla")
-        print(
-            f"Converting trajectory {index} to VLA format and saving to {output_path} {len(data_traj)}"
-        )
         fog_x.Trajectory.from_list_of_dicts(data_traj, path=output_path)
-
-
-def read_data(output_dir, num_trajectories):
-    """Reads the VLA data files and prints their action keys."""
-    for i in range(num_trajectories):
-        traj = fog_x.Trajectory(os.path.join(output_dir, f"output_{i}.vla"))
-        print(traj["action"].keys())
 
 
 def main():
@@ -158,8 +169,8 @@ def main():
         file_size = measure_file_size(dataset_dir)
 
         # Measure loading time for RLDS format
-        rlds_loading_time, num_loaded_rlds = measure_loading_time(
-            RLDSLoader, dataset_dir, args.num_trajectories
+        rlds_loading_time, num_loaded_rlds = measure_loading_time_rlds(
+             dataset_dir, args.num_trajectories
         )
 
         print(f"Dataset: {dataset_name}")
@@ -176,8 +187,8 @@ def main():
         convert_data_to_vla_format(loader, output_dir)
 
         # Measure loading time for VLA format
-        vla_loading_time, num_loaded_vla = measure_loading_time(
-            VLALoader, output_dir, args.num_trajectories
+        vla_loading_time, num_loaded_vla = measure_loading_time_vla(
+             output_dir, args.num_trajectories
         )
 
         print(

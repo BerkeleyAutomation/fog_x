@@ -9,7 +9,7 @@ from typing import Text
 
 
 class VLALoader(BaseLoader):
-    def __init__(self, path: Text, split=None):
+    def __init__(self, path: Text, cache_dir=None):
         """initialize VLALoader from paths
 
         Args:
@@ -26,9 +26,14 @@ class VLALoader(BaseLoader):
             self.files = glob.glob(os.path.join(path, "*.vla"))
         else:
             self.files = [path]
+        
+        self.cache_dir = cache_dir
 
     def _read_vla(self, data_path):
-        traj = fog_x.Trajectory(data_path)
+        if self.cache_dir:
+            traj = fog_x.Trajectory(data_path, cache_dir=self.cache_dir)
+        else:
+            traj = fog_x.Trajectory(data_path)
         return traj
 
     def __iter__(self):
