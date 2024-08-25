@@ -30,6 +30,7 @@ class Trajectory:
         self,
         path: Text,
         mode = "r",
+        cache_path: Optional[Text] = "/tmp/fog_x/cache/",
         num_pre_initialized_h264_streams: int = 5,
         feature_name_separator: Text = "/",
     ) -> None:
@@ -50,8 +51,10 @@ class Trajectory:
         self.feature_name_separator = feature_name_separator
         # self.cache_file_name = "/tmp/fog_" + os.path.basename(self.path) + ".cache"
         # use hex hash of the path for the cache file name
+        if not os.path.exists(cache_path):
+            os.makedirs(cache_path, exist_ok=True)
         hex_hash = hex(abs(hash(self.path)))[2:]
-        self.cache_file_name = "/tmp/fog_" + hex_hash + ".cache"
+        self.cache_file_name = cache_path + hex_hash + ".cache"
         self.feature_name_to_stream = {}  # feature_name: stream
         self.feature_name_to_feature_type = {}  # feature_name: feature_type
         self.trajectory_data = None  # trajectory_data
