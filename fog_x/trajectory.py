@@ -25,6 +25,17 @@ def _flatten_dict(d, parent_key="", sep="_"):
     return dict(items)
 
 
+class StreamInfo:
+    def __init__(self, feature_name, feature_type, encoding):
+        self.feature_name = feature_name
+        self.feature_type = feature_type
+        self.encoding = encoding
+    def __str__(self):
+        return f"StreamInfo({self.feature_name}, {self.feature_type}, {self.encoding})"
+    def __repr__(self):
+        return self.__str__()
+        
+
 class Trajectory:
     def __init__(
         self,
@@ -64,6 +75,7 @@ class Trajectory:
             []
         )  # a list of pre-initialized h264 streams
         self.mode = mode
+        self.stream_id_to_info = {} # stream_id: StreamInfo
 
         # check if the path exists
         # if not, create a new file and start data collection
@@ -131,6 +143,7 @@ class Trajectory:
             pass  # This exception is expected and means the encoder is fully flushed
 
         self.container_file.close()
+        self.save_stream_info()
         self.trajectory_data = None
 
     def load(self):
@@ -144,11 +157,13 @@ class Trajectory:
         - if exists, load the file
         - otherwise: load the container file with entire vla trajctory
         """
-
+        self.load_stream_info()
+        
         if os.path.exists(self.cache_file_name):
             self.trajectory_data = self._load_from_cache()
         else:
             self.trajectory_data = self._load_from_container()
+        
         
         return self.trajectory_data
 
@@ -338,13 +353,16 @@ class Trajectory:
         h5_cache = h5py.File(self.cache_file_name, "w")
         streams = container.streams
 
+        print(self.stream_id_to_info)
         # preallocate memory for the streams in h5
         for stream in streams:
-            if stream.metadata.get("FEATURE_NAME") is None:
+            
+            if stream.index not in self.stream_id_to_info:
                 logger.debug(f"Skipping stream without FEATURE_NAME: {stream}")
                 continue
-            feature_name = stream.metadata["FEATURE_NAME"]
-            feature_type = FeatureType.from_str(stream.metadata["FEATURE_TYPE"])
+            stream_info = self.stream_id_to_info.get(stream.index)
+            feature_name = stream_info.feature_name
+            feature_type = stream_info.feature_type
             self.feature_name_to_stream[feature_name] = stream
             self.feature_name_to_feature_type[feature_name] = feature_type
             # Preallocate arrays with the shape [None, X, Y, Z]
@@ -373,12 +391,13 @@ class Trajectory:
         # decode the frames and store in the preallocated memory
 
         for packet in container.demux(list(streams)):
-            if packet.stream.metadata.get("FEATURE_NAME") is None:
-                logger.debug(f"Skipping packet without FEATURE_NAME: {packet}")
+            if packet.stream.index not in self.stream_id_to_info:
+                logger.debug(f"Skipping stream {packet.stream}, packet {packet}")
                 continue
-            feature_name = packet.stream.metadata["FEATURE_NAME"]
-            feature_type = self.feature_name_to_feature_type[feature_name]
-            logger.info(
+            stream_info = self.stream_id_to_info.get(packet.stream.index)
+            feature_name = stream_info.feature_name
+            feature_type = stream_info.feature_type
+            logger.debug(
                 f"Decoding {feature_name} with shape {feature_type.shape} and dtype {feature_type.dtype} with time {packet.dts}"
             )
             feature_codec = packet.stream.codec_context.codec.name
@@ -386,7 +405,10 @@ class Trajectory:
                 frames = packet.decode()
                 
                 for frame in frames:
-                    data = frame.to_ndarray(format="rgb24").reshape(feature_type.shape)
+                    if feature_type.dtype == "float32":
+                        data = frame.to_ndarray(format="gray").reshape(feature_type.shape)
+                    else:
+                        data = frame.to_ndarray(format="rgb24").reshape(feature_type.shape)
                     h5_cache[feature_name].resize(
                         h5_cache[feature_name].shape[0] + 1, axis=0
                     )
@@ -467,6 +489,7 @@ class Trajectory:
                 stream.metadata["FEATURE_NAME"] = new_feature
                 stream.metadata["FEATURE_TYPE"] = str(new_feature_type)
                 self.feature_name_to_stream[new_feature] = stream
+                self.stream_id_to_info[stream.index] = StreamInfo(new_feature, new_feature_type, new_encoding)
                 return
             else:
                 raise ValueError("No pre-initialized h264 streams available")
@@ -528,6 +551,7 @@ class Trajectory:
                 new_container, new_feature, new_encoding, new_feature_type
             )
             d_original_stream_id_to_new_container_stream[new_stream.index] = new_stream
+            self.stream_id_to_info[new_stream.index] = StreamInfo(new_feature, new_feature_type, new_encoding)
 
             # Remux existing packets
             for packet in original_container.demux(original_streams):
@@ -598,3 +622,13 @@ class Trajectory:
         else:
             vid_coding = "rawvideo"
         return vid_coding
+
+    def save_stream_info(self):
+        # serialize and save the stream info
+        with open(self.path + ".stream_info", "wb") as f:
+            pickle.dump(self.stream_id_to_info, f)
+    
+    def load_stream_info(self):
+        # load the stream info
+        with open(self.path + ".stream_info", "rb") as f:
+            self.stream_id_to_info = pickle.load(f)
