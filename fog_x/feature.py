@@ -32,7 +32,6 @@ SUPPORTED_DTYPES = [
     "string",
     "str",
     "large_string",
-    "object",
 ]
 
 
@@ -69,6 +68,8 @@ class FeatureType:
             dtype = "float64"
         if dtype == "float":  # fix inferred type
             dtype = "float32"
+        if dtype == "object":
+            dtype = "string" 
         if dtype not in SUPPORTED_DTYPES:
             raise ValueError(f"Unsupported dtype: {dtype}")
         if shape is not None and not isinstance(shape, tuple):

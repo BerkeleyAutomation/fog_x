@@ -66,7 +66,6 @@ class Trajectory:
         # if not, create a new file and start data collection
         if self.mode == "w":
             if not os.path.exists(self.path):
-                logger.info(f"creating a new directory at {self.path}")
                 os.makedirs(os.path.dirname(self.path), exist_ok=True)
             try:
                 self.container_file = av.open(self.path, mode="w", format="matroska")
@@ -105,6 +104,8 @@ class Trajectory:
         """
         if self.trajectory_data is None:
             self.trajectory_data = self.load()
+        
+        print(self.trajectory_data, key)
 
         return self.trajectory_data[key]
 
@@ -123,6 +124,7 @@ class Trajectory:
                         self.container_file.mux(packet)
                 except Exception as e:
                     logger.error(f"Error flushing stream {stream}: {e}")
+            logger.debug("Flushing the container file")
         except av.error.EOFError:
             pass  # This exception is expected and means the encoder is fully flushed
 
@@ -205,8 +207,6 @@ class Trajectory:
         # get the timestamp
         if timestamp is None:
             timestamp = self._get_current_timestamp()
-        else:
-            logger.debug("Using custom timestamp, may cause misalignment")
 
         # encode the frame
         packets = self._encode_frame(data, stream, timestamp)
@@ -265,6 +265,7 @@ class Trajectory:
         traj = cls(path, mode="w")
         for step in data:
             traj.add_by_dict(step)
+        traj.close()
         return traj
 
     @classmethod
@@ -304,6 +305,7 @@ class Trajectory:
         for i in range(list_lengths[0]):
             step = {k: v[i] for k, v in _flatten_dict_data.items()}
             traj.add_by_dict(step)
+        traj.close()
         return traj
 
     def _load_from_cache(self):
@@ -349,12 +351,22 @@ class Trajectory:
             logger.debug(
                 f"creating a cache for {feature_name} with shape {feature_type.shape}"
             )
-            h5_cache.create_dataset(
-                feature_name,
-                (0,) + feature_type.shape,
-                maxshape=(None,) + feature_type.shape,
-                dtype=feature_type.dtype,
-            )
+
+            if feature_type.dtype == "string":
+                # strings are not supported in h5py, so we store them as objects
+                h5_cache.create_dataset(
+                    feature_name,
+                    (0,) + feature_type.shape,
+                    maxshape=(None,) + feature_type.shape,
+                    dtype=h5py.special_dtype(vlen=str),
+                )
+            else:
+                h5_cache.create_dataset(
+                    feature_name,
+                    (0,) + feature_type.shape,
+                    maxshape=(None,) + feature_type.shape,
+                    dtype=feature_type.dtype,
+                )
 
         # decode the frames and store in the preallocated memory
 

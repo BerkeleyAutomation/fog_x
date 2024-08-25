@@ -5,12 +5,13 @@ import argparse
 from concurrent.futures import ThreadPoolExecutor
 import glob
 import time
+import numpy as np
 from fog_x.loader import RLDSLoader
 from fog_x.loader import VLALoader
 
 # Constants
 DEFAULT_EXP_DIR = "/tmp/fog_x"
-DEFAULT_NUMBER_OF_TRAJECTORIES = 3
+DEFAULT_NUMBER_OF_TRAJECTORIES = 20
 DEFAULT_DATASET_NAMES = ["berkeley_autolab_ur5"]
 DATA_URL_TEMPLATE = "gs://gresearch/robotics/{dataset_name}/0.1.0/{dataset_name}-train.tfrecord-{index:05d}-*"
 LOCAL_FILE_TEMPLATE = "{exp_dir}/{dataset_name}/{dataset_name}-train.tfrecord-{index:05d}-*"
@@ -67,21 +68,24 @@ def measure_file_size(dataset_dir):
             total_size += os.path.getsize(fp)
     return total_size
 
-
 def measure_loading_time(loader_func, path, num_trajectories):
-    """Measures the time taken to load data using a specified loader function."""
+    """Measures the time taken to load data into memory using a specified loader function."""
     start_time = time.time()
     loader = loader_func(path, split=f"train[:{num_trajectories}]")
-    data = list(loader)  # Load all data to measure time
+    for data in loader:
+        #  use np array to force loading
+        data 
+        
     end_time = time.time()
     loading_time = end_time - start_time
-    return loading_time, len(data)
-
+    print(f"Loaded {len(loader)} trajectories in {loading_time:.2f} seconds start time {start_time} end time {end_time}")
+    return loading_time, num_trajectories
 
 def convert_data_to_vla_format(loader, output_dir):
     """Converts data to VLA format and saves it to the specified output directory."""
     for index, data_traj in enumerate(loader):
         output_path = os.path.join(output_dir, f"output_{index}.vla")
+        print(f"Converting trajectory {index} to VLA format and saving to {output_path} {len(data_traj)}")
         fog_x.Trajectory.from_list_of_dicts(data_traj, path=output_path)
 
 def read_data(output_dir, num_trajectories):
@@ -128,7 +132,6 @@ def main():
 
         print(f"VLA format loading time for {num_loaded_vla} trajectories: {vla_loading_time:.2f} seconds")
         print(f"VLA format throughput: {num_loaded_vla / vla_loading_time:.2f} trajectories per second\n")
-
 
 if __name__ == "__main__":
     main()
