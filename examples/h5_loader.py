@@ -2,7 +2,7 @@ from fog_x.loader.hdf5 import HDF5Loader
 import fog_x
 
 import os
-# os.system("rm -rf /tmp/fog_x/*")
+os.system("rm -rf /tmp/fog_x/*")
 
 loader = HDF5Loader("/home/kych/datasets/2024-07-03-red-on-cyan/**/trajectory_im128.h5")
 

@@ -53,6 +53,11 @@ class Trajectory:
         self.feature_name_to_stream = {}  # feature_name: stream
         self.feature_name_to_feature_type = {}  # feature_name: feature_type
         self.trajectory_data = None  # trajectory_data
+        self.start_time = time.time()
+        self.num_pre_initialized_h264_streams = num_pre_initialized_h264_streams
+        self.pre_initialized_image_streams = (
+            []
+        )  # a list of pre-initialized h264 streams
 
         # check if the path exists
         # if not, create a new file and start data collection
@@ -65,13 +70,9 @@ class Trajectory:
                 logger.error(f"error creating the trajectory file: {e}")
                 raise
 
-            self.num_pre_initialized_h264_streams = num_pre_initialized_h264_streams
-            self.pre_initialized_image_streams = (
-                []
-            )  # a list of pre-initialized h264 streams
             self._pre_initialize_h264_streams(num_pre_initialized_h264_streams)
-
-            self.start_time = time.time()
+        else:
+            logger.warn(f"{self.path} exists")
 
     def _get_current_timestamp(self):
         current_time = (time.time() - self.start_time) * 1000
