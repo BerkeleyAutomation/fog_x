@@ -31,6 +31,7 @@ class Trajectory:
         path: Text,
         num_pre_initialized_h264_streams: int = 5,
         feature_name_separator: Text = "/",
+        split: Optional[Text] = None,
     ) -> None:
         """
         Args:
@@ -64,7 +65,7 @@ class Trajectory:
         if not os.path.exists(self.path):
             logger.info(f"creating a new trajectory at {self.path}")
             try:
-                # os.makedirs(os.path.dirname(self.path), exist_ok=True)
+                os.makedirs(os.path.dirname(self.path), exist_ok=True)
                 self.container_file = av.open(self.path, mode="w", format="matroska")
             except Exception as e:
                 logger.error(f"error creating the trajectory file: {e}")
