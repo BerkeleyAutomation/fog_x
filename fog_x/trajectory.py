@@ -29,13 +29,14 @@ class Trajectory:
     def __init__(
         self,
         path: Text,
+        mode = "r",
         num_pre_initialized_h264_streams: int = 5,
         feature_name_separator: Text = "/",
-        split: Optional[Text] = None,
     ) -> None:
         """
         Args:
             path (Text): path to the trajectory file
+            mode (Text, optional):  mode of the file, "r" for read and "w" for write
             num_pre_initialized_h264_streams (int, optional):
                 Number of pre-initialized H.264 video streams to use when adding new features.
                 we pre initialize a configurable number of H.264 video streams to avoid the overhead of creating new streams for each feature.
@@ -59,21 +60,25 @@ class Trajectory:
         self.pre_initialized_image_streams = (
             []
         )  # a list of pre-initialized h264 streams
+        self.mode = mode
 
         # check if the path exists
         # if not, create a new file and start data collection
-        if not os.path.exists(self.path):
-            logger.info(f"creating a new trajectory at {self.path}")
-            try:
+        if self.mode == "w":
+            if not os.path.exists(self.path):
+                logger.info(f"creating a new directory at {self.path}")
                 os.makedirs(os.path.dirname(self.path), exist_ok=True)
+            try:
                 self.container_file = av.open(self.path, mode="w", format="matroska")
             except Exception as e:
                 logger.error(f"error creating the trajectory file: {e}")
                 raise
-
             self._pre_initialize_h264_streams(num_pre_initialized_h264_streams)
+        elif self.mode == "r":
+            if not os.path.exists(self.path):
+                raise FileNotFoundError(f"{self.path} does not exist")
         else:
-            logger.warn(f"{self.path} exists")
+            raise ValueError(f"Invalid mode {self.mode}, must be 'r' or 'w'")
 
     def _get_current_timestamp(self):
         current_time = (time.time() - self.start_time) * 1000
@@ -257,7 +262,7 @@ class Trajectory:
 
         trajectory = Trajectory.from_list_of_dicts(original_trajectory, path="/tmp/fog_x/output.vla")
         """
-        traj = cls(path)
+        traj = cls(path, mode="w")
         for step in data:
             traj.add_by_dict(step)
         return traj
@@ -284,7 +289,7 @@ class Trajectory:
 
         trajectory = Trajectory.from_dict_of_lists(original_trajectory, path="/tmp/fog_x/output.vla")
         """
-        traj = cls(path, feature_name_separator=feature_name_separator)
+        traj = cls(path, feature_name_separator=feature_name_separator, mode="w")
         # flatten the data such that all data starts and put feature name with separator
         _flatten_dict_data = _flatten_dict(data, sep=traj.feature_name_separator)
 

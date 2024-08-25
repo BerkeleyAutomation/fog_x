@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 import glob
 import time
 from fog_x.loader import RLDSLoader
+from fog_x.loader import VLALoader
 
 # Constants
 DEFAULT_EXP_DIR = "/tmp/fog_x"
@@ -123,14 +124,11 @@ def main():
         convert_data_to_vla_format(loader, output_dir)
 
         # Measure loading time for VLA format
-        vla_loading_time, num_loaded_vla = measure_loading_time(fog_x.Trajectory, output_dir, args.num_trajectories)
+        vla_loading_time, num_loaded_vla = measure_loading_time(VLALoader, output_dir, args.num_trajectories)
 
         print(f"VLA format loading time for {num_loaded_vla} trajectories: {vla_loading_time:.2f} seconds")
         print(f"VLA format throughput: {num_loaded_vla / vla_loading_time:.2f} trajectories per second\n")
 
-        
-    
-        
 
 if __name__ == "__main__":
     main()

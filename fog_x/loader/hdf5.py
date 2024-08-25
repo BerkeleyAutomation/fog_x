@@ -25,7 +25,7 @@ def recursively_read_hdf5_group(group):
     
 
 class HDF5Loader(BaseLoader):
-    def __init__(self, path):
+    def __init__(self, path, split = None):
         super(HDF5Loader, self).__init__(path)
         self.index = 0
         self.files = glob.glob(self.path, recursive=True)
