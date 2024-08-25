@@ -12,7 +12,7 @@ from fog_x.loader import RLDSLoader, VLALoader
 DEFAULT_EXP_DIR = "/tmp/fog_x"
 DEFAULT_NUMBER_OF_TRAJECTORIES = 5
 DEFAULT_DATASET_NAMES = ["berkeley_autolab_ur5"]
-CACHE_DIR = "/tmp/fog_x/cache"
+CACHE_DIR = "/tmp/fog_x/cache/"
 
 class DatasetHandler:
     """Base class to handle dataset-related operations."""
@@ -40,6 +40,7 @@ class DatasetHandler:
             subprocess.run(["gsutil", "-m", "cp", url, local_path], check=True)
         else:
             print(f"File {local_path} already exists. Skipping download.")
+            
     def check_and_download_trajectory(self, trajectory_index):
         """Checks if a trajectory and associated JSON files are already downloaded; if not, downloads them."""
         os.makedirs(self.dataset_dir, exist_ok=True)
