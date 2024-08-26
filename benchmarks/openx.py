@@ -15,6 +15,8 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 DEFAULT_EXP_DIR = "/home/kych/datasets/fog_x/"
 DEFAULT_NUMBER_OF_TRAJECTORIES = 64
 DEFAULT_DATASET_NAMES = ["berkeley_autolab_ur5", "bridge", "berkeley_cable_routing", "nyu_door_opening_surprising_effectiveness"]
+DEFAULT_NUMBER_OF_TRAJECTORIES = 1
+DEFAULT_DATASET_NAMES = ["berkeley_autolab_ur5"]
 CACHE_DIR = "/tmp/fog_x/cache/"
 
 
@@ -190,13 +192,13 @@ class VLAHandler(DatasetHandler):
             output_path = os.path.join(self.dataset_dir, f"output_{index}.vla")
             fog_x.Trajectory.from_list_of_dicts(data_traj, path=output_path)
 
-    def measure_loading_time_per_trajectory(self, save_trajectorie_objects=False):
+    def measure_loading_time_per_trajectory(self, save_trajectorie_objects=False, mode = "no_cache"):
         """Measures the time taken to load each trajectory separately using VLALoader."""
         times = []
         loader = VLALoader(self.dataset_dir, cache_dir=CACHE_DIR)
         for data in loader:
             start_time = time.time()
-            self._recursively_load_h5_data(data.load())
+            self._recursively_load_h5_data(data.load(mode = mode))
             if save_trajectorie_objects:
                 self.trajectories_objects.append(data)
             end_time = time.time()
@@ -381,8 +383,26 @@ def evaluation():
         # Process VLA data
         vla_handler = VLAHandler(args.exp_dir, dataset_name, args.num_trajectories)
         vla_sizes = vla_handler.measure_file_size_per_trajectory()
+        
+        # first, no cache test, directly reading everything to memory
+        # no side effect 
         vla_handler.clear_os_cache()
-        vla_loading_times = vla_handler.measure_loading_time_per_trajectory(save_trajectorie_objects=True)
+        vla_loading_times = vla_handler.measure_loading_time_per_trajectory(save_trajectorie_objects=False, mode = "no_cache")
+
+        for i, (size, time) in enumerate(zip(vla_sizes, vla_loading_times)):
+            results.append({
+                'Dataset': dataset_name,
+                'Format': 'VLA-NoCache',
+                'Trajectory': i,
+                'LoadingTime(s)': time,
+                'FileSize(MB)': size / (1024 * 1024),
+                'Throughput(traj/s)': 1 / time if time > 0 else 0
+            })
+        
+        
+        
+        vla_handler.clear_os_cache()
+        vla_loading_times = vla_handler.measure_loading_time_per_trajectory(save_trajectorie_objects=True, mode = "cache")
 
         for i, (size, time) in enumerate(zip(vla_sizes, vla_loading_times)):
             results.append({
@@ -396,7 +416,7 @@ def evaluation():
         
         vla_handler.clear_os_cache()
         # hot cache test
-        vla_loading_times = vla_handler.measure_loading_time_per_trajectory(save_trajectorie_objects=False)
+        vla_loading_times = vla_handler.measure_loading_time_per_trajectory(save_trajectorie_objects=False, mode = "cache")
 
         for i, (size, time) in enumerate(zip(vla_sizes, vla_loading_times)):
             results.append({

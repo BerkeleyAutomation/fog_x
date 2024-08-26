@@ -154,7 +154,7 @@ class Trajectory:
         self.container_file = None
         self.is_closed = True
 
-    def load(self, use_cache=True):
+    def load(self, mode = "cache"):
         """
         load the container file
 
@@ -165,12 +165,19 @@ class Trajectory:
         - if exists, load the file
         - otherwise: load the container file with entire vla trajctory
         """
-
-        if os.path.exists(self.cache_file_name) and use_cache:
-            logger.info(f"Loading the cached file {self.cache_file_name}")
-            self.trajectory_data = self._load_from_cache()
+        if mode == "cache":
+            if os.path.exists(self.cache_file_name):
+                logger.info(f"Loading the cached file {self.cache_file_name}")
+                self.trajectory_data = self._load_from_cache()
+            else:
+                logger.info(f"Loading the container file {self.path}")
+                self.trajectory_data = self._load_from_container_to_h5()
+        elif mode == "no_cache":
+            logger.info(f"Loading the container file {self.path} without cache")
+            self.trajectory_data = self._load_from_container_no_cache()
         else:
-            self.trajectory_data = self._load_from_container()
+            logger.info(f"No option provided. Force loading from container file {self.path}")
+            self.trajectory_data = self._load_from_container_to_h5()
 
         return self.trajectory_data
 
@@ -347,7 +354,7 @@ class Trajectory:
         h5_cache = h5py.File(self.cache_file_name, "r")
         return h5_cache
 
-    def _load_from_container(self):
+    def _load_from_container_to_h5(self):
         """
 
         load the container file with entire vla trajctory
@@ -444,6 +451,95 @@ class Trajectory:
         h5_cache.close()
         h5_cache = h5py.File(self.cache_file_name, "r")
         return h5_cache
+
+    def _load_from_container_no_cache(self):
+        """
+        Load the container file with the entire VLA trajectory.
+
+        Workflow:
+        - Get schema of the container file.
+        - Preallocate decoded streams.
+        - Decode frame by frame and store in the preallocated memory.
+        """
+
+        container = av.open(self.path, mode="r", format="matroska")
+        streams = container.streams
+
+
+        def _get_length_of_stream(stream):
+            """
+            Get the length of the stream.
+            """
+            length = 0
+            for packet in container.demux([stream]):
+                length += 1
+            return length
+        
+        # Dictionary to store preallocated numpy arrays
+        np_cache = {}
+
+        # Preallocate memory for the streams in numpy arrays
+        for stream in streams:
+            feature_name = stream.metadata.get("FEATURE_NAME")
+            if feature_name is None:
+                logger.warn(f"Skipping stream without FEATURE_NAME: {stream}")
+                continue
+            feature_type = FeatureType.from_str(stream.metadata.get("FEATURE_TYPE"))
+            self.feature_name_to_stream[feature_name] = stream
+            self.feature_name_to_feature_type[feature_name] = feature_type
+
+            logger.debug(
+                f"Creating a cache for {feature_name} with shape {feature_type.shape}"
+            )
+
+            length = _get_length_of_stream(stream)
+            # Allocate numpy array with shape [None, X, Y, Z] where X, Y, Z are feature dimensions
+            if feature_type.dtype == "string":
+                np_cache[feature_name] = np.empty((length,) + feature_type.shape, dtype=object)
+            else:
+                np_cache[feature_name] = np.empty((length,) + feature_type.shape, dtype=feature_type.dtype)
+
+        # Decode the frames and store them in the preallocated numpy memory
+        d_feature_length = {feature: 0 for feature in self.feature_name_to_stream}
+        for packet in container.demux(list(streams)):
+            feature_name = packet.stream.metadata.get("FEATURE_NAME")
+            if feature_name is None:
+                logger.debug(f"Skipping stream without FEATURE_NAME: {packet.stream}")
+                continue
+            feature_type = FeatureType.from_str(packet.stream.metadata.get("FEATURE_TYPE"))
+
+            logger.debug(
+                f"Decoding {feature_name} with shape {feature_type.shape} and dtype {feature_type.dtype} with time {packet.dts}"
+            )
+
+            feature_codec = packet.stream.codec_context.codec.name
+            if feature_codec == "h264":
+                frames = packet.decode()
+                for frame in frames:
+                    if feature_type.dtype == "float32":
+                        data = frame.to_ndarray(format="gray").reshape(feature_type.shape)
+                    else:
+                        data = frame.to_ndarray(format="rgb24").reshape(feature_type.shape)
+
+                    # Append data to the numpy array
+                    np_cache[feature_name][d_feature_length[feature_name]] = data
+                    d_feature_length[feature_name] += 1
+            else:
+                packet_in_bytes = bytes(packet)
+                if packet_in_bytes:
+                    # Decode the packet
+                    data = pickle.loads(packet_in_bytes)
+
+                    # Append data to the numpy array
+                    np_cache[feature_name] = np.append(np_cache[feature_name], [data], axis=0)
+                    d_feature_length[feature_name] += 1
+                else:
+                    logger.debug(f"Skipping empty packet: {packet} for {feature_name}")
+
+        container.close()
+
+        return np_cache
+
 
     def _transcode_pickled_images(self, ending_timestamp: Optional[int] = None):
         """
