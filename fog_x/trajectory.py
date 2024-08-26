@@ -30,17 +30,19 @@ class StreamInfo:
         self.feature_name = feature_name
         self.feature_type = feature_type
         self.encoding = encoding
+
     def __str__(self):
         return f"StreamInfo({self.feature_name}, {self.feature_type}, {self.encoding})"
+
     def __repr__(self):
         return self.__str__()
-        
+
 
 class Trajectory:
     def __init__(
         self,
         path: Text,
-        mode = "r",
+        mode="r",
         cache_dir: Optional[Text] = "/tmp/fog_x/cache/",
         num_pre_initialized_h264_streams: int = 5,
         feature_name_separator: Text = "/",
@@ -71,7 +73,7 @@ class Trajectory:
         self.trajectory_data = None  # trajectory_data
         self.start_time = time.time()
         self.mode = mode
-        self.stream_id_to_info = {} # stream_id: StreamInfo
+        self.stream_id_to_info = {}  # stream_id: StreamInfo
         self.is_closed = False
 
         # check if the path exists
@@ -113,18 +115,17 @@ class Trajectory:
         get the value of the feature
         return hdf5-ed data
         """
-        
+
         if self.trajectory_data is None:
             logger.info(f"Loading the trajectory data with key {key}")
             self.trajectory_data = self.load()
-        
 
         return self.trajectory_data[key]
 
-    def close(self, compact = True):
+    def close(self, compact=True):
         """
         close the container file
-        
+
         args:
         compact: re-read from the cache to encode pickled data to images
         """
@@ -153,12 +154,10 @@ class Trajectory:
         self.container_file = None
         self.is_closed = True
 
-
-
-    def load(self, use_cache = True):
+    def load(self, use_cache=True):
         """
         load the container file
-        
+
         returns the container file
 
         workflow:
@@ -172,8 +171,7 @@ class Trajectory:
             self.trajectory_data = self._load_from_cache()
         else:
             self.trajectory_data = self._load_from_container()
-        
-        
+
         return self.trajectory_data
 
     def init_feature_streams(self, feature_spec: Dict):
@@ -388,7 +386,7 @@ class Trajectory:
                     (0,) + feature_type.shape,
                     maxshape=(None,) + feature_type.shape,
                     dtype=h5py.special_dtype(vlen=str),
-                    chunks=(100,) + feature_type.shape
+                    chunks=(100,) + feature_type.shape,
                 )
             else:
                 h5_cache.create_dataset(
@@ -396,7 +394,7 @@ class Trajectory:
                     (0,) + feature_type.shape,
                     maxshape=(None,) + feature_type.shape,
                     dtype=feature_type.dtype,
-                    chunks=(100,) + feature_type.shape
+                    chunks=(100,) + feature_type.shape,
                 )
 
         # decode the frames and store in the preallocated memory
@@ -406,19 +404,25 @@ class Trajectory:
             if feature_name is None:
                 logger.debug(f"Skipping stream without FEATURE_NAME: {stream}")
                 continue
-            feature_type = FeatureType.from_str( packet.stream.metadata.get("FEATURE_TYPE"))
+            feature_type = FeatureType.from_str(
+                packet.stream.metadata.get("FEATURE_TYPE")
+            )
             logger.debug(
                 f"Decoding {feature_name} with shape {feature_type.shape} and dtype {feature_type.dtype} with time {packet.dts}"
             )
             feature_codec = packet.stream.codec_context.codec.name
             if feature_codec == "h264":
                 frames = packet.decode()
-                
+
                 for frame in frames:
                     if feature_type.dtype == "float32":
-                        data = frame.to_ndarray(format="gray").reshape(feature_type.shape)
+                        data = frame.to_ndarray(format="gray").reshape(
+                            feature_type.shape
+                        )
                     else:
-                        data = frame.to_ndarray(format="rgb24").reshape(feature_type.shape)
+                        data = frame.to_ndarray(format="rgb24").reshape(
+                            feature_type.shape
+                        )
                     h5_cache[feature_name].resize(
                         h5_cache[feature_name].shape[0] + 1, axis=0
                     )
@@ -440,7 +444,7 @@ class Trajectory:
         h5_cache.close()
         h5_cache = h5py.File(self.cache_file_name, "r")
         return h5_cache
-    
+
     def _transcode_pickled_images(self, ending_timestamp: Optional[int] = None):
         """
         Transcode pickled images into the desired format (e.g., raw or encoded images).
@@ -465,7 +469,9 @@ class Trajectory:
                 logger.debug(f"Skipping stream without FEATURE_NAME: {stream}")
                 continue
             # Determine encoding method based on feature type
-            stream_encoding = self._get_encoding_of_feature(None, self.feature_name_to_feature_type[stream_feature])
+            stream_encoding = self._get_encoding_of_feature(
+                None, self.feature_name_to_feature_type[stream_feature]
+            )
             stream_feature_type = self.feature_name_to_feature_type[stream_feature]
             stream_in_updated_container = self._add_stream_to_container(
                 new_container, stream_feature, stream_encoding, stream_feature_type
@@ -475,7 +481,9 @@ class Trajectory:
             for key, value in stream.metadata.items():
                 stream_in_updated_container.metadata[key] = value
 
-            d_original_stream_id_to_new_container_stream[stream.index] = stream_in_updated_container
+            d_original_stream_id_to_new_container_stream[stream.index] = (
+                stream_in_updated_container
+            )
 
         # Initialize the number of packets per stream
         # Transcode pickled images and add them to the new container
@@ -485,23 +493,25 @@ class Trajectory:
                 return packet.pts is not None and packet.dts is not None
 
             if is_packet_valid(packet):
-                packet.stream = d_original_stream_id_to_new_container_stream[packet.stream.index]
-                
+                packet.stream = d_original_stream_id_to_new_container_stream[
+                    packet.stream.index
+                ]
+
                 # Check if the stream is using rawvideo, meaning it's a pickled stream
                 if packet.stream.codec_context.codec.name == "libx264":
                     data = pickle.loads(bytes(packet))
-                    
+
                     # Encode the image data as needed, example shown for raw images
                     new_packets = self._encode_frame(data, packet.stream, packet.pts)
 
                     for new_packet in new_packets:
-                        new_container.mux(new_packet)    
+                        new_container.mux(new_packet)
                 else:
                     # If not a rawvideo stream, just remux the existing packet
                     new_container.mux(packet)
             else:
                 logger.debug(f"Skipping invalid packet: {packet}")
-        
+
         # flush the streams
         for stream in new_container.streams:
             packets = stream.encode(None)
@@ -516,19 +526,17 @@ class Trajectory:
         # Reopen the new container for further writing new data
         self.container_file = new_container
 
-
     def to_hdf5(self, path: Text):
         """
         convert the container file to hdf5 file
         """
-        
+
         if not self.trajectory_data:
             self.load()
 
         # directly copy the cache file to the hdf5 file
         os.rename(self.cache_file_name, path)
-    
-        
+
     def _encode_frame(self, data: Any, stream: Any, timestamp: int) -> List[av.Packet]:
         """
         encode the frame and write it to the stream file, return the packet
@@ -579,7 +587,7 @@ class Trajectory:
             logger.debug(f"Adding a new stream for the feature {new_feature}")
             # Following is a workaround because we cannot add new streams to an existing container
             # Close current container
-            self.close(compact = False)
+            self.close(compact=False)
 
             # Move the original file to a temporary location
             temp_path = self.path + ".temp"
@@ -616,7 +624,9 @@ class Trajectory:
                 new_container, new_feature, new_encoding, new_feature_type
             )
             d_original_stream_id_to_new_container_stream[new_stream.index] = new_stream
-            self.stream_id_to_info[new_stream.index] = StreamInfo(new_feature, new_feature_type, new_encoding)
+            self.stream_id_to_info[new_stream.index] = StreamInfo(
+                new_feature, new_feature_type, new_encoding
+            )
 
             # Remux existing packets
             for packet in original_container.demux(original_streams):
@@ -645,6 +655,12 @@ class Trajectory:
         if encoding == "libx264":
             stream.width = feature_type.shape[0]
             stream.height = feature_type.shape[1]
+            stream.codec_context.options = {
+                "preset": "fast",  # Set preset to 'fast' for quicker encoding
+                "tune": "zerolatency",  # Reduce latency
+                "profile": "baseline",  # Use baseline profile
+            }
+
         stream.metadata["FEATURE_NAME"] = feature_name
         stream.metadata["FEATURE_TYPE"] = str(feature_type)
         stream.time_base = Fraction(1, 1000)
@@ -693,7 +709,7 @@ class Trajectory:
         # serialize and save the stream info
         with open(self.path + ".stream_info", "wb") as f:
             pickle.dump(self.stream_id_to_info, f)
-    
+
     def load_stream_info(self):
         # load the stream info
         with open(self.path + ".stream_info", "rb") as f:
