@@ -131,7 +131,8 @@ class VLAHandler(DatasetHandler):
         start_time = time.time()
         loader = VLALoader(self.dataset_dir, cache_dir=CACHE_DIR)
         for data in loader:
-            data["action"]  # Force loading
+            data.load()
+            self.trajectories_objects.append(data)
 
         end_time = time.time()
         loading_time = end_time - start_time
@@ -142,7 +143,7 @@ class VLAHandler(DatasetHandler):
         """Converts data to VLA format and saves it to the same directory."""
         for index, data_traj in enumerate(loader):
             output_path = os.path.join(self.dataset_dir, f"output_{index}.vla")
-            self.trajectories_objects.append(fog_x.Trajectory.from_list_of_dicts(data_traj, path=output_path))
+            fog_x.Trajectory.from_list_of_dicts(data_traj, path=output_path)
 
 
 class HDF5Handler:
@@ -193,7 +194,7 @@ class HDF5Handler:
         print(f"Loaded {count} trajectories in {loading_time:.2f} seconds start time {start_time} end time {end_time}")
         return loading_time, count
     
-def main():
+def main_1():
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="Download, process, and read RLDS data.")
     parser.add_argument("--exp_dir", type=str, default=DEFAULT_EXP_DIR, help="Experiment directory.")
@@ -203,6 +204,11 @@ def main():
 
     for dataset_name in args.dataset_names:
         print(f"Processing dataset: {dataset_name}")
+        
+        # Clear the cache directory
+        cache_dir = CACHE_DIR
+        if os.path.exists(cache_dir):
+            subprocess.run(["rm", "-rf", cache_dir], check=True)
 
         # Process RLDS data
         rlds_handler = RLDSHandler(args.exp_dir, dataset_name, args.num_trajectories)
@@ -214,13 +220,34 @@ def main():
         print(f"RLDS format loading time for {num_loaded_rlds} trajectories: {rlds_loading_time:.2f} seconds")
         print(f"RLDS format throughput: {num_loaded_rlds / rlds_loading_time:.2f} trajectories per second")
 
-        # Process VLA data
+        # # Process VLA data
         vla_handler = VLAHandler(args.exp_dir, dataset_name, args.num_trajectories)
         loader = RLDSLoader(rlds_handler.dataset_dir, split=f"train[:{args.num_trajectories}]")
         
         vla_handler.convert_data_to_vla_format(loader)
-        vla_loading_time, num_loaded_vla = vla_handler.measure_loading_time()
 
+
+def main_2():
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description="Download, process, and read RLDS data.")
+    parser.add_argument("--exp_dir", type=str, default=DEFAULT_EXP_DIR, help="Experiment directory.")
+    parser.add_argument("--num_trajectories", type=int, default=DEFAULT_NUMBER_OF_TRAJECTORIES, help="Number of trajectories to download.")
+    parser.add_argument("--dataset_names", nargs="+", default=DEFAULT_DATASET_NAMES, help="List of dataset names to download.")
+    args = parser.parse_args()
+
+    for dataset_name in args.dataset_names:
+        print(f"Processing dataset: {dataset_name}")
+        
+        # Clear the cache directory
+        cache_dir = CACHE_DIR
+        if os.path.exists(cache_dir):
+            subprocess.run(["rm", "-rf", cache_dir], check=True)
+
+        # # Process VLA data
+        vla_handler = VLAHandler(args.exp_dir, dataset_name, args.num_trajectories)
+        
+        vla_loading_time, num_loaded_vla = vla_handler.measure_loading_time()
+        
         vla_file_size = vla_handler.measure_file_size()
         print(f"Total VLA file size: {vla_file_size / (1024 * 1024):.2f} MB")
         print(f"VLA format loading time for {num_loaded_vla} trajectories: {vla_loading_time:.2f} seconds")
@@ -240,4 +267,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main_2()

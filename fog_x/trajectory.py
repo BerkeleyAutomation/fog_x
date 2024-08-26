@@ -72,6 +72,7 @@ class Trajectory:
         self.start_time = time.time()
         self.mode = mode
         self.stream_id_to_info = {} # stream_id: StreamInfo
+        self.is_closed = False
 
         # check if the path exists
         # if not, create a new file and start data collection
@@ -127,6 +128,8 @@ class Trajectory:
         args:
         compact: re-read from the cache to encode pickled data to images
         """
+        if self.is_closed:
+            raise ValueError("The container file is already closed")
         try:
             ts = self._get_current_timestamp()
             for stream in self.container_file.streams:
@@ -147,10 +150,12 @@ class Trajectory:
             # After closing, re-read from the cache to encode pickled data to images
             self._transcode_pickled_images(ending_timestamp=ts)
         self.trajectory_data = None
+        self.container_file = None
+        self.is_closed = True
 
 
 
-    def load(self):
+    def load(self, use_cache = True):
         """
         load the container file
         
@@ -162,7 +167,8 @@ class Trajectory:
         - otherwise: load the container file with entire vla trajctory
         """
 
-        if os.path.exists(self.cache_file_name):
+        if os.path.exists(self.cache_file_name) and use_cache:
+            logger.info(f"Loading the cached file {self.cache_file_name}")
             self.trajectory_data = self._load_from_cache()
         else:
             self.trajectory_data = self._load_from_container()
@@ -399,14 +405,12 @@ class Trajectory:
                 logger.debug(f"Skipping stream without FEATURE_NAME: {stream}")
                 continue
             feature_type = FeatureType.from_str( packet.stream.metadata.get("FEATURE_TYPE"))
-            logger.info(
+            logger.debug(
                 f"Decoding {feature_name} with shape {feature_type.shape} and dtype {feature_type.dtype} with time {packet.dts}"
             )
             feature_codec = packet.stream.codec_context.codec.name
             if feature_codec == "h264":
-                print(packet)
                 frames = packet.decode()
-                print(frames)
                 
                 for frame in frames:
                     if feature_type.dtype == "float32":
@@ -430,7 +434,6 @@ class Trajectory:
                     d_feature_length[feature_name] += 1
                 else:
                     logger.debug(f"Skipping empty packet: {packet} for {feature_name}")
-        print(d_feature_length)
         container.close()
         h5_cache.close()
         h5_cache = h5py.File(self.cache_file_name, "r")
@@ -633,6 +636,7 @@ class Trajectory:
             # Reopen the new container for writing new data
             self.container_file = new_container
             self.feature_name_to_stream[new_feature] = new_stream
+            self.is_closed = False
 
     def _add_stream_to_container(self, container, feature_name, encoding, feature_type):
         stream = container.add_stream(encoding)
