@@ -17,43 +17,35 @@ class RLDSLoader(BaseLoader):
 
         builder = tfds.builder_from_directory(path)
         self.ds = builder.as_dataset(split)
+        self.iterator = iter(self.ds)
 
         self.split = split
         self.index = 0
 
     def __len__(self):
-        return len(self.ds)
+        return tf.data.experimental.cardinality(self.ds).numpy()
     
     def __iter__(self):
         return self
     
     def __next__(self):
-
-        if self.index < len(self):
-            self.index += 1
-            nest_ds = self.ds.__iter__()
-            traj = list(nest_ds)[0]["steps"]
+        try:
+            nest_ds = next(self.iterator)
+            traj = nest_ds["steps"]
             data = []
 
             for step_data in traj:
                 step = {}
                 for key, val in step_data.items():
-
                     if key == "observation":
-                        step["observation"] = {}
-                        for obs_key, obs_val in val.items():
-                            step["observation"][obs_key] = np.array(obs_val)
-
+                        step["observation"] = {obs_key: np.array(obs_val) for obs_key, obs_val in val.items()}
                     elif key == "action":
-                        step["action"] = {}
-                        for act_key, act_val in val.items():
-                            step["action"][act_key] = np.array(act_val)
+                        step["action"] = {act_key: np.array(act_val) for act_key, act_val in val.items()}
                     else:
                         step[key] = np.array(val)
-
                 data.append(step)
             return data
-        else:
+        except StopIteration:
             self.index = 0
+            self.iterator = iter(self.ds)
             raise StopIteration
-        
