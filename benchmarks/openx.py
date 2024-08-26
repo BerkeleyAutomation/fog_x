@@ -12,7 +12,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 # Constants
 DEFAULT_EXP_DIR = "/tmp/fog_x"
-DEFAULT_NUMBER_OF_TRAJECTORIES = 2
+DEFAULT_NUMBER_OF_TRAJECTORIES = 1
 DEFAULT_DATASET_NAMES = ["berkeley_autolab_ur5"]
 CACHE_DIR = "/tmp/fog_x/cache/"
 
@@ -35,7 +35,11 @@ class DatasetHandler:
         """Clears the cache directory."""
         if os.path.exists(CACHE_DIR):
             subprocess.run(["rm", "-rf", CACHE_DIR], check=True)
-        
+
+    def clear_os_cache(self):
+        """Clears the OS cache."""
+        subprocess.run(["sync"], check=True)
+        subprocess.run(["echo", "3", ">", "/proc/sys/vm/drop_caches"], check=True)
 
     def check_and_download_file(self, url, local_path):
         """Checks if a file is already downloaded; if not, downloads it."""
@@ -107,7 +111,7 @@ class RLDSHandler(DatasetHandler):
         start_time = time.time()
         loader = RLDSLoader(self.dataset_dir, split=f"train[:{self.num_trajectories}]")
         for data in loader:
-            data  # Force loading
+            print("length of loaded data", len(data))
 
         end_time = time.time()
         loading_time = end_time - start_time
@@ -165,6 +169,7 @@ class HDF5Handler:
 
 
     def measure_loading_time(self):
+        
         """Measures the time taken to load data into memory using HDF5Loader."""
         start_time = time.time()
         loader = HDF5Loader(path=os.path.join(self.hdf5_dir, "*.h5"))
@@ -175,11 +180,13 @@ class HDF5Handler:
                     _recursively_load_h5_data(data[key])
                 else:
                     (key, np.array(data[key]))
+                    print(key, np.array(data[key]).shape)
         
         count = 0
         for data in loader:
             # recursively load all data
             _recursively_load_h5_data(data)
+            count += 1
         
         end_time = time.time()
         loading_time = end_time - start_time
@@ -225,7 +232,7 @@ def main():
         hdf5_file_size = hdf5_handler.measure_file_size()
         print(f"Total HDF5 file size: {hdf5_file_size / (1024 * 1024):.2f} MB")
 
-        
+        vla_handler.clear_os_cache()
         # Measure HDF5 loading time
         hdf5_loading_time, num_loaded_hdf5 = hdf5_handler.measure_loading_time()
         print(f"HDF5 format loading time for {num_loaded_hdf5} trajectories: {hdf5_loading_time:.2f} seconds")

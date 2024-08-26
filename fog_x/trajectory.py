@@ -112,7 +112,9 @@ class Trajectory:
         get the value of the feature
         return hdf5-ed data
         """
+        
         if self.trajectory_data is None:
+            logger.info(f"Loading the trajectory data with key {key}")
             self.trajectory_data = self.load()
         
 
@@ -143,8 +145,7 @@ class Trajectory:
         self.container_file.close()
         if compact:
             # After closing, re-read from the cache to encode pickled data to images
-            self._transcode_pickled_images()
-        self.save_stream_info()
+            self._transcode_pickled_images(ending_timestamp=ts)
         self.trajectory_data = None
 
 
@@ -160,8 +161,7 @@ class Trajectory:
         - if exists, load the file
         - otherwise: load the container file with entire vla trajctory
         """
-        self.load_stream_info()
-        
+
         if os.path.exists(self.cache_file_name):
             self.trajectory_data = self._load_from_cache()
         else:
@@ -290,6 +290,7 @@ class Trajectory:
         trajectory = Trajectory.from_list_of_dicts(original_trajectory, path="/tmp/fog_x/output.vla")
         """
         traj = cls(path, mode="w")
+        logger.info(f"Creating a new trajectory file at {path} with {len(data)} steps")
         for step in data:
             traj.add_by_dict(step)
         traj.close()
@@ -360,13 +361,11 @@ class Trajectory:
 
         # preallocate memory for the streams in h5
         for stream in streams:
-            
-            if stream.index not in self.stream_id_to_info:
-                logger.debug(f"Skipping stream without FEATURE_NAME: {stream}")
+            feature_name = stream.metadata.get("FEATURE_NAME")
+            if feature_name is None:
+                logger.warn(f"Skipping stream without FEATURE_NAME: {stream}")
                 continue
-            stream_info = self.stream_id_to_info.get(stream.index)
-            feature_name = stream_info.feature_name
-            feature_type = stream_info.feature_type
+            feature_type = FeatureType.from_str(stream.metadata.get("FEATURE_TYPE"))
             self.feature_name_to_stream[feature_name] = stream
             self.feature_name_to_feature_type[feature_name] = feature_type
             # Preallocate arrays with the shape [None, X, Y, Z]
@@ -393,19 +392,21 @@ class Trajectory:
                 )
 
         # decode the frames and store in the preallocated memory
-
+        d_feature_length = {feature: 0 for feature in self.feature_name_to_stream}
         for packet in container.demux(list(streams)):
-            if packet.stream.index not in self.stream_id_to_info:
+            feature_name = packet.stream.metadata.get("FEATURE_NAME")
+            if feature_name is None:
+                logger.debug(f"Skipping stream without FEATURE_NAME: {stream}")
                 continue
-            stream_info = self.stream_id_to_info.get(packet.stream.index)
-            feature_name = stream_info.feature_name
-            feature_type = stream_info.feature_type
-            logger.debug(
+            feature_type = FeatureType.from_str( packet.stream.metadata.get("FEATURE_TYPE"))
+            logger.info(
                 f"Decoding {feature_name} with shape {feature_type.shape} and dtype {feature_type.dtype} with time {packet.dts}"
             )
             feature_codec = packet.stream.codec_context.codec.name
             if feature_codec == "h264":
+                print(packet)
                 frames = packet.decode()
+                print(frames)
                 
                 for frame in frames:
                     if feature_type.dtype == "float32":
@@ -416,6 +417,7 @@ class Trajectory:
                         h5_cache[feature_name].shape[0] + 1, axis=0
                     )
                     h5_cache[feature_name][-1] = data
+                    d_feature_length[feature_name] += 1
             else:
                 packet_in_bytes = bytes(packet)
                 if packet_in_bytes:
@@ -425,15 +427,16 @@ class Trajectory:
                         h5_cache[feature_name].shape[0] + 1, axis=0
                     )
                     h5_cache[feature_name][-1] = data
+                    d_feature_length[feature_name] += 1
                 else:
-                    logger.debug(f"Skipping empty packet: {packet}")
-
+                    logger.debug(f"Skipping empty packet: {packet} for {feature_name}")
+        print(d_feature_length)
         container.close()
         h5_cache.close()
         h5_cache = h5py.File(self.cache_file_name, "r")
         return h5_cache
     
-    def _transcode_pickled_images(self):
+    def _transcode_pickled_images(self, ending_timestamp: Optional[int] = None):
         """
         Transcode pickled images into the desired format (e.g., raw or encoded images).
         """
@@ -469,6 +472,7 @@ class Trajectory:
 
             d_original_stream_id_to_new_container_stream[stream.index] = stream_in_updated_container
 
+        # Initialize the number of packets per stream
         # Transcode pickled images and add them to the new container
         for packet in original_container.demux(original_streams):
 
@@ -486,12 +490,20 @@ class Trajectory:
                     new_packets = self._encode_frame(data, packet.stream, packet.pts)
 
                     for new_packet in new_packets:
-                        new_container.mux(new_packet)
+                        new_container.mux(new_packet)    
                 else:
                     # If not a rawvideo stream, just remux the existing packet
                     new_container.mux(packet)
             else:
                 logger.debug(f"Skipping invalid packet: {packet}")
+        
+        # flush the streams
+        for stream in new_container.streams:
+            packets = stream.encode(None)
+            for packet in packets:
+                packet.pts = ending_timestamp
+                packet.dts = ending_timestamp
+                new_container.mux(packet)
 
         original_container.close()
         os.remove(temp_path)
@@ -524,6 +536,7 @@ class Trajectory:
         """
         encoding = stream.codec_context.codec.name
         feature_type = FeatureType.from_data(data)
+        logger.debug(f"Encoding {stream.metadata.get('FEATURE_NAME')} with {encoding}")
         if encoding == "libx264":
             if feature_type.dtype == "float32":
                 frame = self._create_frame_depth(data, stream)
