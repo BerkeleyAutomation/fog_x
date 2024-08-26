@@ -194,7 +194,7 @@ class HDF5Handler:
         print(f"Loaded {count} trajectories in {loading_time:.2f} seconds start time {start_time} end time {end_time}")
         return loading_time, count
     
-def main_1():
+def prepare():
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="Download, process, and read RLDS data.")
     parser.add_argument("--exp_dir", type=str, default=DEFAULT_EXP_DIR, help="Experiment directory.")
@@ -227,7 +227,7 @@ def main_1():
         vla_handler.convert_data_to_vla_format(loader)
 
 
-def main_2():
+def evaluation():
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="Download, process, and read RLDS data.")
     parser.add_argument("--exp_dir", type=str, default=DEFAULT_EXP_DIR, help="Experiment directory.")
@@ -267,4 +267,6 @@ def main_2():
 
 
 if __name__ == "__main__":
-    main_2()
+    prepare()
+    exit()
+    evaluation()
