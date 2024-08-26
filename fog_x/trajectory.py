@@ -388,6 +388,7 @@ class Trajectory:
                     (0,) + feature_type.shape,
                     maxshape=(None,) + feature_type.shape,
                     dtype=h5py.special_dtype(vlen=str),
+                    chunks=(100,) + feature_type.shape
                 )
             else:
                 h5_cache.create_dataset(
@@ -395,6 +396,7 @@ class Trajectory:
                     (0,) + feature_type.shape,
                     maxshape=(None,) + feature_type.shape,
                     dtype=feature_type.dtype,
+                    chunks=(100,) + feature_type.shape
                 )
 
         # decode the frames and store in the preallocated memory

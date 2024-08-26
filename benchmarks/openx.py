@@ -125,14 +125,23 @@ class VLAHandler(DatasetHandler):
     def __init__(self, exp_dir, dataset_name, num_trajectories):
         super().__init__(exp_dir, dataset_name, num_trajectories, dataset_type="vla")
         self.trajectories_objects = []
-
-    def measure_loading_time(self):
+        
+    def measure_loading_time(self, is_add_to_trajectories=False):
         """Measures the time taken to load data into memory using VLALoader."""
+        def _recursively_load_h5_data(data):
+            for key in data.keys():
+                if isinstance(data[key], dict):
+                    _recursively_load_h5_data(data[key])
+                else:
+                    (key, np.array(data[key]))
+                    (key, np.array(data[key]).shape)
+    
         start_time = time.time()
         loader = VLALoader(self.dataset_dir, cache_dir=CACHE_DIR)
         for data in loader:
-            data.load()
-            self.trajectories_objects.append(data)
+            _recursively_load_h5_data(data.load())
+            if is_add_to_trajectories:
+                self.trajectories_objects.append(data)
 
         end_time = time.time()
         loading_time = end_time - start_time
@@ -156,6 +165,7 @@ class HDF5Handler:
 
     def convert_data_to_hdf5(self, trajectories_objects):
         """Converts data to HDF5 format and saves it to the same directory."""
+        print(f"Converting {len(trajectories_objects)} trajectories to HDF5 format.")
         for index, trajectory in enumerate(trajectories_objects):
             trajectory.to_hdf5(path=f"{self.hdf5_dir}/output_{index}.h5")
             
@@ -181,7 +191,7 @@ class HDF5Handler:
                     _recursively_load_h5_data(data[key])
                 else:
                     (key, np.array(data[key]))
-                    print(key, np.array(data[key]).shape)
+                    (key, np.array(data[key]).shape)
         
         count = 0
         for data in loader:
@@ -213,17 +223,10 @@ def prepare():
         # Process RLDS data
         rlds_handler = RLDSHandler(args.exp_dir, dataset_name, args.num_trajectories)
         rlds_handler.download_data()
-        rlds_file_size = rlds_handler.measure_file_size()
-        rlds_loading_time, num_loaded_rlds = rlds_handler.measure_loading_time()
 
-        print(f"Total RLDS file size: {rlds_file_size / (1024 * 1024):.2f} MB")
-        print(f"RLDS format loading time for {num_loaded_rlds} trajectories: {rlds_loading_time:.2f} seconds")
-        print(f"RLDS format throughput: {num_loaded_rlds / rlds_loading_time:.2f} trajectories per second")
-
-        # # Process VLA data
+        # Prepare VLA data
         vla_handler = VLAHandler(args.exp_dir, dataset_name, args.num_trajectories)
         loader = RLDSLoader(rlds_handler.dataset_dir, split=f"train[:{args.num_trajectories}]")
-        
         vla_handler.convert_data_to_vla_format(loader)
 
 
@@ -243,13 +246,26 @@ def evaluation():
         if os.path.exists(cache_dir):
             subprocess.run(["rm", "-rf", cache_dir], check=True)
 
+        # Process RLDS data
+        rlds_handler = RLDSHandler(args.exp_dir, dataset_name, args.num_trajectories)
+        rlds_file_size = rlds_handler.measure_file_size()
+        rlds_loading_time, num_loaded_rlds = rlds_handler.measure_loading_time()
+
+        print(f"Total RLDS file size: {rlds_file_size / (1024 * 1024):.2f} MB")
+        print(f"RLDS format loading time for {num_loaded_rlds} trajectories: {rlds_loading_time:.2f} seconds")
+        print(f"RLDS format throughput: {num_loaded_rlds / rlds_loading_time:.2f} trajectories per second")
+        
         # # Process VLA data
         vla_handler = VLAHandler(args.exp_dir, dataset_name, args.num_trajectories)
-        
-        vla_loading_time, num_loaded_vla = vla_handler.measure_loading_time()
-        
+        vla_loading_time, num_loaded_vla = vla_handler.measure_loading_time(is_add_to_trajectories=True)
         vla_file_size = vla_handler.measure_file_size()
         print(f"Total VLA file size: {vla_file_size / (1024 * 1024):.2f} MB")
+        print(f"VLA format loading time for {num_loaded_vla} trajectories: {vla_loading_time:.2f} seconds")
+        print(f"VLA format throughput: {num_loaded_vla / vla_loading_time:.2f} trajectories per second\n")
+        
+        vla_handler.clear_os_cache()
+        # hot cache VLA loading time
+        vla_loading_time, num_loaded_vla = vla_handler.measure_loading_time(is_add_to_trajectories=False)
         print(f"VLA format loading time for {num_loaded_vla} trajectories: {vla_loading_time:.2f} seconds")
         print(f"VLA format throughput: {num_loaded_vla / vla_loading_time:.2f} trajectories per second\n")
 
@@ -267,6 +283,6 @@ def evaluation():
 
 
 if __name__ == "__main__":
-    prepare()
-    exit()
+    # prepare()
+    # exit()
     evaluation()
