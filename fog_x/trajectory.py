@@ -171,13 +171,14 @@ class Trajectory:
                 self.trajectory_data = self._load_from_cache()
             else:
                 logger.info(f"Loading the container file {self.path}")
-                self.trajectory_data = self._load_from_container_to_h5()
+                self.trajectory_data = self._load_from_container(save_to_cache=True)
         elif mode == "no_cache":
             logger.info(f"Loading the container file {self.path} without cache")
-            self.trajectory_data = self._load_from_container_no_cache()
+            # self.trajectory_data = self._load_from_container_to_h5()
+            self.trajectory_data = self._load_from_container(save_to_cache=False)
         else:
             logger.info(f"No option provided. Force loading from container file {self.path}")
-            self.trajectory_data = self._load_from_container_to_h5()
+            self.trajectory_data = self._load_from_container(save_to_cache=False)
 
         return self.trajectory_data
 
@@ -452,9 +453,17 @@ class Trajectory:
         h5_cache = h5py.File(self.cache_file_name, "r")
         return h5_cache
 
-    def _load_from_container_no_cache(self):
+    def _load_from_container(self, save_to_cache: bool = True):
         """
         Load the container file with the entire VLA trajectory.
+        
+        args:
+            save_to_cache: save the decoded data to the cache file
+        
+        returns:
+            h5_cache: h5py file with the decoded data
+            or 
+            dict: dictionary with the decoded data
 
         Workflow:
         - Get schema of the container file.
@@ -462,19 +471,25 @@ class Trajectory:
         - Decode frame by frame and store in the preallocated memory.
         """
 
-        container = av.open(self.path, mode="r", format="matroska")
-        streams = container.streams
-
-
-        def _get_length_of_stream(stream):
+        def _get_length_of_stream(container, stream):
             """
             Get the length of the stream.
             """
             length = 0
             for packet in container.demux([stream]):
-                length += 1
+                if packet.dts is not None:
+                    length += 1
             return length
         
+        container_to_get_length = av.open(self.path, mode="r", format="matroska")
+        streams = container_to_get_length.streams
+        length = _get_length_of_stream(container_to_get_length, streams[0])
+        container_to_get_length.close()
+        
+        container = av.open(self.path, mode="r", format="matroska")
+        streams = container.streams
+
+
         # Dictionary to store preallocated numpy arrays
         np_cache = {}
 
@@ -492,7 +507,6 @@ class Trajectory:
                 f"Creating a cache for {feature_name} with shape {feature_type.shape}"
             )
 
-            length = _get_length_of_stream(stream)
             # Allocate numpy array with shape [None, X, Y, Z] where X, Y, Z are feature dimensions
             if feature_type.dtype == "string":
                 np_cache[feature_name] = np.empty((length,) + feature_type.shape, dtype=object)
@@ -535,10 +549,22 @@ class Trajectory:
                     d_feature_length[feature_name] += 1
                 else:
                     logger.debug(f"Skipping empty packet: {packet} for {feature_name}")
-
+        print(f"Length of the stream {feature_name} is {d_feature_length[feature_name]}")
         container.close()
-
-        return np_cache
+        
+        if save_to_cache:
+            # create and save it to be hdf5 file
+            h5_cache = h5py.File(self.cache_file_name, "w")
+            for feature_name, data in np_cache.items():
+                if data.dtype == object:
+                    continue # TODO
+                else:
+                    h5_cache.create_dataset(feature_name, data=data)
+            h5_cache.close()
+            h5_cache = h5py.File(self.cache_file_name, "r")
+            return h5_cache
+        else:
+            return np_cache
 
 
     def _transcode_pickled_images(self, ending_timestamp: Optional[int] = None):

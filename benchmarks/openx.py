@@ -15,8 +15,8 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 DEFAULT_EXP_DIR = "/home/kych/datasets/fog_x/"
 DEFAULT_NUMBER_OF_TRAJECTORIES = 64
 DEFAULT_DATASET_NAMES = ["berkeley_autolab_ur5", "bridge", "berkeley_cable_routing", "nyu_door_opening_surprising_effectiveness"]
-DEFAULT_NUMBER_OF_TRAJECTORIES = 1
-DEFAULT_DATASET_NAMES = ["berkeley_autolab_ur5"]
+# DEFAULT_NUMBER_OF_TRAJECTORIES = 1
+# DEFAULT_DATASET_NAMES = ["berkeley_autolab_ur5"]
 CACHE_DIR = "/tmp/fog_x/cache/"
 
 
