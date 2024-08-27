@@ -1,5 +1,5 @@
 import logging
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple, Dict
 
 import numpy as np
 
@@ -188,3 +188,5 @@ class FeatureType:
                 return self.dtype
         else:
             return "large_binary"
+
+

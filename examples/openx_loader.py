@@ -3,17 +3,24 @@ import fog_x
 
 import os
 
-os.system("rm -rf /tmp/fog_x/*")
+data_dir = "/home/kych/datasets/rtx"
+dataset_name = "berkeley_autolab_ur5"
+dataset_name = "berkeley_cable_routing"
+
+# loader = RLDSLoader(
+#     path="/home/kych/datasets/rtx/berkeley_autolab_ur5/0.1.0", split="train[:100]"
+# )
 
 loader = RLDSLoader(
-    path="/home/kych/datasets/rtx/berkeley_autolab_ur5/0.1.0", split="train[:10]"
+    path=f"{data_dir}/{dataset_name}/0.1.0", split="train[:64]"
 )
+
 
 index = 0
 
 for data_traj in loader:
 
     fog_x.Trajectory.from_list_of_dicts(
-        data_traj, path=f"/tmp/fog_x/output_{index}.vla"
+        data_traj, path=f"/home/kych/datasets/fog_x/vla/{dataset_name}/output_{index}.vla"
     )
     index += 1

@@ -1,7 +1,9 @@
 import os
 from typing import Any, Dict, List, Optional, Text
+from fog_x.loader.vla import VLALoader
+from fog_x.utils import data_to_tf_schema
 
-class Dataset:
+class VLADataset:
     def __init__(self, 
                  path: Text,
                  split: Text, 
@@ -19,7 +21,11 @@ class Dataset:
             format (Optional[Text]): format of the dataset. Auto-detected if None. Defaults to None.
                 we assume that the format is the same for all files in the dataset
         """    
-        pass 
+        self.path = path
+        self.split = split
+        self.format = format
+        
+        self.loader = VLALoader(path) 
     
     def __iter__(self):
         return self
@@ -32,3 +38,11 @@ class Dataset:
 
     def __getitem__(self, index):
         raise NotImplementedError
+
+    def get_tf_schema(self):
+        data = self.loader.peak(0).load(mode = "no_cache") # enforces no h5 cache
+        return data_to_tf_schema(data)
+
+    def get_loader(self):
+        return self.loader
+    

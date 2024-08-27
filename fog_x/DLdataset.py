@@ -8,8 +8,8 @@ import tensorflow_datasets as tfds
 from tensorflow_datasets.core.dataset_builder import DatasetBuilder
 
 from dlimp.utils import parallel_vmap, vmap
-
-
+from .dataset import VLADataset
+import h5py
 def _wrap(f, is_flattened):
     """Wraps a method to return a DLataset instead of a tf.data.Dataset."""
 
@@ -157,8 +157,19 @@ class DLataset(tf.data.Dataset):
         return dataset
 
     @staticmethod
+    def from_hdf5(
+        path : str,
+        split: str = "train",
+        shuffle: bool = True,
+        num_parallel_reads: int = tf.data.AUTOTUNE,
+    ) -> "DLataset":
+        pass
+        
+        
+        
+    @staticmethod
     def from_vla(
-        builder: DatasetBuilder,
+        path : str,
         split: str = "train",
         shuffle: bool = True,
         num_parallel_reads: int = tf.data.AUTOTUNE,
@@ -173,47 +184,69 @@ class DLataset(tf.data.Dataset):
             num_parallel_reads (int, optional): The number of tfrecord files to read in parallel. Defaults to AUTOTUNE. This
                 can use an excessive amount of memory if reading from cloud storage; decrease if necessary.
         """
-        step_spec = MKVLoader("/home/kych/datasets/mkv_convert/").get_schema().get_tf_step_spec()
+        
+        vla_dataset = VLADataset(path, split)
+        
+        step_spec = vla_dataset.get_tf_schema()
         # Generator function
         def generator():
-            mkv_loader = MKVLoader("/home/kych/datasets/mkv_convert/")
+            loader = vla_dataset.get_loader()
 
-            for output_tf_traj in mkv_loader:
-                print(f"{time()} before converting to tensor")
-                def worker(key, sub_key, data, return_dict):
-                    if data.dtype == object:
-                        # strings are objects in numpy, need to convert to tf.string
-                        return_dict[(key, sub_key)] = tf.stack([tf.convert_to_tensor(x, dtype=tf.string) for x in data])
-                    else:
-                        return_dict[(key, sub_key)] = tf.convert_to_tensor(data)
+            for output_tf_traj in loader:
 
-                manager = mp.Manager()
-                return_dict = manager.dict()
-                jobs = []
-
-                for key in output_tf_traj:
-                    if isinstance(output_tf_traj[key], dict):
-                        for sub_key in output_tf_traj[key]:
-                            p = mp.Process(target=worker, args=(key, sub_key, output_tf_traj[key][sub_key], return_dict))
-                            jobs.append(p)
-                            p.start()
-                    else:
-                        p = mp.Process(target=worker, args=(key, None, output_tf_traj[key], return_dict))
-                        jobs.append(p)
-                        p.start()
-
-                for job in jobs:
-                    job.join()
-
-                for key, sub_key in return_dict:
-                    if sub_key is None:
-                        output_tf_traj[key] = return_dict[(key, sub_key)]
-                    else:
-                        output_tf_traj[key][sub_key] = return_dict[(key, sub_key)]
-
-                output =  {"steps" : output_tf_traj} 
-                print(f"{time()} after converting to tensor")
+                h5_cache = output_tf_traj.load()
+                # convert cache to tensor
+                def _convert_h5_cache_to_tensor():
+                    output_tf_traj = {}
+                    for key in h5_cache:
+                        # hierarhical 
+                        if type(h5_cache[key]) == h5py._hl.group.Group:
+                            for sub_key in h5_cache[key]:
+                                if key not in output_tf_traj:
+                                    output_tf_traj[key] = {}
+                                output_tf_traj[key][sub_key] = tf.convert_to_tensor(h5_cache[key][sub_key])
+                        elif type(h5_cache[key]) == h5py._hl.dataset.Dataset:
+                            output_tf_traj[key] = tf.convert_to_tensor(h5_cache[key])
+                    return output_tf_traj
+                output = {"steps" : _convert_h5_cache_to_tensor()}
+                print(output)
+                
                 yield output
+                
+                # def worker(key, sub_key, data, return_dict):
+                #     if data.dtype == object:
+                #         # strings are objects in numpy, need to convert to tf.string
+                #         return_dict[(key, sub_key)] = tf.stack([tf.convert_to_tensor(x, dtype=tf.string) for x in data])
+                #     else:
+                #         return_dict[(key, sub_key)] = tf.convert_to_tensor(data)
+
+                # manager = mp.Manager()
+                # return_dict = manager.dict()
+                # jobs = []
+
+                # for key in output_tf_traj:
+                #     if isinstance(output_tf_traj[key], dict):
+                #         for sub_key in output_tf_traj[key]:
+                #             p = mp.Process(target=worker, args=(key, sub_key, output_tf_traj[key][sub_key], return_dict))
+                #             jobs.append(p)
+                #             p.start()
+                #     else:
+                #         p = mp.Process(target=worker, args=(key, None, output_tf_traj[key], return_dict))
+                #         jobs.append(p)
+                #         p.start()
+
+                # for job in jobs:
+                #     job.join()
+
+                # for key, sub_key in return_dict:
+                #     if sub_key is None:
+                #         output_tf_traj[key] = return_dict[(key, sub_key)]
+                #     else:
+                #         output_tf_traj[key][sub_key] = return_dict[(key, sub_key)]
+
+                # output =  {"steps" : output_tf_traj} 
+                # print(f"{time()} after converting to tensor")
+                # yield output
 
 
         # Create dataset
