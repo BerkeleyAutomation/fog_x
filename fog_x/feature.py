@@ -140,7 +140,7 @@ class FeatureType:
         shape = eval(shape.split("=")[1][:-1]) # strip brackets
         return FeatureType(dtype=dtype, shape=shape)
 
-    def to_tf_feature_type(self):
+    def to_tf_feature_type(self, first_dim_none=False):
         """
         Convert to tf feature
         """
@@ -176,7 +176,11 @@ class FeatureType:
             else:
                 return Scalar(dtype=tf_detype)
         elif len(self.shape) >= 1:
-            return Tensor(shape=self.shape, dtype=tf_detype)
+            if first_dim_none:
+                tf_shape = [None] + list(self.shape[1:])
+                return Tensor(shape=tf_shape, dtype=tf_detype)
+            else:
+                return Tensor(shape=self.shape, dtype=tf_detype)
         else:
             raise ValueError(f"Unsupported conversion to tf feature: {self}")
 

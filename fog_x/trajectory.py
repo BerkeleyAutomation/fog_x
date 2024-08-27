@@ -558,7 +558,13 @@ class Trajectory:
             h5_cache = h5py.File(self.cache_file_name, "w")
             for feature_name, data in np_cache.items():
                 if data.dtype == object:
-                    continue # TODO
+                    for i in range(len(data)):
+                        if data[i] is not None:
+                            data[i] = str(data[i])
+                    h5_cache.create_dataset(
+                        feature_name,
+                        data=data
+                    )
                 else:
                     h5_cache.create_dataset(feature_name, data=data)
             h5_cache.close()

@@ -209,7 +209,6 @@ class DLataset(tf.data.Dataset):
                             output_tf_traj[key] = tf.convert_to_tensor(h5_cache[key])
                     return output_tf_traj
                 output = {"steps" : _convert_h5_cache_to_tensor()}
-                print(output)
                 
                 yield output
                 
@@ -253,7 +252,8 @@ class DLataset(tf.data.Dataset):
         output_signature = {"steps" : tf.nest.map_structure(
             lambda spec: tf.TensorSpec(shape=spec.shape, dtype=spec.dtype), step_spec
         )}
-
+        print(output_signature)
+        
         dataset = _wrap(tf.data.Dataset.from_generator, False)(
             generator,
             output_signature=output_signature

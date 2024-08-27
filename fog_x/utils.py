@@ -14,7 +14,8 @@ def data_to_tf_schema(data: Dict[str, Any]) -> Dict[str, FeatureType]:
             main_key, sub_key = k.split("/")
             if main_key not in schema:
                 schema[main_key] = {}
-            schema[main_key][sub_key] = FeatureType.from_data(v).to_tf_feature_type()
+            schema[main_key][sub_key] = FeatureType.from_data(v).to_tf_feature_type(first_dim_none=True)
+            # replace first element of shape with None
         else:
-            schema[k] = FeatureType.from_data(v).to_tf_feature_type()
+            schema[k] = FeatureType.from_data(v).to_tf_feature_type(first_dim_none=True)
     return schema
