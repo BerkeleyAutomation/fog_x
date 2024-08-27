@@ -68,6 +68,7 @@ class Trajectory:
             os.makedirs(cache_dir, exist_ok=True)
         hex_hash = hex(abs(hash(self.path)))[2:]
         self.cache_file_name = cache_dir + hex_hash + ".cache"
+        # self.cache_file_name = cache_dir + os.path.basename(self.path) + ".cache"
         self.feature_name_to_stream = {}  # feature_name: stream
         self.feature_name_to_feature_type = {}  # feature_name: feature_type
         self.trajectory_data = None  # trajectory_data
@@ -167,17 +168,17 @@ class Trajectory:
         """
         if mode == "cache":
             if os.path.exists(self.cache_file_name):
-                logger.info(f"Loading the cached file {self.cache_file_name}")
+                logger.debug(f"Loading the cached file {self.cache_file_name}")
                 self.trajectory_data = self._load_from_cache()
             else:
-                logger.info(f"Loading the container file {self.path}")
+                logger.debug(f"Loading the container file {self.path}, saving to cache {self.cache_file_name}")
                 self.trajectory_data = self._load_from_container(save_to_cache=True)
         elif mode == "no_cache":
-            logger.info(f"Loading the container file {self.path} without cache")
+            logger.debug(f"Loading the container file {self.path} without cache")
             # self.trajectory_data = self._load_from_container_to_h5()
             self.trajectory_data = self._load_from_container(save_to_cache=False)
         else:
-            logger.info(f"No option provided. Force loading from container file {self.path}")
+            logger.debug(f"No option provided. Force loading from container file {self.path}")
             self.trajectory_data = self._load_from_container(save_to_cache=False)
 
         return self.trajectory_data
@@ -484,7 +485,7 @@ class Trajectory:
         container_to_get_length = av.open(self.path, mode="r", format="matroska")
         streams = container_to_get_length.streams
         length = _get_length_of_stream(container_to_get_length, streams[0])
-        logger.info(f"Length of the stream is {length}")
+        logger.debug(f"Length of the stream is {length}")
         container_to_get_length.close()
         
         container = av.open(self.path, mode="r", format="matroska")
@@ -550,7 +551,7 @@ class Trajectory:
                     d_feature_length[feature_name] += 1
                 else:
                     logger.debug(f"Skipping empty packet: {packet} for {feature_name}")
-        print(f"Length of the stream {feature_name} is {d_feature_length[feature_name]}")
+        logger.debug(f"Length of the stream {feature_name} is {d_feature_length[feature_name]}")
         container.close()
         
         if save_to_cache:

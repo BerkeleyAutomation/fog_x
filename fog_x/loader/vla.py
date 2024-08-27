@@ -30,7 +30,7 @@ class VLALoader(BaseLoader):
         self.cache_dir = cache_dir
 
     def _read_vla(self, data_path):
-        logger.info(f"Reading {data_path}")
+        logger.debug(f"Reading {data_path}")
         if self.cache_dir:
             traj = fog_x.Trajectory(data_path, cache_dir=self.cache_dir)
         else:

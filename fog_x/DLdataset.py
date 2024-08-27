@@ -155,17 +155,6 @@ class DLataset(tf.data.Dataset):
         dataset = dataset.enumerate().traj_map(_broadcast_metadata_rlds)
 
         return dataset
-
-    @staticmethod
-    def from_hdf5(
-        path : str,
-        split: str = "train",
-        shuffle: bool = True,
-        num_parallel_reads: int = tf.data.AUTOTUNE,
-    ) -> "DLataset":
-        pass
-        
-        
         
     @staticmethod
     def from_vla(
@@ -185,16 +174,14 @@ class DLataset(tf.data.Dataset):
                 can use an excessive amount of memory if reading from cloud storage; decrease if necessary.
         """
         
-        vla_dataset = VLADataset(path, split)
+        vla_dataset = VLADataset(path, split, shuffle=shuffle)
         
         step_spec = vla_dataset.get_tf_schema()
         # Generator function
         def generator():
-            loader = vla_dataset.get_loader()
+            for h5_cache in vla_dataset:
 
-            for output_tf_traj in loader:
 
-                h5_cache = output_tf_traj.load()
                 # convert cache to tensor
                 def _convert_h5_cache_to_tensor():
                     output_tf_traj = {}

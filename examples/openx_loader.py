@@ -12,7 +12,7 @@ dataset_name = "berkeley_cable_routing"
 # )
 
 loader = RLDSLoader(
-    path=f"{data_dir}/{dataset_name}/0.1.0", split="train[:64]"
+    path=f"{data_dir}/{dataset_name}/0.1.0", split="train"
 )
 
 

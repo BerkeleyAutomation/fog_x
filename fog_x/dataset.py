@@ -2,11 +2,17 @@ import os
 from typing import Any, Dict, List, Optional, Text
 from fog_x.loader.vla import VLALoader
 from fog_x.utils import data_to_tf_schema
+import numpy as np
 
 class VLADataset:
+    """
+    1. figure out the path to the dataset
+    2. shuffling / training management 
+    """
     def __init__(self, 
                  path: Text,
                  split: Text, 
+                 shuffle: bool = False,
                  format: Optional[Text] = None):
         """
         init method for Dataset class
@@ -24,6 +30,7 @@ class VLADataset:
         self.path = path
         self.split = split
         self.format = format
+        self.shuffle = shuffle
         
         self.loader = VLALoader(path) 
     
@@ -31,7 +38,7 @@ class VLADataset:
         return self
 
     def __next__(self):
-        raise NotImplementedError
+        return self.get_next_trajectory()
 
     def __len__(self):
         raise NotImplementedError
@@ -46,3 +53,8 @@ class VLADataset:
     def get_loader(self):
         return self.loader
     
+    def get_next_trajectory(self):
+        if self.shuffle:
+            return self.loader.peak(np.random.randint(0, len(self.loader))).load()
+        else:
+            return next(self.loader).load()
