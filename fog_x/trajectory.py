@@ -484,6 +484,7 @@ class Trajectory:
         container_to_get_length = av.open(self.path, mode="r", format="matroska")
         streams = container_to_get_length.streams
         length = _get_length_of_stream(container_to_get_length, streams[0])
+        logger.info(f"Length of the stream is {length}")
         container_to_get_length.close()
         
         container = av.open(self.path, mode="r", format="matroska")
@@ -545,7 +546,7 @@ class Trajectory:
                     data = pickle.loads(packet_in_bytes)
 
                     # Append data to the numpy array
-                    np_cache[feature_name] = np.append(np_cache[feature_name], [data], axis=0)
+                    np_cache[feature_name][d_feature_length[feature_name]] = data
                     d_feature_length[feature_name] += 1
                 else:
                     logger.debug(f"Skipping empty packet: {packet} for {feature_name}")
