@@ -158,7 +158,8 @@ class DLataset(tf.data.Dataset):
         
     @staticmethod
     def from_vla(
-        path : str,
+        dataset_dir: str,
+        dataset_name : str,
         split: str = "train",
         shuffle: bool = True,
         num_parallel_reads: int = tf.data.AUTOTUNE,
@@ -173,7 +174,7 @@ class DLataset(tf.data.Dataset):
             num_parallel_reads (int, optional): The number of tfrecord files to read in parallel. Defaults to AUTOTUNE. This
                 can use an excessive amount of memory if reading from cloud storage; decrease if necessary.
         """
-        
+        path = f"{dataset_dir}/{dataset_name}"
         vla_dataset = VLADataset(path, split, shuffle=shuffle)
         
         step_spec = vla_dataset.get_tf_schema()

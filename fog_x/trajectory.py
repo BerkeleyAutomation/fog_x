@@ -560,12 +560,22 @@ class Trajectory:
             for feature_name, data in np_cache.items():
                 if data.dtype == object:
                     for i in range(len(data)):
-                        if data[i] is not None:
+                        data_type = type(data[i])
+                        if data_type == str:
                             data[i] = str(data[i])
-                    h5_cache.create_dataset(
-                        feature_name,
-                        data=data
-                    )
+                        elif data_type == bytes:
+                            data[i] = str(data[i])
+                        elif data_type == np.ndarray:
+                            data[i] = str(data[i])
+                        else:
+                            data[i] = str(data[i])
+                    try:
+                        h5_cache.create_dataset(
+                            feature_name,
+                            data=data
+                        )
+                    except Exception as e:
+                        logger.error(f"Error saving {feature_name} to cache: {e} with data {data}")
                 else:
                     h5_cache.create_dataset(feature_name, data=data)
             h5_cache.close()
