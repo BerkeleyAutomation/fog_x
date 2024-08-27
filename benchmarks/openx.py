@@ -13,9 +13,9 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 # Constants
 DEFAULT_EXP_DIR = "/home/kych/datasets/fog_x/"
-DEFAULT_NUMBER_OF_TRAJECTORIES = 64
+DEFAULT_NUMBER_OF_TRAJECTORIES = 1024
 DEFAULT_DATASET_NAMES = ["berkeley_autolab_ur5", "bridge", "berkeley_cable_routing", "nyu_door_opening_surprising_effectiveness"]
-# DEFAULT_NUMBER_OF_TRAJECTORIES = 1
+# DEFAULT_NUMBER_OF_TRAJECTORIES = 1000
 # DEFAULT_DATASET_NAMES = ["berkeley_autolab_ur5"]
 CACHE_DIR = "/tmp/fog_x/cache/"
 
@@ -23,8 +23,9 @@ CACHE_DIR = "/tmp/fog_x/cache/"
 class DatasetHandler:
     """Base class to handle dataset-related operations."""
 
-    DATA_URL_TEMPLATE = "gs://gresearch/robotics/{dataset_name}/0.1.0/{dataset_name}-train.tfrecord-{index:05d}-*"
-    LOCAL_FILE_TEMPLATE = "{exp_dir}/{dataset_type}/{dataset_name}/{dataset_name}-train.tfrecord-{index:05d}-*"
+    DATA_URL_TEMPLATE = "gs://gresearch/robotics/{dataset_name}/0.1.0/{dataset_name}-train.tfrecord-{index:05d}-of-{total_trajectories:05d}"
+    LS_URL_TEMPLATE = "gs://gresearch/robotics/{dataset_name}/0.1.0/{dataset_name}-train.tfrecord-*"
+    LOCAL_FILE_TEMPLATE = "{exp_dir}/{dataset_type}/{dataset_name}/{dataset_name}-train.tfrecord-{index:05d}-of-{total_trajectories:05d}"
     FEATURE_JSON_URL_TEMPLATE = (
         "gs://gresearch/robotics/{dataset_name}/0.1.0/features.json"
     )
@@ -35,10 +36,24 @@ class DatasetHandler:
     def __init__(self, exp_dir, dataset_name, num_trajectories, dataset_type):
         self.exp_dir = exp_dir
         self.dataset_name = dataset_name
-        self.num_trajectories = num_trajectories
+        self.total_trajectories = self._get_total_number_of_trajectories()
+        self.num_trajectories = num_trajectories if num_trajectories <= self.total_trajectories else self.total_trajectories
         self.dataset_type = dataset_type
         self.dataset_dir = os.path.join(exp_dir, dataset_type, dataset_name)
-
+        
+    def _get_total_number_of_trajectories(self):
+        """Gets the total number of trajectories in the dataset."""
+        # use gsutil to get a trajectory file name and extract the total number of trajectories
+        data_url = self.LS_URL_TEMPLATE.format(
+            dataset_name=self.dataset_name, index=0,
+            total_trajectories="*"
+        )
+        output = subprocess.run(
+            ["gsutil", "ls", data_url], stdout=subprocess.PIPE, check=True
+        )
+        total_trajectories = int(output.stdout.decode().split("-")[-1])
+        
+        return total_trajectories
     def clear_cache(self):
         """Clears the cache directory."""
         if os.path.exists(CACHE_DIR):
@@ -66,6 +81,7 @@ class DatasetHandler:
             dataset_type=self.dataset_type,
             dataset_name=self.dataset_name,
             index=trajectory_index,
+            total_trajectories = self.total_trajectories
         )
 
         # Ensure no files with .gstmp postfix are considered valid
@@ -76,7 +92,8 @@ class DatasetHandler:
 
         if not valid_files_exist:
             data_url = self.DATA_URL_TEMPLATE.format(
-                dataset_name=self.dataset_name, index=trajectory_index
+                dataset_name=self.dataset_name, index=trajectory_index,
+                total_trajectories=self.total_trajectories
             )
             subprocess.run(
                 ["gsutil", "-m", "cp", data_url, self.dataset_dir], check=True
@@ -89,7 +106,7 @@ class DatasetHandler:
         # Check and download the feature.json file
         feature_json_local_path = os.path.join(self.dataset_dir, "features.json")
         feature_json_url = self.FEATURE_JSON_URL_TEMPLATE.format(
-            dataset_name=self.dataset_name
+            dataset_name=self.dataset_name,
         )
         self.check_and_download_file(feature_json_url, feature_json_local_path)
 
@@ -454,6 +471,6 @@ def evaluation():
 
 
 if __name__ == "__main__":
-    # prepare()
-    # exit()
+    prepare()
+    exit()
     evaluation()
