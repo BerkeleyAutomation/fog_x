@@ -30,6 +30,9 @@ class HDF5Loader(BaseLoader):
         self.index = 0
         self.files = glob.glob(self.path, recursive=True)
 
+    def __getitem__(self, idx):
+        return self._read_hdf5(self.files[idx])
+
     def _read_hdf5(self, data_path):
         
         with h5py.File(data_path, "r") as f:
@@ -53,3 +56,5 @@ class HDF5Loader(BaseLoader):
             return self._read_hdf5(file_path)
         raise StopIteration
         
+    def __len__(self):
+        return len(self.files)

@@ -50,5 +50,8 @@ class VLALoader(BaseLoader):
     def __len__(self):
         return len(self.files)
 
-    def peak(self, index):
+    def __getitem__(self, index):
         return self._read_vla(self.files[index])
+    
+    def peak(self):
+        return self._read_vla(self.files[self.index])

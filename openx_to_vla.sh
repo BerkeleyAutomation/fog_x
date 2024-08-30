@@ -31,7 +31,7 @@
 
 # nyu_door_opening_surprising_effectiveness dataset
 # python examples/openx_loader.py --data_dir /home/kych/datasets/rtx --dataset_name nyu_door_opening_surprising_effectiveness --destination_dir /mnt/data/fog_x/vla --version 0.1.0 --split train[0:] --max_workers 4
-# python examples/openx_loader.py --data_dir /home/kych/datasets/rtx --dataset_name nyu_door_opening_surprising_effectiveness --destination_dir /mnt/data/fog_x/ffv1 --version 0.1.0 --split train[0:] --max_workers 4  --lossless
+python examples/openx_loader.py --data_dir /home/kych/datasets/rtx --dataset_name nyu_door_opening_surprising_effectiveness --destination_dir /mnt/data/fog_x/ffv1 --version 0.1.0 --split train[0:] --max_workers 4  --lossless
 
 # python examples/openx_loader.py --data_dir /home/kych/datasets/rtx --dataset_name bridge --destination_dir /mnt/data/fog_x/vla --version 0.1.0 --split train[0:] --max_workers 4
-python examples/openx_loader.py --data_dir /home/kych/datasets/rtx --dataset_name bridge --destination_dir /mnt/data/fog_x/ffv1 --version 0.1.0 --split train[0:] --max_workers 4 --lossless
+# python examples/openx_loader.py --data_dir /home/kych/datasets/rtx --dataset_name bridge --destination_dir /mnt/data/fog_x/ffv1 --version 0.1.0 --split train[0:] --max_workers 4 --lossless

@@ -23,6 +23,12 @@ class RLDSLoader(BaseLoader):
         self.index = 0
 
     def __len__(self):
+        try:
+            import tensorflow as tf
+            import tensorflow_datasets as tfds
+        except ImportError:
+            raise ImportError("Please install tensorflow and tensorflow_datasets to use rlds loader")
+
         return tf.data.experimental.cardinality(self.ds).numpy()
     
     def __iter__(self):
@@ -49,3 +55,6 @@ class RLDSLoader(BaseLoader):
             self.index = 0
             self.iterator = iter(self.ds)
             raise StopIteration
+    
+    def __getitem__(self, idx):
+        return next(iter(self.ds.skip(idx).take(1)))

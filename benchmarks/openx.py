@@ -13,9 +13,9 @@ import stat
 # Constants
 DEFAULT_EXP_DIR = "/mnt/data/fog_x/"
 DEFAULT_NUMBER_OF_TRAJECTORIES = -1 # Load all trajectories
-DEFAULT_DATASET_NAMES = ["nyu_door_opening_surprising_effectiveness", "berkeley_cable_routing", "berkeley_autolab_ur5", "bridge"]
-#["nyu_door_opening_surprising_effectiveness"]
-CACHE_DIR = "/mnt/data/fog_x/cache/"
+# DEFAULT_DATASET_NAMES = ["nyu_door_opening_surprising_effectiveness", "berkeley_cable_routing", "berkeley_autolab_ur5", "bridge"]
+DEFAULT_DATASET_NAMES = ["nyu_door_opening_surprising_effectiveness"]
+CACHE_DIR = "/tmp/fog_x/cache/"
 DEFAULT_LOG_FREQUENCY = 20
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
@@ -103,6 +103,25 @@ class RLDSHandler(DatasetHandler):
                 print(f"RLDS - Loaded {i} trajectories, Time: {elapsed_time:.2f} s")
         return time.time() - start_time
 
+    def measure_random_loading_time(self, num_loads):
+        start_time = time.time()
+        loader = RLDSLoader(self.dataset_dir, split="train")
+        dataset_size = len(loader)
+        num_loads = num_loads * dataset_size
+        
+        loader.ds = loader.ds.shuffle(buffer_size=num_loads)
+        # shuffled_ds = shuffled_ds.take(num_loads)
+        
+        for i, data in enumerate(loader):
+            self._recursively_load_data(data)
+            
+            elapsed_time = time.time() - start_time
+            self.write_result(f"RLDS-RandomLoad", elapsed_time, i)
+            if i % self.log_frequency == 0:
+                print(f"RLDS-RandomLoad - Loaded {i} random trajectories, Time: {elapsed_time:.2f} s")
+        
+        return time.time() - start_time
+
 class VLAHandler(DatasetHandler):
     def __init__(self, exp_dir, dataset_name, num_trajectories, log_frequency=DEFAULT_LOG_FREQUENCY):
         super().__init__(exp_dir, dataset_name, num_trajectories, dataset_type="vla", log_frequency=log_frequency)
@@ -122,6 +141,26 @@ class VLAHandler(DatasetHandler):
                     print(f"VLA-{mode.capitalize()} - Loaded {i} trajectories, Time: {elapsed_time:.2f} s")
             except Exception as e:
                 print(f"Failed to load data: {e}")
+        return time.time() - start_time
+
+    def measure_random_loading_time(self, num_loads):
+        start_time = time.time()
+        loader = VLALoader(self.dataset_dir, cache_dir=CACHE_DIR)
+        dataset_size = len(loader)
+        num_loads = num_loads * dataset_size
+        
+        for i in range(num_loads):
+            random_index = np.random.randint(0, dataset_size)
+            data = loader[random_index]
+            try:
+                self._recursively_load_data(data.load(mode="cache"))
+                elapsed_time = time.time() - start_time
+                self.write_result(f"VLA-RandomLoad", elapsed_time, i + 1)
+                if (i + 1) % self.log_frequency == 0:
+                    print(f"VLA-RandomLoad - Loaded {i + 1} random trajectories, Time: {elapsed_time:.2f} s")
+            except Exception as e:
+                print(f"Failed to load data: {e}")
+        
         return time.time() - start_time
 
 class FFV1Handler(DatasetHandler):
@@ -145,6 +184,26 @@ class FFV1Handler(DatasetHandler):
                 print(f"Failed to load data: {e}")
         return time.time() - start_time
 
+    def measure_random_loading_time(self, num_loads):
+        start_time = time.time()
+        loader = VLALoader(self.dataset_dir, cache_dir=CACHE_DIR)
+        dataset_size = len(loader)
+        num_loads = num_loads * dataset_size
+        
+        for i in range(num_loads):
+            random_index = np.random.randint(0, dataset_size)
+            data = loader[random_index]
+            try:
+                self._recursively_load_data(data.load(mode="cache"))
+                elapsed_time = time.time() - start_time
+                self.write_result(f"FFV1-RandomLoad", elapsed_time, i + 1)
+                if (i + 1) % self.log_frequency == 0:
+                    print(f"FFV1-RandomLoad - Loaded {i + 1} random trajectories, Time: {elapsed_time:.2f} s")
+            except Exception as e:
+                print(f"Failed to load data: {e}")
+        
+        return time.time() - start_time
+
 
 class HDF5Handler(DatasetHandler):
     def __init__(self, exp_dir, dataset_name, num_trajectories, log_frequency=DEFAULT_LOG_FREQUENCY):
@@ -162,6 +221,24 @@ class HDF5Handler(DatasetHandler):
             self.write_result("HDF5", elapsed_time, i)
             if i % self.log_frequency == 0:
                 print(f"HDF5 - Loaded {i} trajectories, Time: {elapsed_time:.2f} s")
+        return time.time() - start_time
+
+    def measure_random_loading_time(self, num_loads):
+        start_time = time.time()
+        loader = HDF5Loader(path=os.path.join(self.dataset_dir, "*.h5"))
+        dataset_size = len(loader)
+        num_loads = num_loads * dataset_size
+        
+        for i in range(num_loads):
+            random_index = np.random.randint(0, dataset_size)
+            data = loader[random_index]
+            self._recursively_load_data(data)
+            
+            elapsed_time = time.time() - start_time
+            self.write_result(f"HDF5-RandomLoad", elapsed_time, i + 1)
+            if (i + 1) % self.log_frequency == 0:
+                print(f"HDF5-RandomLoad - Loaded {i + 1} random trajectories, Time: {elapsed_time:.2f} s")
+        
         return time.time() - start_time
 
 def prepare(args):
@@ -194,39 +271,48 @@ def evaluation(args):
             handler.clear_os_cache()
 
             avg_traj_size = handler.measure_average_trajectory_size()
-            loading_time = handler.measure_loading_time()
+            # loading_time = handler.measure_loading_time()
 
+            # new_results.append({
+            #     'Dataset': dataset_name,
+            #     'Format': handler.dataset_type.upper(),
+            #     'AverageTrajectorySize(MB)': avg_traj_size,
+            #     'LoadingTime(s)': loading_time,
+            # })
+
+            # print(f"{handler.dataset_type.upper()} - Average Trajectory Size: {avg_traj_size:.2f} MB, Loading Time: {loading_time:.2f} s")
+
+            random_load_time = handler.measure_random_loading_time(args.random_loads)
             new_results.append({
                 'Dataset': dataset_name,
-                'Format': handler.dataset_type.upper(),
+                'Format': f"{handler.dataset_type.upper()}-RandomLoad",
                 'AverageTrajectorySize(MB)': avg_traj_size,
-                'LoadingTime(s)': loading_time,
+                'LoadingTime(s)': random_load_time,
             })
+            print(f"{handler.dataset_type.upper()}-RandomLoad - Average Trajectory Size: {avg_traj_size:.2f} MB, Loading Time: {random_load_time:.2f} s")
 
-            print(f"{handler.dataset_type.upper()} - Average Trajectory Size: {avg_traj_size:.2f} MB, Loading Time: {loading_time:.2f} s")
+        # # Additional VLA measurements
+        # vla_handler = handlers[1]
+        # vla_handler.clear_cache()
+        # vla_handler.clear_os_cache()
+        # cold_cache_time = vla_handler.measure_loading_time(mode="cache")
+        # hot_cache_time = vla_handler.measure_loading_time(mode="cache")
 
-        # Additional VLA measurements
-        vla_handler = handlers[1]
-        vla_handler.clear_cache()
-        vla_handler.clear_os_cache()
-        cold_cache_time = vla_handler.measure_loading_time(mode="cache")
-        hot_cache_time = vla_handler.measure_loading_time(mode="cache")
+        # new_results.append({
+        #     'Dataset': dataset_name,
+        #     'Format': 'VLA-ColdCache',
+        #     'AverageTrajectorySize(MB)': avg_traj_size,
+        #     'LoadingTime(s)': cold_cache_time,
+        # })
 
-        new_results.append({
-            'Dataset': dataset_name,
-            'Format': 'VLA-ColdCache',
-            'AverageTrajectorySize(MB)': avg_traj_size,
-            'LoadingTime(s)': cold_cache_time,
-        })
-
-        new_results.append({
-            'Dataset': dataset_name,
-            'Format': 'VLA-HotCache',
-            'AverageTrajectorySize(MB)': avg_traj_size,
-            'LoadingTime(s)': hot_cache_time,
-        })
-        print(f"VLA-ColdCache - Average Trajectory Size: {avg_traj_size:.2f} MB, Loading Time: {cold_cache_time:.2f} s")
-        print(f"VLA-HotCache - Average Trajectory Size: {avg_traj_size:.2f} MB, Loading Time: {hot_cache_time:.2f} s")
+        # new_results.append({
+        #     'Dataset': dataset_name,
+        #     'Format': 'VLA-HotCache',
+        #     'AverageTrajectorySize(MB)': avg_traj_size,
+        #     'LoadingTime(s)': hot_cache_time,
+        # })
+        # print(f"VLA-ColdCache - Average Trajectory Size: {avg_traj_size:.2f} MB, Loading Time: {cold_cache_time:.2f} s")
+        # print(f"VLA-HotCache - Average Trajectory Size: {avg_traj_size:.2f} MB, Loading Time: {hot_cache_time:.2f} s")
 
         # Combine existing and new results
         all_results = existing_results + new_results
@@ -243,6 +329,7 @@ if __name__ == "__main__":
     parser.add_argument("--dataset_names", nargs="+", default=DEFAULT_DATASET_NAMES, help="List of dataset names to evaluate.")
     parser.add_argument("--prepare", action="store_true", help="Prepare the datasets before evaluation.")
     parser.add_argument("--log_frequency", type=int, default=DEFAULT_LOG_FREQUENCY, help="Frequency of logging results.")
+    parser.add_argument("--random_loads", type=int, default=2, help="Number of random loads to perform for each loader.")
     args = parser.parse_args()
 
     if args.prepare:
