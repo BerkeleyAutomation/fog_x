@@ -44,7 +44,7 @@ class Trajectory:
         path: Text,
         mode="r",
         cache_dir: Optional[Text] = "/tmp/fog_x/cache/",
-        num_pre_initialized_h264_streams: int = 5,
+        lossy_compression: bool = True,
         feature_name_separator: Text = "/",
     ) -> None:
         """
@@ -76,6 +76,7 @@ class Trajectory:
         self.mode = mode
         self.stream_id_to_info = {}  # stream_id: StreamInfo
         self.is_closed = False
+        self.lossy_compression = lossy_compression
 
         # check if the path exists
         # if not, create a new file and start data collection
@@ -99,17 +100,6 @@ class Trajectory:
 
     def __len__(self):
         raise NotImplementedError
-
-    # def _pre_initialize_h264_streams(self, num_streams: int):
-    #     """
-    #     Pre-initialize a configurable number of H.264 video streams.
-    #     """
-    #     for i in range(num_streams):
-    #         encoding = "libx264"
-    #         stream = self.container_file.add_stream(encoding)
-    #         stream.time_base = Fraction(1, 1000)
-    #         stream.pix_fmt = "yuv420p"
-    #         self.pre_initialized_image_streams.append(stream)
 
     def __getitem__(self, key):
         """
@@ -638,7 +628,7 @@ class Trajectory:
                 ]
 
                 # Check if the stream is using rawvideo, meaning it's a pickled stream
-                if packet.stream.codec_context.codec.name == "libx264":
+                if packet.stream.codec_context.codec.name == "ffv1" or packet.stream.codec_context.codec.name == "libx264":
                     data = pickle.loads(bytes(packet))
 
                     # Encode the image data as needed, example shown for raw images
@@ -690,7 +680,7 @@ class Trajectory:
         encoding = stream.codec_context.codec.name
         feature_type = FeatureType.from_data(data)
         logger.debug(f"Encoding {stream.metadata.get('FEATURE_NAME')} with {encoding}")
-        if encoding == "libx264":
+        if encoding == "ffv1" or encoding == "libx264":
             if feature_type.dtype == "float32":
                 frame = self._create_frame_depth(data, stream)
             else:
@@ -792,13 +782,21 @@ class Trajectory:
 
     def _add_stream_to_container(self, container, feature_name, encoding, feature_type):
         stream = container.add_stream(encoding)
-        if encoding == "libx264":
+        if encoding == "ffv1":
             stream.width = feature_type.shape[0]
             stream.height = feature_type.shape[1]
             stream.codec_context.options = {
                 "preset": "fast",  # Set preset to 'fast' for quicker encoding
                 "tune": "zerolatency",  # Reduce latency
-                "profile": "baseline",  # Use baseline profile
+            }
+        
+        if encoding == "libx264":
+            stream.width = feature_type.shape[0]
+            stream.height = feature_type.shape[1]
+            stream.codec_context.options = {
+                "preset": "ultrafast",  # Set preset to 'ultrafast' for quicker encoding
+                "tune": "zerolatency",  # Reduce latency
+                "profile": "baseline",  # no b frame
             }
 
         stream.metadata["FEATURE_NAME"] = feature_name
@@ -840,7 +838,10 @@ class Trajectory:
             feature_type = FeatureType.from_data(feature_value)
         data_shape = feature_type.shape
         if len(data_shape) >= 2 and data_shape[0] >= 100 and data_shape[1] >= 100:
-            vid_coding = "libx264"
+            if self.lossy_compression:
+                vid_coding = "libx264"
+            else:
+                vid_coding = "ffv1"
         else:
             vid_coding = "rawvideo"
         return vid_coding
