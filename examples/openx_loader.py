@@ -1,47 +1,61 @@
+import argparse
+from concurrent.futures import ProcessPoolExecutor
+import os
 from fog_x.loader import RLDSLoader
 import fog_x
 
-import os
-
-data_dir = "/home/kych//datasets/rtx"
-dataset_name = "berkeley_cable_routing"
-dataset_name = "berkeley_autolab_ur5"
-dataset_name = "fractal20220817_data"
-destination_dir = "/mnt/data/datasets/fog_x/ffv1"
-# destination_dir = "/home/kych//datasets/fog_x/vla"
-version = "0.1.0"
-
-# loader = RLDSLoader(
-#     path="/home/kych/datasets/rtx/berkeley_autolab_ur5/0.1.0", split="train[:100]"
-# )
-
-loader = RLDSLoader(
-    path=f"{data_dir}/{dataset_name}/{version}", split="train"
-)
-
-from concurrent.futures import ProcessPoolExecutor
-import os
-
-def process_data(data_traj, dataset_name, index):
+def process_data(data_traj, dataset_name, index, destination_dir, lossless):
     try:
-        fog_x.Trajectory.from_list_of_dicts(
-            data_traj, path=f"{destination_dir}/{dataset_name}/output_{index}.vla"
-        )
+        if lossless:
+            fog_x.Trajectory.from_list_of_dicts(
+                data_traj, path=f"{destination_dir}/{dataset_name}/output_{index}.vla",
+                lossy_compression=False
+            )
+        else:
+            fog_x.Trajectory.from_list_of_dicts(
+                data_traj, path=f"{destination_dir}/{dataset_name}/output_{index}.vla", 
+                lossy_compression=True,
+            )
     except Exception as e:
         print(f"Failed to process data {index}: {e}")
 
-# Use ThreadPoolExecutor to parallelize the processing
-with ProcessPoolExecutor(max_workers=4) as executor:
-    futures = []
+def main():
+    parser = argparse.ArgumentParser(description="Process RLDS data and convert to VLA format.")
+    parser.add_argument("--data_dir", required=True, help="Path to the data directory")
+    parser.add_argument("--dataset_name", required=True, help="Name of the dataset")
+    parser.add_argument("--version", default="0.1.0", help="Dataset version")
+    parser.add_argument("--destination_dir", required=True, help="Destination directory for output files")
+    parser.add_argument("--split", default="train", help="Data split to use")
+    parser.add_argument("--max_workers", type=int, default=4, help="Maximum number of worker processes")
+    parser.add_argument("--lossless", action="store_true", help="Enable lossless compression for VLA format")
+
+    args = parser.parse_args()
+
+    loader = RLDSLoader(
+        path=f"{args.data_dir}/{args.dataset_name}/{args.version}", split=args.split
+    )
+
+    # train[start:end]
     try:
-        for index, data_traj in enumerate(loader):
-            # Submit the task to the executor
-            futures.append(executor.submit(process_data, data_traj, dataset_name, index))
+        split_starting_index = int(args.split.split("[")[1].split(":")[0])
+        print(f"Starting index: {split_starting_index}")
     except Exception as e:
-        print(f"Failed to process data {index}: {e}")
+        print(f"Failed to get starting index: {e}")
+        split_starting_index = 0
+    
+    with ProcessPoolExecutor(max_workers=args.max_workers) as executor:
+        futures = []
+        try:
+            for index, data_traj in enumerate(loader):
+                index = index + split_starting_index
+                futures.append(executor.submit(process_data, data_traj, args.dataset_name, index, args.destination_dir, args.lossless))
+        except Exception as e:
+            print(f"Failed to process data: {e}")
 
-    # Optionally, wait for all futures to complete
-    for future in futures:
-        future.result()  # This will raise an exception if the task raised one
+        for future in futures:
+            future.result()
 
-print("All tasks completed.")
+    print("All tasks completed.")
+
+if __name__ == "__main__":
+    main()

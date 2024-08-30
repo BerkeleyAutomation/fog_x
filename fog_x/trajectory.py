@@ -276,7 +276,7 @@ class Trajectory:
             self.add(feature, value, timestamp)
 
     @classmethod
-    def from_list_of_dicts(cls, data: List[Dict[str, Any]], path: Text) -> "Trajectory":
+    def from_list_of_dicts(cls, data: List[Dict[str, Any]], path: Text, lossy_compression: bool = True) -> "Trajectory":
         """
         Create a Trajectory object from a list of dictionaries.
 
@@ -292,7 +292,7 @@ class Trajectory:
 
         trajectory = Trajectory.from_list_of_dicts(original_trajectory, path="/tmp/fog_x/output.vla")
         """
-        traj = cls(path, mode="w")
+        traj = cls(path, mode="w", lossy_compression=lossy_compression)
         logger.info(f"Creating a new trajectory file at {path} with {len(data)} steps")
         for step in data:
             traj.add_by_dict(step)
@@ -301,7 +301,7 @@ class Trajectory:
 
     @classmethod
     def from_dict_of_lists(
-        cls, data: Dict[str, List[Any]], path: Text, feature_name_separator: Text = "/"
+        cls, data: Dict[str, List[Any]], path: Text, feature_name_separator: Text = "/", lossy_compression: bool = True
     ) -> "Trajectory":
         """
         Create a Trajectory object from a dictionary of lists.
@@ -321,7 +321,7 @@ class Trajectory:
 
         trajectory = Trajectory.from_dict_of_lists(original_trajectory, path="/tmp/fog_x/output.vla")
         """
-        traj = cls(path, feature_name_separator=feature_name_separator, mode="w")
+        traj = cls(path, feature_name_separator=feature_name_separator, mode="w", lossy_compression = lossy_compression)
         # flatten the data such that all data starts and put feature name with separator
         _flatten_dict_data = _flatten_dict(data, sep=traj.feature_name_separator)
 
