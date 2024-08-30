@@ -13,7 +13,7 @@ import stat
 # Constants
 DEFAULT_EXP_DIR = "/mnt/data/fog_x/"
 DEFAULT_NUMBER_OF_TRAJECTORIES = -1 # Load all trajectories
-DEFAULT_DATASET_NAMES = ["berkeley_autolab_ur5"]
+DEFAULT_DATASET_NAMES = ["nyu_door_opening_surprising_effectiveness", "berkeley_cable_routing", "berkeley_autolab_ur5", "bridge"]
 #["nyu_door_opening_surprising_effectiveness"]
 CACHE_DIR = "/mnt/data/fog_x/cache/"
 DEFAULT_LOG_FREQUENCY = 20
@@ -126,7 +126,7 @@ class VLAHandler(DatasetHandler):
 
 class FFV1Handler(DatasetHandler):
     def __init__(self, exp_dir, dataset_name, num_trajectories, log_frequency=DEFAULT_LOG_FREQUENCY):
-        super().__init__(exp_dir, dataset_name, num_trajectories, dataset_type="vla", log_frequency=log_frequency)
+        super().__init__(exp_dir, dataset_name, num_trajectories, dataset_type="ffv1", log_frequency=log_frequency)
         self.file_extension = ".vla"
 
     def measure_loading_time(self, mode="no_cache"):
@@ -228,13 +228,13 @@ def evaluation(args):
         print(f"VLA-ColdCache - Average Trajectory Size: {avg_traj_size:.2f} MB, Loading Time: {cold_cache_time:.2f} s")
         print(f"VLA-HotCache - Average Trajectory Size: {avg_traj_size:.2f} MB, Loading Time: {hot_cache_time:.2f} s")
 
-    # Combine existing and new results
-    all_results = existing_results + new_results
+        # Combine existing and new results
+        all_results = existing_results + new_results
 
-    # Write all results to CSV
-    results_df = pd.DataFrame(all_results)
-    results_df.to_csv(csv_file, index=False)
-    print(f"Results appended to {csv_file}")
+        # Write all results to CSV
+        results_df = pd.DataFrame(all_results)
+        results_df.to_csv(csv_file, index=False)
+        print(f"Results appended to {csv_file}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Prepare and evaluate loading times and folder sizes for RLDS, VLA, and HDF5 formats.")
