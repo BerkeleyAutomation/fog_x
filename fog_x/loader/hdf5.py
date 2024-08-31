@@ -1,9 +1,9 @@
-
-
 from . import BaseLoader
 import numpy as np 
 import glob 
 import h5py
+import asyncio
+
 # flatten the data such that all data starts with root level tree (observation and action)
 def _flatten(data, parent_key='', sep='/'):
     items = {}
@@ -25,13 +25,30 @@ def recursively_read_hdf5_group(group):
     
 
 class HDF5Loader(BaseLoader):
-    def __init__(self, path, split = None):
+    def __init__(self, path, batch_size=1):
         super(HDF5Loader, self).__init__(path)
         self.index = 0
         self.files = glob.glob(self.path, recursive=True)
+        self.batch_size = batch_size
+    async def _read_hdf5_async(self, data_path):
+        return await asyncio.to_thread(self._read_hdf5, data_path)
 
-    def __getitem__(self, idx):
-        return self._read_hdf5(self.files[idx])
+    async def get_batch(self):
+        tasks = []
+        for _ in range(self.batch_size):
+            if self.index < len(self.files):
+                file_path = self.files[self.index]
+                self.index += 1
+                tasks.append(self._read_hdf5_async(file_path))
+            else:
+                break
+        return await asyncio.gather(*tasks)
+
+    def __next__(self):
+        if self.index >= len(self.files):
+            self.index = 0
+            raise StopIteration
+        return asyncio.run(self.get_batch())
 
     def _read_hdf5(self, data_path):
         
@@ -47,14 +64,5 @@ class HDF5Loader(BaseLoader):
     def __iter__(self):
         return self
     
-    def __next__(self):
-        # for now naming convention:
-        # h/home/kych/datasets/stacking_blocks_trajectories_data/**/trajectory.h5
-        if self.index < len(self.files):
-            file_path = self.files[self.index]
-            self.index += 1
-            return self._read_hdf5(file_path)
-        raise StopIteration
-        
     def __len__(self):
         return len(self.files)

@@ -385,7 +385,11 @@ class Trajectory:
                     length += 1
             return length
         
-        container_to_get_length = av.open(self.path, mode="r", format="matroska")
+        try:
+            container_to_get_length = av.open(self.path, mode="r", format="matroska")
+        except Exception as e:
+            logger.error(f"Error opening container: {e}")
+            return {}
         streams = container_to_get_length.streams
         length = _get_length_of_stream(container_to_get_length, streams[0])
         logger.debug(f"Length of the stream is {length}")

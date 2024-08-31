@@ -47,7 +47,7 @@ class VLADataset:
         raise NotImplementedError
 
     def get_tf_schema(self):
-        data = self.loader.peak(0).load(mode = "no_cache") # enforces no h5 cache
+        data = self.loader.peak(0).load(save_to_cache=False) # enforces no h5 cache
         return data_to_tf_schema(data)
 
     def get_loader(self):
