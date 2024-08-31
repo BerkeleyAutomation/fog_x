@@ -122,10 +122,10 @@ class VLAHandler(DatasetHandler):
                         self._recursively_load_data(data)
                     except Exception as e:
                         print(f"Failed to load data: {e}")
-                    elapsed_time = time.time() - start_time 
-                    self.write_result(f"VLA-RandomLoad", elapsed_time, batch_num)
-                    if batch_num % self.log_frequency == 0:
-                        print(f"VLA-RandomLoad - Loaded {batch_num} random batches, Time: {elapsed_time:.2f} s")
+                elapsed_time = time.time() - start_time 
+                self.write_result(f"VLA-RandomLoad", elapsed_time, batch_num)
+                if batch_num % self.log_frequency == 0:
+                    print(f"VLA-RandomLoad - Loaded {batch_num} random batches, Time: {elapsed_time:.2f} s")
 
         return time.time() - start_time
 
@@ -187,7 +187,7 @@ def evaluation(args):
         print(f"Evaluating dataset: {dataset_name}")
 
         handlers = [
-            RLDSHandler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
+            # RLDSHandler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
             VLAHandler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
             HDF5Handler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
             # FFV1Handler(args.exp_dir, dataset_name, args.num_trajectories, args.log_frequency, args.batch_size)
@@ -257,8 +257,8 @@ if __name__ == "__main__":
     parser.add_argument("--dataset_names", nargs="+", default=DEFAULT_DATASET_NAMES, help="List of dataset names to evaluate.")
     parser.add_argument("--prepare", action="store_true", help="Prepare the datasets before evaluation.")
     parser.add_argument("--log_frequency", type=int, default=DEFAULT_LOG_FREQUENCY, help="Frequency of logging results.")
-    parser.add_argument("--random_loads", type=int, default=5, help="Number of random loads to perform for each loader.")
-    parser.add_argument("--batch_size", type=int, default=16, help="Batch size for loaders.")
+    parser.add_argument("--random_loads", type=int, default=2, help="Number of random loads to perform for each loader.")
+    parser.add_argument("--batch_size", type=int, default=1, help="Batch size for loaders.")
     args = parser.parse_args()
 
     if args.prepare:

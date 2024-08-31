@@ -16,6 +16,7 @@ class RLDSLoader(BaseLoader):
         self.ds = builder.as_dataset(split)
         self.length = len(self.ds)
         self.ds = self.ds.shuffle(shuffle_buffer)
+        self.ds = self.ds.repeat()
         self.iterator = iter(self.ds)
 
         self.split = split
@@ -59,7 +60,7 @@ class RLDSLoader(BaseLoader):
         return batch
 
     def __next__(self):
-        if self.index >= len(self.ds):
+        if self.index >= self.length:
             self.index = 0
             raise StopIteration
         return self.get_batch()
