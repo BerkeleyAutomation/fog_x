@@ -10,6 +10,7 @@ import fog_x
 import csv
 import stat
 from fog_x.loader.lerobot import LeRobotLoader
+from fog_x.loader.pytorch_vla import get_vla_dataloader
 
 # Constants
 DEFAULT_EXP_DIR = "/mnt/data/fog_x/"
@@ -114,14 +115,11 @@ class VLAHandler(DatasetHandler):
 
     def measure_random_loading_time(self, num_loads, save_to_cache=True):
         start_time = time.time()
-        loader = VLALoader(self.dataset_dir, cache_dir=CACHE_DIR, batch_size=self.batch_size)
+        dataloader = get_vla_dataloader(self.dataset_dir, batch_size=self.batch_size, cache_dir=CACHE_DIR)
+        
         for i in range(num_loads):
-            for batch_num, batch in enumerate(loader):
-                for data in batch:
-                    try:
-                        self._recursively_load_data(data)
-                    except Exception as e:
-                        print(f"Failed to load data: {e}")
+            for batch_num, batch in enumerate(dataloader):
+                self._recursively_load_data(batch)
                 elapsed_time = time.time() - start_time 
                 self.write_result(f"VLA-RandomLoad", elapsed_time, batch_num)
                 if batch_num % self.log_frequency == 0:
@@ -187,11 +185,11 @@ def evaluation(args):
         print(f"Evaluating dataset: {dataset_name}")
 
         handlers = [
-            # RLDSHandler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
+            RLDSHandler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
             VLAHandler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
-            HDF5Handler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
+            # HDF5Handler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
             # FFV1Handler(args.exp_dir, dataset_name, args.num_trajectories, args.log_frequency, args.batch_size)
-            LeRobotHandler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
+            # LeRobotHandler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
         ]
 
         for handler in handlers:
