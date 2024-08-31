@@ -9,6 +9,7 @@ import pandas as pd
 import fog_x
 import csv
 import stat
+from fog_x.loader.lerobot import LeRobotLoader
 
 # Constants
 DEFAULT_EXP_DIR = "/mnt/data/fog_x/"
@@ -147,6 +148,26 @@ class HDF5Handler(DatasetHandler):
             
         return time.time() - start_time
 
+class LeRobotHandler(DatasetHandler):
+    def __init__(self, exp_dir, dataset_name, num_trajectories, batch_size, log_frequency=DEFAULT_LOG_FREQUENCY):
+        super().__init__(exp_dir, dataset_name, num_trajectories, dataset_type="hf", batch_size=batch_size, log_frequency=log_frequency)
+        self.file_extension = ""  # LeRobot datasets don't have a specific file extension
+
+    def measure_random_loading_time(self, num_loads):
+        start_time = time.time()
+        path = os.path.join(self.exp_dir, "hf")
+        loader = LeRobotLoader(path, self.dataset_name, batch_size=self.batch_size)
+        
+        for i in range(num_loads):
+            for batch_num, data in enumerate(loader):
+                self._recursively_load_data(data)
+                elapsed_time = time.time() - start_time
+                self.write_result(f"LeRobot-RandomLoad", elapsed_time, batch_num)
+                if batch_num % self.log_frequency == 0:
+                    print(f"LeRobot-RandomLoad - Loaded {batch_num} random batches, Time: {elapsed_time:.2f} s")
+            
+        return time.time() - start_time
+
 def prepare(args):
     # Clear the cache directory
     if os.path.exists(CACHE_DIR):
@@ -166,10 +187,11 @@ def evaluation(args):
         print(f"Evaluating dataset: {dataset_name}")
 
         handlers = [
-            # RLDSHandler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
+            RLDSHandler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
             VLAHandler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
             HDF5Handler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
             # FFV1Handler(args.exp_dir, dataset_name, args.num_trajectories, args.log_frequency, args.batch_size)
+            LeRobotHandler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
         ]
 
         for handler in handlers:
@@ -235,7 +257,7 @@ if __name__ == "__main__":
     parser.add_argument("--dataset_names", nargs="+", default=DEFAULT_DATASET_NAMES, help="List of dataset names to evaluate.")
     parser.add_argument("--prepare", action="store_true", help="Prepare the datasets before evaluation.")
     parser.add_argument("--log_frequency", type=int, default=DEFAULT_LOG_FREQUENCY, help="Frequency of logging results.")
-    parser.add_argument("--random_loads", type=int, default=2, help="Number of random loads to perform for each loader.")
+    parser.add_argument("--random_loads", type=int, default=5, help="Number of random loads to perform for each loader.")
     parser.add_argument("--batch_size", type=int, default=16, help="Batch size for loaders.")
     args = parser.parse_args()
 
