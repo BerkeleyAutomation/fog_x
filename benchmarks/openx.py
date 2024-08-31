@@ -23,10 +23,10 @@ DEFAULT_LOG_FREQUENCY = 20
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
 class DatasetHandler:
-    def __init__(self, exp_dir, dataset_name, num_trajectories, dataset_type, batch_size, log_frequency=DEFAULT_LOG_FREQUENCY):
+    def __init__(self, exp_dir, dataset_name, num_batches, dataset_type, batch_size, log_frequency=DEFAULT_LOG_FREQUENCY):
         self.exp_dir = exp_dir
         self.dataset_name = dataset_name
-        self.num_trajectories = num_trajectories
+        self.num_batches = num_batches
         self.dataset_type = dataset_type
         self.dataset_dir = os.path.join(exp_dir, dataset_type, dataset_name)
         self.batch_size = batch_size
@@ -88,87 +88,57 @@ class DatasetHandler:
                 writer.writeheader()
             writer.writerow(result)
 
+    def measure_random_loading_time(self):
+        start_time = time.time()
+        loader = self.get_loader()
+        
+        for batch_num, data in enumerate(loader):
+            if batch_num >= self.num_batches:
+                break
+            self._recursively_load_data(data)
+            
+            elapsed_time = time.time() - start_time
+            self.write_result(f"{self.dataset_type.upper()}-RandomLoad", elapsed_time, batch_num)
+            if batch_num % self.log_frequency == 0:
+                print(f"{self.dataset_type.upper()}-RandomLoad - Loaded {batch_num} random batches, Time: {elapsed_time:.2f} s")
+        
+        return time.time() - start_time
+
+    def get_loader(self):
+        raise NotImplementedError("Subclasses must implement get_loader method")
+
 class RLDSHandler(DatasetHandler):
-    def __init__(self, exp_dir, dataset_name, num_trajectories, batch_size, log_frequency=DEFAULT_LOG_FREQUENCY):
-        super().__init__(exp_dir, dataset_name, num_trajectories, dataset_type="rlds", batch_size=batch_size, log_frequency=log_frequency)
+    def __init__(self, exp_dir, dataset_name, num_batches, batch_size, log_frequency=DEFAULT_LOG_FREQUENCY):
+        super().__init__(exp_dir, dataset_name, num_batches, dataset_type="rlds", batch_size=batch_size, log_frequency=log_frequency)
         self.file_extension = ".tfrecord"
 
-    def measure_random_loading_time(self, num_loads):
-        start_time = time.time()
-        loader = RLDSLoader(self.dataset_dir, split="train", batch_size=self.batch_size)
-        
-        for i in range(num_loads):
-            for batch_num, data in enumerate(loader):
-                self._recursively_load_data(data)
-                
-                elapsed_time = time.time() - start_time
-                self.write_result(f"RLDS-RandomLoad", elapsed_time, batch_num)
-                if batch_num % self.log_frequency == 0:
-                    print(f"RLDS-RandomLoad - Loaded {batch_num} random batches, Time: {elapsed_time:.2f} s")
-            
-        return time.time() - start_time
+    def get_loader(self):
+        return RLDSLoader(self.dataset_dir, split="train", batch_size=self.batch_size)
 
 class VLAHandler(DatasetHandler):
-    def __init__(self, exp_dir, dataset_name, num_trajectories, batch_size, log_frequency=DEFAULT_LOG_FREQUENCY):   
-        super().__init__(exp_dir, dataset_name, num_trajectories, dataset_type="vla", batch_size=batch_size, log_frequency=log_frequency)
+    def __init__(self, exp_dir, dataset_name, num_batches, batch_size, log_frequency=DEFAULT_LOG_FREQUENCY):   
+        super().__init__(exp_dir, dataset_name, num_batches, dataset_type="vla", batch_size=batch_size, log_frequency=log_frequency)
         self.file_extension = ".vla"
 
-    def measure_random_loading_time(self, num_loads, save_to_cache=True):
-        start_time = time.time()
-        dataloader = get_vla_dataloader(self.dataset_dir, batch_size=self.batch_size, cache_dir=CACHE_DIR)
-        
-        for i in range(num_loads):
-            for batch_num, batch in enumerate(dataloader):
-                self._recursively_load_data(batch)
-                elapsed_time = time.time() - start_time 
-                self.write_result(f"VLA-RandomLoad", elapsed_time, batch_num)
-                if batch_num % self.log_frequency == 0:
-                    print(f"VLA-RandomLoad - Loaded {batch_num} random batches, Time: {elapsed_time:.2f} s")
-
-        return time.time() - start_time
+    def get_loader(self):
+        return get_vla_dataloader(self.dataset_dir, batch_size=self.batch_size, cache_dir=CACHE_DIR)
 
 class HDF5Handler(DatasetHandler):
-    def __init__(self, exp_dir, dataset_name, num_trajectories, batch_size, log_frequency=DEFAULT_LOG_FREQUENCY):
-        super().__init__(exp_dir, dataset_name, num_trajectories, dataset_type="hdf5", batch_size=batch_size, log_frequency=log_frequency)
+    def __init__(self, exp_dir, dataset_name, num_batches, batch_size, log_frequency=DEFAULT_LOG_FREQUENCY):
+        super().__init__(exp_dir, dataset_name, num_batches, dataset_type="hdf5", batch_size=batch_size, log_frequency=log_frequency)
         self.file_extension = ".h5"
 
-    def measure_random_loading_time(self, num_loads):
-        start_time = time.time()
-        loader = HDF5Loader(path=os.path.join(self.dataset_dir, "*.h5"))
-        
-        for i in range(num_loads):
-            for batch_num, data in enumerate(loader):
-                self._recursively_load_data(data)
-                elapsed_time = time.time() - start_time
-                self.write_result(f"HDF5-RandomLoad", elapsed_time, batch_num)
-                if batch_num % self.log_frequency == 0:
-                    print(f"HDF5-RandomLoad - Loaded {batch_num} random batches, Time: {elapsed_time:.2f} s")
-            
-        return time.time() - start_time
+    def get_loader(self):
+        return HDF5Loader(path=os.path.join(self.dataset_dir, "*.h5"))
 
 class LeRobotHandler(DatasetHandler):
-    def __init__(self, exp_dir, dataset_name, num_trajectories, batch_size, log_frequency=DEFAULT_LOG_FREQUENCY):
-        super().__init__(exp_dir, dataset_name, num_trajectories, dataset_type="hf", batch_size=batch_size, log_frequency=log_frequency)
+    def __init__(self, exp_dir, dataset_name, num_batches, batch_size, log_frequency=DEFAULT_LOG_FREQUENCY):
+        super().__init__(exp_dir, dataset_name, num_batches, dataset_type="lerobot", batch_size=batch_size, log_frequency=log_frequency)
         self.file_extension = ""  # LeRobot datasets don't have a specific file extension
 
-    def measure_random_loading_time(self, num_loads):
-        start_time = time.time()
+    def get_loader(self):
         path = os.path.join(self.exp_dir, "hf")
-        loader = LeRobotLoader(path, self.dataset_name, batch_size=self.batch_size)
-        
-        dataset_len = len(loader)
-        
-        for i in range(num_loads):
-            for batch_num, data in enumerate(loader):
-                if batch_num >= dataset_len:
-                    break
-                self._recursively_load_data(data)
-                elapsed_time = time.time() - start_time
-                self.write_result(f"LeRobot-RandomLoad", elapsed_time, batch_num)
-                if batch_num % self.log_frequency == 0:
-                    print(f"LeRobot-RandomLoad - Loaded {batch_num} random batches, Time: {elapsed_time:.2f} s")
-            
-        return time.time() - start_time
+        return LeRobotLoader(path, self.dataset_name, batch_size=self.batch_size)
 
 def prepare(args):
     # Clear the cache directory
@@ -189,11 +159,10 @@ def evaluation(args):
         print(f"Evaluating dataset: {dataset_name}")
 
         handlers = [
-            # RLDSHandler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
-            VLAHandler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
-            # HDF5Handler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
-            # FFV1Handler(args.exp_dir, dataset_name, args.num_trajectories, args.log_frequency, args.batch_size)
-            # LeRobotHandler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
+            VLAHandler(args.exp_dir, dataset_name, args.num_batches, args.batch_size, args.log_frequency),
+            HDF5Handler(args.exp_dir, dataset_name, args.num_batches, args.batch_size, args.log_frequency),
+            LeRobotHandler(args.exp_dir, dataset_name, args.num_batches, args.batch_size, args.log_frequency),
+            RLDSHandler(args.exp_dir, dataset_name, args.num_batches, args.batch_size, args.log_frequency),
         ]
 
         for handler in handlers:
@@ -201,18 +170,7 @@ def evaluation(args):
             handler.clear_os_cache()
 
             avg_traj_size = handler.measure_average_trajectory_size()
-            # loading_time = handler.measure_loading_time()
-
-            # new_results.append({
-            #     'Dataset': dataset_name,
-            #     'Format': handler.dataset_type.upper(),
-            #     'AverageTrajectorySize(MB)': avg_traj_size,
-            #     'LoadingTime(s)': loading_time,
-            # })
-
-            # print(f"{handler.dataset_type.upper()} - Average Trajectory Size: {avg_traj_size:.2f} MB, Loading Time: {loading_time:.2f} s")
-
-            random_load_time = handler.measure_random_loading_time(args.random_loads)
+            random_load_time = handler.measure_random_loading_time()
             new_results.append({
                 'Dataset': dataset_name,
                 'Format': f"{handler.dataset_type.upper()}-RandomLoad",
@@ -220,29 +178,6 @@ def evaluation(args):
                 'LoadingTime(s)': random_load_time,
             })
             print(f"{handler.dataset_type.upper()}-RandomLoad - Average Trajectory Size: {avg_traj_size:.2f} MB, Loading Time: {random_load_time:.2f} s")
-
-        # # Additional VLA measurements
-        # vla_handler = handlers[1]
-        # vla_handler.clear_cache()
-        # vla_handler.clear_os_cache()
-        # cold_cache_time = vla_handler.measure_loading_time(mode="cache")
-        # hot_cache_time = vla_handler.measure_loading_time(mode="cache")
-
-        # new_results.append({
-        #     'Dataset': dataset_name,
-        #     'Format': 'VLA-ColdCache',
-        #     'AverageTrajectorySize(MB)': avg_traj_size,
-        #     'LoadingTime(s)': cold_cache_time,
-        # })
-
-        # new_results.append({
-        #     'Dataset': dataset_name,
-        #     'Format': 'VLA-HotCache',
-        #     'AverageTrajectorySize(MB)': avg_traj_size,
-        #     'LoadingTime(s)': hot_cache_time,
-        # })
-        # print(f"VLA-ColdCache - Average Trajectory Size: {avg_traj_size:.2f} MB, Loading Time: {cold_cache_time:.2f} s")
-        # print(f"VLA-HotCache - Average Trajectory Size: {avg_traj_size:.2f} MB, Loading Time: {hot_cache_time:.2f} s")
 
         # Combine existing and new results
         all_results = existing_results + new_results
@@ -255,12 +190,11 @@ def evaluation(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Prepare and evaluate loading times and folder sizes for RLDS, VLA, and HDF5 formats.")
     parser.add_argument("--exp_dir", type=str, default=DEFAULT_EXP_DIR, help="Experiment directory.")
-    parser.add_argument("--num_trajectories", type=int, default=DEFAULT_NUMBER_OF_TRAJECTORIES, help="Number of trajectories to evaluate.")
     parser.add_argument("--dataset_names", nargs="+", default=DEFAULT_DATASET_NAMES, help="List of dataset names to evaluate.")
     parser.add_argument("--prepare", action="store_true", help="Prepare the datasets before evaluation.")
     parser.add_argument("--log_frequency", type=int, default=DEFAULT_LOG_FREQUENCY, help="Frequency of logging results.")
-    parser.add_argument("--random_loads", type=int, default=2, help="Number of random loads to perform for each loader.")
-    parser.add_argument("--batch_size", type=int, default=1, help="Batch size for loaders.")
+    parser.add_argument("--num_batches", type=int, default=1000, help="Number of batches to load for each loader.")
+    parser.add_argument("--batch_size", type=int, default=8, help="Batch size for loaders.")
     args = parser.parse_args()
 
     if args.prepare:

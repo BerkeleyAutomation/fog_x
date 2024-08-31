@@ -170,7 +170,6 @@ class Trajectory:
 
     async def load_async(self, save_to_cache=True, return_h5=False):
         if os.path.exists(self.cache_file_name):
-            logger.debug(f"Loading the cached file {self.cache_file_name}")
             if return_h5:
                 return h5py.File(self.cache_file_name, "r")
             else:
