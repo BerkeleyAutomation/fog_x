@@ -16,7 +16,7 @@ from fog_x.loader.pytorch_vla import get_vla_dataloader
 DEFAULT_EXP_DIR = "/mnt/data/fog_x/"
 DEFAULT_NUMBER_OF_TRAJECTORIES = -1 # Load all trajectories
 # DEFAULT_DATASET_NAMES = ["nyu_door_opening_surprising_effectiveness", "berkeley_cable_routing", "berkeley_autolab_ur5", "bridge"]
-DEFAULT_DATASET_NAMES = ["berkeley_autolab_ur5"]
+DEFAULT_DATASET_NAMES = ["berkeley_cable_routing"]
 CACHE_DIR = "/tmp/fog_x/cache/"
 DEFAULT_LOG_FREQUENCY = 20
 
@@ -156,8 +156,12 @@ class LeRobotHandler(DatasetHandler):
         path = os.path.join(self.exp_dir, "hf")
         loader = LeRobotLoader(path, self.dataset_name, batch_size=self.batch_size)
         
+        dataset_len = len(loader)
+        
         for i in range(num_loads):
             for batch_num, data in enumerate(loader):
+                if batch_num >= dataset_len:
+                    break
                 self._recursively_load_data(data)
                 elapsed_time = time.time() - start_time
                 self.write_result(f"LeRobot-RandomLoad", elapsed_time, batch_num)
@@ -185,7 +189,7 @@ def evaluation(args):
         print(f"Evaluating dataset: {dataset_name}")
 
         handlers = [
-            RLDSHandler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
+            # RLDSHandler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
             VLAHandler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
             # HDF5Handler(args.exp_dir, dataset_name, args.num_trajectories, args.batch_size, args.log_frequency),
             # FFV1Handler(args.exp_dir, dataset_name, args.num_trajectories, args.log_frequency, args.batch_size)
