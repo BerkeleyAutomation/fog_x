@@ -2,40 +2,36 @@ from fog_x.loader.base import BaseLoader
 import fog_x
 import glob
 import logging
-
-logger = logging.getLogger(__name__)
+import asyncio
 import os
 from typing import Text
 
+logger = logging.getLogger(__name__)
 
 class VLALoader(BaseLoader):
     def __init__(self, path: Text, cache_dir=None):
-        """initialize VLALoader from paths
-
-        Args:
-            path (_type_): path to the vla files
-                    can be a directory, or a glob pattern
-            split (_type_, optional): split of training and testing. Defaults to None.
-        """
         super(VLALoader, self).__init__(path)
         self.index = 0
-
-        if "*" in path:
-            self.files = glob.glob(path)
-        elif os.path.isdir(path):
-            self.files = glob.glob(os.path.join(path, "*.vla"))
-        else:
-            self.files = [path]
-        
+        self.files = self._get_files(path)
         self.cache_dir = cache_dir
+        self.loop = asyncio.get_event_loop()
+
+    def _get_files(self, path):
+        if "*" in path:
+            return glob.glob(path)
+        elif os.path.isdir(path):
+            return glob.glob(os.path.join(path, "*.vla"))
+        else:
+            return [path]
+
+    async def _read_vla_async(self, data_path):
+        logger.debug(f"Reading {data_path}")
+        traj = fog_x.Trajectory(data_path, cache_dir=self.cache_dir)
+        await traj.load_async()
+        return traj
 
     def _read_vla(self, data_path):
-        logger.debug(f"Reading {data_path}")
-        if self.cache_dir:
-            traj = fog_x.Trajectory(data_path, cache_dir=self.cache_dir)
-        else:
-            traj = fog_x.Trajectory(data_path)
-        return traj
+        return self.loop.run_until_complete(self._read_vla_async(data_path))
 
     def __iter__(self):
         return self

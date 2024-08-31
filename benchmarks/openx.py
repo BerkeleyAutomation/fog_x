@@ -127,14 +127,18 @@ class VLAHandler(DatasetHandler):
         super().__init__(exp_dir, dataset_name, num_trajectories, dataset_type="vla", log_frequency=log_frequency)
         self.file_extension = ".vla"
 
-    def measure_loading_time(self, mode="no_cache"):
+    def measure_loading_time(self, save_to_cache=True):
         start_time = time.time()
         loader = VLALoader(self.dataset_dir, cache_dir=CACHE_DIR)
+        if save_to_cache:
+            mode = "cache"
+        else:
+            mode = "no_cache"
         for i, data in enumerate(loader, 1):
             if self.num_trajectories != -1 and i > self.num_trajectories:
                 break
             try:
-                self._recursively_load_data(data.load(mode=mode))
+                self._recursively_load_data(data.load(save_to_cache=save_to_cache))
                 elapsed_time = time.time() - start_time
                 self.write_result(f"VLA-{mode.capitalize()}", elapsed_time, i)
                 if i % self.log_frequency == 0:
@@ -143,7 +147,7 @@ class VLAHandler(DatasetHandler):
                 print(f"Failed to load data: {e}")
         return time.time() - start_time
 
-    def measure_random_loading_time(self, num_loads):
+    def measure_random_loading_time(self, num_loads, save_to_cache=True):
         start_time = time.time()
         loader = VLALoader(self.dataset_dir, cache_dir=CACHE_DIR)
         dataset_size = len(loader)
@@ -153,7 +157,7 @@ class VLAHandler(DatasetHandler):
             random_index = np.random.randint(0, dataset_size)
             data = loader[random_index]
             try:
-                self._recursively_load_data(data.load(mode="cache"))
+                self._recursively_load_data(data.load(save_to_cache=save_to_cache))
                 elapsed_time = time.time() - start_time
                 self.write_result(f"VLA-RandomLoad", elapsed_time, i + 1)
                 if (i + 1) % self.log_frequency == 0:
@@ -168,14 +172,18 @@ class FFV1Handler(DatasetHandler):
         super().__init__(exp_dir, dataset_name, num_trajectories, dataset_type="ffv1", log_frequency=log_frequency)
         self.file_extension = ".vla"
 
-    def measure_loading_time(self, mode="no_cache"):
+    def measure_loading_time(self, save_to_cache=True):
         start_time = time.time()
         loader = VLALoader(self.dataset_dir, cache_dir=CACHE_DIR)
+        if save_to_cache:
+            mode = "cache"
+        else:
+            mode = "no_cache"
         for i, data in enumerate(loader, 1):
             if self.num_trajectories != -1 and i > self.num_trajectories:
                 break
             try:
-                self._recursively_load_data(data.load(mode=mode))
+                self._recursively_load_data(data.load(save_to_cache=save_to_cache))
                 elapsed_time = time.time() - start_time
                 self.write_result(f"FFV1-{mode.capitalize()}", elapsed_time, i)
                 if i % self.log_frequency == 0:
@@ -184,7 +192,7 @@ class FFV1Handler(DatasetHandler):
                 print(f"Failed to load data: {e}")
         return time.time() - start_time
 
-    def measure_random_loading_time(self, num_loads):
+    def measure_random_loading_time(self, num_loads, save_to_cache=True):
         start_time = time.time()
         loader = VLALoader(self.dataset_dir, cache_dir=CACHE_DIR)
         dataset_size = len(loader)
@@ -194,7 +202,7 @@ class FFV1Handler(DatasetHandler):
             random_index = np.random.randint(0, dataset_size)
             data = loader[random_index]
             try:
-                self._recursively_load_data(data.load(mode="cache"))
+                self._recursively_load_data(data.load(save_to_cache=save_to_cache))
                 elapsed_time = time.time() - start_time
                 self.write_result(f"FFV1-RandomLoad", elapsed_time, i + 1)
                 if (i + 1) % self.log_frequency == 0:
@@ -260,7 +268,7 @@ def evaluation(args):
         print(f"Evaluating dataset: {dataset_name}")
 
         handlers = [
-            RLDSHandler(args.exp_dir, dataset_name, args.num_trajectories, args.log_frequency),
+            # RLDSHandler(args.exp_dir, dataset_name, args.num_trajectories, args.log_frequency),
             VLAHandler(args.exp_dir, dataset_name, args.num_trajectories, args.log_frequency),
             HDF5Handler(args.exp_dir, dataset_name, args.num_trajectories, args.log_frequency),
             FFV1Handler(args.exp_dir, dataset_name, args.num_trajectories, args.log_frequency)
