@@ -77,7 +77,7 @@ class DatasetHandler:
     def clear_os_cache(self):
         """Clears the OS cache."""
         subprocess.run(["sync"], check=True)
-        subprocess.run(["echo", "3", ">", "/proc/sys/vm/drop_caches"], check=True)
+        subprocess.run(["sudo", "sh", "-c", "echo 3 > /proc/sys/vm/drop_caches"], check=True)
         
     def _recursively_load_data(self, data):
         logger.debug(f"Data summary for loader {self.dataset_type.upper()}")
@@ -108,7 +108,6 @@ class DatasetHandler:
                         logger.debug(f"    {sub_feature}: {sub_dimension}")
                 else:
                     logger.debug(f"  {feature}: {dimension}")
-            logger.debug()
 
         logger.debug(f"Total number of trajectories: {len(trajectory_summaries)}")
 
@@ -295,27 +294,27 @@ def evaluation(args):
         logger.debug(f"Evaluating dataset: {dataset_name}")
 
         handlers = [
-            # VLAHandler(
-            #     args.exp_dir,
-            #     dataset_name,
-            #     args.num_batches,
-            #     args.batch_size,
-            #     args.log_frequency,
-            # ),
-            # HDF5Handler(
-            #     args.exp_dir,
-            #     dataset_name,
-            #     args.num_batches,
-            #     args.batch_size,
-            #     args.log_frequency,
-            # ),
-            # LeRobotHandler(
-            #     args.exp_dir,
-            #     dataset_name,
-            #     args.num_batches,
-            #     args.batch_size,
-            #     args.log_frequency,
-            # ),
+            VLAHandler(
+                args.exp_dir,
+                dataset_name,
+                args.num_batches,
+                args.batch_size,
+                args.log_frequency,
+            ),
+            HDF5Handler(
+                args.exp_dir,
+                dataset_name,
+                args.num_batches,
+                args.batch_size,
+                args.log_frequency,
+            ),
+            LeRobotHandler(
+                args.exp_dir,
+                dataset_name,
+                args.num_batches,
+                args.batch_size,
+                args.log_frequency,
+            ),
             RLDSHandler(
                 args.exp_dir,
                 dataset_name,
