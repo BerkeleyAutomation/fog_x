@@ -5,6 +5,8 @@ from typing import Text, Optional
 
 class VLAIterableDataset(IterableDataset):
     def __init__(self, path: Text, cache_dir: Optional[Text] = None, buffer_size: int = 1000):
+        # Note: batch size = 1 is to bypass the dataloader without pytorch dataloader 
+        # in this case, we use pytorch dataloader for batching
         self.vla_loader = VLALoader(path, batch_size=1, cache_dir=cache_dir, buffer_size=buffer_size)
 
     def __iter__(self):

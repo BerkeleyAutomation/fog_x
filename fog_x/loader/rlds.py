@@ -32,32 +32,31 @@ class RLDSLoader(BaseLoader):
     
     def __iter__(self):
         return self
-
     def get_batch(self):
         batch = self.ds.take(self.batch_size)
         self.index += self.batch_size
         data = []
         for b in batch:
-            data.append(self._convert_batch_to_numpy(b))
+            data.append(self._convert_traj_to_numpy(b))
         return data
 
-
-    def _convert_batch_to_numpy(self, batch):
+    def _convert_traj_to_numpy(self, traj):
         import tensorflow as tf
 
         def to_numpy(step_data):
             step = {}
-            for key, val in step_data.items():
-                if key == "observation":
-                    step["observation"] = {obs_key: np.array(obs_val) for obs_key, obs_val in val.items()}
-                elif key == "action":
-                    step["action"] = {act_key: np.array(act_val) for act_key, act_val in val.items()}
+            for key in step_data:
+                val = step_data[key]
+                if isinstance(val, dict):
+                    step[key] = {k: np.array(v) for k, v in val.items()}
                 else:
                     step[key] = np.array(val)
             return step
 
-        batch = to_numpy(batch)
-        return batch
+        trajectory = []
+        for step in traj["steps"]:
+            trajectory.append(to_numpy(step))
+        return trajectory
 
     def __next__(self):
         if self.index >= self.length:

@@ -1,3 +1,5 @@
+import torch
+from torch.utils.data import IterableDataset, DataLoader
 from . import BaseLoader
 import numpy as np 
 import glob 
@@ -66,3 +68,35 @@ class HDF5Loader(BaseLoader):
     
     def __len__(self):
         return len(self.files)
+
+class HDF5IterableDataset(IterableDataset):
+    def __init__(self, path, batch_size=1):
+        self.hdf5_loader = HDF5Loader(path, batch_size)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        try:
+            batch = next(self.hdf5_loader)
+            return batch[0]  # Return a single item, not a batch
+        except StopIteration:
+            raise StopIteration
+
+def hdf5_collate_fn(batch):
+    # Convert data to PyTorch tensors
+    return batch 
+
+def get_hdf5_dataloader(
+    path: str,
+    batch_size: int = 1,
+    num_workers: int = 0
+):
+    dataset = HDF5IterableDataset(path, batch_size)
+    return DataLoader(
+        dataset,
+        batch_size=batch_size,
+        collate_fn=hdf5_collate_fn,
+        num_workers=num_workers
+    )
+

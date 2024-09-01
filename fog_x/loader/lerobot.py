@@ -39,14 +39,17 @@ class LeRobotLoader(BaseLoader):
         return self._convert_batch_to_numpy(batch)
 
     def _convert_batch_to_numpy(self, batch):
-        numpy_batch = {}
-        for key, value in batch.items():
-            if isinstance(value, torch.Tensor):
-                numpy_batch[key] = value.numpy()
-            elif isinstance(value, dict):
-                numpy_batch[key] = self._convert_batch_to_numpy(value)
-            else:
-                numpy_batch[key] = value
+        numpy_batch = []
+        for i in range(len(next(iter(batch.values())))):
+            trajectory = {}
+            for key, value in batch.items():
+                if isinstance(value, torch.Tensor):
+                    trajectory[key] = value[i].numpy()
+                elif isinstance(value, dict):
+                    trajectory[key] = self._convert_batch_to_numpy({k: v[i] for k, v in value.items()})
+                else:
+                    trajectory[key] = value[i]
+            numpy_batch.append(trajectory)
         return numpy_batch
 
     def get_batch(self):
