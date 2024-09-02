@@ -22,8 +22,9 @@ DEFAULT_DATASET_NAMES = [
     "berkeley_autolab_ur5",
     "bridge",
 ]
-DEFAULT_DATASET_NAMES = ["bridge"]
-CACHE_DIR = "/tmp/fog_x/cache/"
+# DEFAULT_DATASET_NAMES = ["bridge"]
+# CACHE_DIR = "/tmp/fog_x/cache/"
+CACHE_DIR  = "/mnt/data/fog_x/cache/"
 DEFAULT_LOG_FREQUENCY = 20
 
 # suppress tensorflow warnings
@@ -117,6 +118,7 @@ class DatasetHandler:
             "Format": format_name,
             "AverageTrajectorySize(MB)": self.measure_average_trajectory_size(),
             "LoadingTime(s)": elapsed_time,
+            "AverageLoadingTime(s)": elapsed_time / (index + 1),
             "Index": index,
             "BatchSize": self.batch_size,
         }
@@ -141,11 +143,11 @@ class DatasetHandler:
 
             elapsed_time = time.time() - start_time
             self.write_result(
-                f"{self.dataset_type.upper()}-RandomLoad", elapsed_time, batch_num
+                f"{self.dataset_type.upper()}", elapsed_time, batch_num
             )
             if batch_num % self.log_frequency == 0:
-                logger.debug(
-                    f"{self.dataset_type.upper()}-RandomLoad - Loaded {batch_num} random batches, Time: {elapsed_time:.2f} s"
+                logger.info(
+                    f"{self.dataset_type.upper()} - Loaded {batch_num} random {self.batch_size} batches from {self.dataset_name}, Time: {elapsed_time:.2f} s, Average Time: {elapsed_time / (batch_num + 1):.2f} s"
                 )
 
         return time.time() - start_time
@@ -333,13 +335,16 @@ def evaluation(args):
             new_results.append(
                 {
                     "Dataset": dataset_name,
-                    "Format": f"{handler.dataset_type.upper()}-RandomLoad",
+                    "Format": f"{handler.dataset_type.upper()}",
                     "AverageTrajectorySize(MB)": avg_traj_size,
                     "LoadingTime(s)": random_load_time,
+                    "AverageLoadingTime(s)": random_load_time / (args.num_batches + 1),
+                    "Index": args.num_batches,
+                    "BatchSize": args.batch_size,
                 }
             )
             logger.debug(
-                f"{handler.dataset_type.upper()}-RandomLoad - Average Trajectory Size: {avg_traj_size:.2f} MB, Loading Time: {random_load_time:.2f} s"
+                f"{handler.dataset_type.upper()} - Average Trajectory Size: {avg_traj_size:.2f} MB, Loading Time: {random_load_time:.2f} s"
             )
 
         # Combine existing and new results
@@ -376,11 +381,11 @@ if __name__ == "__main__":
     parser.add_argument(
         "--num_batches",
         type=int,
-        default=1,
+        default=1000,
         help="Number of batches to load for each loader.",
     )
     parser.add_argument(
-        "--batch_size", type=int, default=8, help="Batch size for loaders."
+        "--batch_size", type=int, default=16, help="Batch size for loaders."
     )
     args = parser.parse_args()
 
