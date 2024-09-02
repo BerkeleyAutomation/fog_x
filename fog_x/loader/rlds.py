@@ -63,9 +63,6 @@ class RLDSLoader(BaseLoader):
         return trajectory
 
     def __next__(self):
-        if self.index >= self.length:
-            self.index = 0
-            raise StopIteration
         return self.get_batch()
 
     def __getitem__(self, idx):
