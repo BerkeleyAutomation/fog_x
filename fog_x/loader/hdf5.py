@@ -9,28 +9,7 @@ import random
 import multiprocessing as mp
 import time
 import logging
-
-
-# flatten the data such that all data starts with root level tree (observation and action)
-def _flatten(data, parent_key="", sep="/"):
-    items = {}
-    for k, v in data.items():
-        new_key = parent_key + sep + k if parent_key else k
-        if isinstance(v, dict):
-            items.update(_flatten(v, new_key, sep))
-        else:
-            items[new_key] = v
-    return items
-
-
-def recursively_read_hdf5_group(group):
-    if isinstance(group, h5py.Dataset):
-        return np.array(group)
-    elif isinstance(group, h5py.Group):
-        return {key: recursively_read_hdf5_group(value) for key, value in group.items()}
-    else:
-        raise TypeError("Unsupported HDF5 group type")
-
+from fog_x.utils import _flatten, recursively_read_hdf5_group
 
 class HDF5Loader(BaseLoader):
     def __init__(self, path, batch_size=1, buffer_size=100, num_workers=4):
@@ -102,7 +81,7 @@ class HDF5Loader(BaseLoader):
         data["observation"] = _flatten(data_unflattened["observation"])
         data["action"] = _flatten(data_unflattened["action"])
 
-        return data
+        return data_unflattened
 
     def __iter__(self):
         return self

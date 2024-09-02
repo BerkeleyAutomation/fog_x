@@ -55,6 +55,7 @@ class DatasetHandler:
         self.dataset_dir = os.path.realpath(self.dataset_dir)
         self.log_frequency = log_frequency
         self.results = []
+        self.log_level = "debug"
 
     def measure_average_trajectory_size(self):
         """Calculates the average size of trajectory files in the dataset directory."""
@@ -95,24 +96,28 @@ class DatasetHandler:
                     return len(value)
                 elif isinstance(value, dict):
                     return {k: summarize_value(v) for k, v in value.items()}
+                elif isinstance(value, str):
+                    return value
                 else:
+                    logger.warning(f"Unknown type: {type(value)}")
                     return type(value).__name__
 
             return {key: summarize_value(value) for key, value in trajectory.items()}
 
         trajectory_summaries = [summarize_trajectory(trajectory) for trajectory in data]
 
+        log_func = logger.debug if self.log_level == 'debug' else logger.info
         for i, summary in enumerate(trajectory_summaries):
-            logger.debug(f"Trajectory {i + 1}:")
+            log_func(f"Trajectory {i + 1}:")
             for feature, dimension in summary.items():
                 if isinstance(dimension, dict):
-                    logger.debug(f"  {feature}:")
+                    log_func(f"  {feature}:")
                     for sub_feature, sub_dimension in dimension.items():
-                        logger.debug(f"    {sub_feature}: {sub_dimension}")
+                        log_func(f"    {sub_feature}: {sub_dimension}")
                 else:
-                    logger.debug(f"  {feature}: {dimension}")
+                    log_func(f"  {feature}: {dimension}")
 
-        logger.debug(f"Total number of trajectories: {len(trajectory_summaries)}")
+        log_func(f"Total number of trajectories: {len(trajectory_summaries)}")
 
     def write_result(self, format_name, elapsed_time, index):
         result = {
@@ -183,24 +188,25 @@ class RLDSHandler(DatasetHandler):
         return RLDSLoader(self.dataset_dir, split="train", batch_size=self.batch_size)
 
     def _recursively_load_data(self, data):
+        log_level = self.log_level
         # rlds returns a list of dictionaries
-        logger.debug(f"Data summary for loader {self.dataset_type.upper()}")
+        log_func = logger.debug if log_level == 'debug' else logger.info
+        log_func(f"Data summary for loader {self.dataset_type.upper()}")
         for i, trajectory in enumerate(data):
-            logger.debug(f"Trajectory {i + 1}:")
+            log_func(f"Trajectory {i + 1}:")
             # each trajectory is a list of dictionaries
             for j, step in enumerate(trajectory):
-                logger.debug(f"  Step {j + 1}:")
+                log_func(f"  Step {j + 1}:")
                 for key, value in step.items():
                     if isinstance(value, np.ndarray):
-                        logger.debug(f"    {key}: {value.shape}")
+                        log_func(f"    {key}: {value.shape}")
                     elif isinstance(value, dict):
-                        logger.debug(f"    {key}:")
+                        log_func(f"    {key}:")
                         for sub_key, sub_value in value.items():
-                            logger.debug(f"      {sub_key}: {sub_value.shape}")
+                            log_func(f"      {sub_key}: {sub_value.shape}")
                     else:
-                        logger.debug(f"    {key}: {type(value).__name__}")
-        logger.debug(f"Total number of trajectories: {len(data)}")
-        
+                        log_func(f"    {key}: {type(value).__name__}")
+        log_func(f"Total number of trajectories: {len(data)}")
 
 class VLAHandler(DatasetHandler):
     def __init__(
@@ -367,9 +373,7 @@ if __name__ == "__main__":
         default=DEFAULT_DATASET_NAMES,
         help="List of dataset names to evaluate.",
     )
-    parser.add_argument(
-        "--prepare", action="store_true", help="Prepare the datasets before evaluation."
-    )
+
     parser.add_argument(
         "--log_frequency",
         type=int,

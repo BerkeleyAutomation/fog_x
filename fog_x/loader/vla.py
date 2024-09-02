@@ -9,20 +9,26 @@ import random
 from collections import deque
 import multiprocessing as mp
 import time
+from multiprocessing import Manager
 
 logger = logging.getLogger(__name__)
 
 class VLALoader:
-    def __init__(self, path: Text, batch_size=1, cache_dir=None, buffer_size=100, num_workers=4):
+    def __init__(self, path: Text, batch_size=1, cache_dir=None, buffer_size=100, num_workers=-1):
         self.files = self._get_files(path)
+        manager = Manager()
+        self.loaded_traj = manager.dict()  # Use a Manager to create a shared dictionary
         self.cache_dir = cache_dir
         self.batch_size = batch_size
         self.buffer_size = buffer_size
         self.buffer = mp.Queue(maxsize=buffer_size)
+        if num_workers == -1:
+            num_workers = 4
         self.num_workers = num_workers
         self.processes = []
         random.shuffle(self.files)
         self._start_workers()
+        
 
     def _get_files(self, path):
         if "*" in path:
@@ -33,8 +39,15 @@ class VLALoader:
             return [path]
 
     def _read_vla(self, data_path):
-        traj = fog_x.Trajectory(data_path, cache_dir=self.cache_dir)
-        return traj.load()
+        if data_path in self.loaded_traj:
+            logger.debug(f"[Path Hit] Data path {data_path} already loaded")
+            return self.loaded_traj[data_path].load()
+        else:
+            logger.debug(f"[Path Miss]Loading data path {data_path}")
+            traj = fog_x.Trajectory(data_path, cache_dir=self.cache_dir)
+            ret = traj.load()
+            self.loaded_traj[data_path] = traj
+            return ret
 
     def _worker(self):
         while True:
