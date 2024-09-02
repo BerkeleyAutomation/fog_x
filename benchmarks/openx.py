@@ -10,7 +10,7 @@ import fog_x
 import csv
 import stat
 from fog_x.loader.lerobot import LeRobotLoader
-from fog_x.loader.pytorch_vla import get_vla_dataloader
+from fog_x.loader.vla import get_vla_dataloader
 from fog_x.loader.hdf5 import get_hdf5_dataloader
 
 # Constants
@@ -294,20 +294,20 @@ def evaluation(args):
         logger.debug(f"Evaluating dataset: {dataset_name}")
 
         handlers = [
-            # VLAHandler(
-            #     args.exp_dir,
-            #     dataset_name,
-            #     args.num_batches,
-            #     args.batch_size,
-            #     args.log_frequency,
-            # ),
-            HDF5Handler(
+            VLAHandler(
                 args.exp_dir,
                 dataset_name,
                 args.num_batches,
                 args.batch_size,
                 args.log_frequency,
             ),
+            # HDF5Handler(
+            #     args.exp_dir,
+            #     dataset_name,
+            #     args.num_batches,
+            #     args.batch_size,
+            #     args.log_frequency,
+            # ),
             # LeRobotHandler(
             #     args.exp_dir,
             #     dataset_name,

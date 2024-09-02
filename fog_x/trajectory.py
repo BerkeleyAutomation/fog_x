@@ -491,21 +491,26 @@ class Trajectory:
             )
 
     def _write_to_cache(self, np_cache):
-        with h5py.File(self.cache_file_name, "w") as h5_cache:
-            for feature_name, data in np_cache.items():
-                if data.dtype == object:
-                    for i in range(len(data)):
-                        data_type = type(data[i])
-                        if data_type in (str, bytes, np.ndarray):
-                            data[i] = str(data[i])
-                        else:
-                            data[i] = str(data[i])
-                    try:
-                        h5_cache.create_dataset(feature_name, data=data)
-                    except Exception as e:
-                        logger.error(f"Error saving {feature_name} to cache: {e} with data {data}")
-                else:
+        try:
+            h5_cache = h5py.File(self.cache_file_name, "w")
+        except Exception as e:
+            logger.error(f"Error creating cache file: {e}")
+            return
+        for feature_name, data in np_cache.items():
+            if data.dtype == object:
+                for i in range(len(data)):
+                    data_type = type(data[i])
+                    if data_type in (str, bytes, np.ndarray):
+                        data[i] = str(data[i])
+                    else:
+                        data[i] = str(data[i])
+                try:
                     h5_cache.create_dataset(feature_name, data=data)
+                except Exception as e:
+                    logger.error(f"Error saving {feature_name} to cache: {e} with data {data}")
+            else:
+                h5_cache.create_dataset(feature_name, data=data)
+        h5_cache.close()
                     
     def _transcode_pickled_images(self, ending_timestamp: Optional[int] = None):
         """
