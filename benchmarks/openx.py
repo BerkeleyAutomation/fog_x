@@ -285,6 +285,29 @@ class LeRobotHandler(DatasetHandler):
         path = os.path.join(self.exp_dir, "hf")
         return LeRobotLoader(path, self.dataset_name, batch_size=self.batch_size)
 
+    def _recursively_load_data(self, data):
+        import torch
+        log_level = self.log_level
+        # LeRobot returns a list of lists
+        log_func = logger.debug if log_level == 'debug' else logger.info
+        log_func(f"Data summary for loader {self.dataset_type.upper()}")
+        for i, trajectory in enumerate(data):
+            log_func(f"Trajectory {i + 1}:")
+            # each trajectory is a list of dictionaries
+            for j, step in enumerate(trajectory):
+                log_func(f"  Step {j + 1}:")
+                for key, value in step.items():
+                    if isinstance(value, np.ndarray):
+                        log_func(f"    {key}: {value.shape}")
+                    elif isinstance(value, dict):
+                        log_func(f"    {key}:")
+                        for sub_key, sub_value in value.items():
+                            log_func(f"      {sub_key}: {sub_value.shape}")
+                    elif isinstance(value, torch.Tensor):
+                        log_func(f"    {key}: {value.shape}")
+                    else:
+                        log_func(f"    {key}: {type(value).__name__}")
+        log_func(f"Total number of trajectories: {len(data)}")
 
 def evaluation(args):
 
@@ -314,13 +337,13 @@ def evaluation(args):
             #     args.batch_size,
             #     args.log_frequency,
             # ),
-            # LeRobotHandler(
-            #     args.exp_dir,
-            #     dataset_name,
-            #     args.num_batches,
-            #     args.batch_size,
-            #     args.log_frequency,
-            # ),
+            LeRobotHandler(
+                args.exp_dir,
+                dataset_name,
+                args.num_batches,
+                args.batch_size,
+                args.log_frequency,
+            ),
             # RLDSHandler(
             #     args.exp_dir,
             #     dataset_name,
