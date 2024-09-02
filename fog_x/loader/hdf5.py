@@ -1,8 +1,8 @@
 import torch
 from torch.utils.data import IterableDataset, DataLoader
 from . import BaseLoader
-import numpy as np 
-import glob 
+import numpy as np
+import glob
 import h5py
 import asyncio
 import random
@@ -10,8 +10,9 @@ import multiprocessing as mp
 import time
 import logging
 
+
 # flatten the data such that all data starts with root level tree (observation and action)
-def _flatten(data, parent_key='', sep='/'):
+def _flatten(data, parent_key="", sep="/"):
     items = {}
     for k, v in data.items():
         new_key = parent_key + sep + k if parent_key else k
@@ -20,7 +21,8 @@ def _flatten(data, parent_key='', sep='/'):
         else:
             items[new_key] = v
     return items
-        
+
+
 def recursively_read_hdf5_group(group):
     if isinstance(group, h5py.Dataset):
         return np.array(group)
@@ -28,7 +30,7 @@ def recursively_read_hdf5_group(group):
         return {key: recursively_read_hdf5_group(value) for key, value in group.items()}
     else:
         raise TypeError("Unsupported HDF5 group type")
-    
+
 
 class HDF5Loader(BaseLoader):
     def __init__(self, path, batch_size=1, buffer_size=100, num_workers=4):
@@ -65,19 +67,23 @@ class HDF5Loader(BaseLoader):
 
         while len(batch) < self.batch_size:
             if time.time() - start_time > timeout:
-                logging.warning(f"Timeout reached while getting batch. Batch size: {len(batch)}")
+                logging.warning(
+                    f"Timeout reached while getting batch. Batch size: {len(batch)}"
+                )
                 break
 
             try:
                 item = self.buffer.get(timeout=1)
                 batch.append(item)
             except mp.queues.Empty:
-                if all(not p.is_alive() for p in self.processes) and self.buffer.empty():
+                if (
+                    all(not p.is_alive() for p in self.processes)
+                    and self.buffer.empty()
+                ):
                     if len(batch) == 0:
                         return None
                     else:
                         break
-
         return batch
 
     def __next__(self):
@@ -100,7 +106,7 @@ class HDF5Loader(BaseLoader):
 
     def __iter__(self):
         return self
-    
+
     def __len__(self):
         return len(self.files)
 
@@ -114,9 +120,11 @@ class HDF5Loader(BaseLoader):
             p.terminate()
             p.join()
 
+
 class HDF5IterableDataset(IterableDataset):
     def __init__(self, path, batch_size=1):
-        self.hdf5_loader = HDF5Loader(path, batch_size)
+        # Note: batch size = 1 is to bypass the dataloader without pytorch dataloader
+        self.hdf5_loader = HDF5Loader(path, 1)
 
     def __iter__(self):
         return self
@@ -128,20 +136,17 @@ class HDF5IterableDataset(IterableDataset):
         except StopIteration:
             raise StopIteration
 
+
 def hdf5_collate_fn(batch):
     # Convert data to PyTorch tensors
-    return batch 
+    return batch
 
-def get_hdf5_dataloader(
-    path: str,
-    batch_size: int = 1,
-    num_workers: int = 0
-):
+
+def get_hdf5_dataloader(path: str, batch_size: int = 1, num_workers: int = 0):
     dataset = HDF5IterableDataset(path, batch_size)
     return DataLoader(
         dataset,
         batch_size=batch_size,
         collate_fn=hdf5_collate_fn,
-        num_workers=num_workers
+        num_workers=num_workers,
     )
-

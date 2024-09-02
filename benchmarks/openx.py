@@ -73,12 +73,14 @@ class DatasetHandler:
     def clear_cache(self):
         """Clears the cache directory."""
         if os.path.exists(CACHE_DIR):
+            logger.info(f"Clearing cache directory: {CACHE_DIR}")
             subprocess.run(["rm", "-rf", CACHE_DIR], check=True)
 
     def clear_os_cache(self):
         """Clears the OS cache."""
         subprocess.run(["sync"], check=True)
         subprocess.run(["sudo", "sh", "-c", "echo 3 > /proc/sys/vm/drop_caches"], check=True)
+        logger.info(f"Cleared OS cache")
         
     def _recursively_load_data(self, data):
         logger.debug(f"Data summary for loader {self.dataset_type.upper()}")
@@ -135,19 +137,21 @@ class DatasetHandler:
     def measure_random_loading_time(self):
         start_time = time.time()
         loader = self.get_loader()
-
+        last_batch_time = time.time()
         for batch_num, data in enumerate(loader):
             if batch_num >= self.num_batches:
                 break
             self._recursively_load_data(data)
+            current_batch_time = time.time()
+            elapsed_time = current_batch_time - last_batch_time
+            last_batch_time = current_batch_time
 
-            elapsed_time = time.time() - start_time
             self.write_result(
                 f"{self.dataset_type.upper()}", elapsed_time, batch_num
             )
             if batch_num % self.log_frequency == 0:
                 logger.info(
-                    f"{self.dataset_type.upper()} - Loaded {batch_num} random {self.batch_size} batches from {self.dataset_name}, Time: {elapsed_time:.2f} s, Average Time: {elapsed_time / (batch_num + 1):.2f} s"
+                    f"{self.dataset_type.upper()} - Loaded {batch_num} random {self.batch_size} batches from {self.dataset_name}, Time: {elapsed_time:.2f} s, Total Average Time: {(current_batch_time - start_time) / (batch_num + 1):.2f} s, Batch Average Time: {elapsed_time / self.batch_size:.2f} s"
                 )
 
         return time.time() - start_time
@@ -276,12 +280,6 @@ class LeRobotHandler(DatasetHandler):
         return LeRobotLoader(path, self.dataset_name, batch_size=self.batch_size)
 
 
-def prepare(args):
-    # Clear the cache directory
-    if os.path.exists(CACHE_DIR):
-        subprocess.run(["rm", "-rf", CACHE_DIR], check=True)
-
-
 def evaluation(args):
 
     csv_file = "format_comparison_results.csv"
@@ -296,13 +294,13 @@ def evaluation(args):
         logger.debug(f"Evaluating dataset: {dataset_name}")
 
         handlers = [
-            VLAHandler(
-                args.exp_dir,
-                dataset_name,
-                args.num_batches,
-                args.batch_size,
-                args.log_frequency,
-            ),
+            # VLAHandler(
+            #     args.exp_dir,
+            #     dataset_name,
+            #     args.num_batches,
+            #     args.batch_size,
+            #     args.log_frequency,
+            # ),
             HDF5Handler(
                 args.exp_dir,
                 dataset_name,
@@ -310,20 +308,20 @@ def evaluation(args):
                 args.batch_size,
                 args.log_frequency,
             ),
-            LeRobotHandler(
-                args.exp_dir,
-                dataset_name,
-                args.num_batches,
-                args.batch_size,
-                args.log_frequency,
-            ),
-            RLDSHandler(
-                args.exp_dir,
-                dataset_name,
-                args.num_batches,
-                args.batch_size,
-                args.log_frequency,
-            ),
+            # LeRobotHandler(
+            #     args.exp_dir,
+            #     dataset_name,
+            #     args.num_batches,
+            #     args.batch_size,
+            #     args.log_frequency,
+            # ),
+            # RLDSHandler(
+            #     args.exp_dir,
+            #     dataset_name,
+            #     args.num_batches,
+            #     args.batch_size,
+            #     args.log_frequency,
+            # ),
         ]
 
         for handler in handlers:
@@ -389,6 +387,4 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    if args.prepare:
-        prepare(args)
     evaluation(args)
