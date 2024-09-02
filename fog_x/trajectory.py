@@ -7,11 +7,11 @@ import numpy as np
 import os
 from fog_x import FeatureType
 import pickle
+from fog_x.utils import recursively_read_hdf5_group
 import h5py
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import sys
-from fog_x.utils import recursively_read_hdf5_group
 
 logger = logging.getLogger(__name__)
 
@@ -68,10 +68,10 @@ class Trajectory:
         self.feature_name_separator = feature_name_separator
         # self.cache_file_name = "/tmp/fog_" + os.path.basename(self.path) + ".cache"
         # use hex hash of the path for the cache file name
+        if not os.path.exists(cache_dir):
+            os.makedirs(cache_dir, exist_ok=True)
         hex_hash = hex(abs(hash(self.path)))[2:]
-        self.cache_base_dir = os.path.join(cache_dir, hex_hash)
-        if not os.path.exists(self.cache_base_dir):
-            os.makedirs(self.cache_base_dir, exist_ok=True)
+        self.cache_file_name = cache_dir + hex_hash + ".cache"
         # self.cache_file_name = cache_dir + os.path.basename(self.path) + ".cache"
         self.feature_name_to_stream = {}  # feature_name: stream
         self.feature_name_to_feature_type = {}  # feature_name: feature_type
@@ -82,10 +82,9 @@ class Trajectory:
         self.is_closed = False
         self.lossy_compression = lossy_compression
         self.pending_write_tasks = []  # List to keep track of pending write tasks
-        self.cache_write_task = None
-        self.is_loaded = False
-        self.in_memory_features = {}  # For non-image features
-        self.memmap_features = {}  # For image features
+        # self.cache_write_lock = asyncio.Lock()
+        # self.cache_write_task = None
+        # self.executor = ThreadPoolExecutor(max_workers=1)
 
         # check if the path exists
         # if not, create a new file and start data collection
@@ -154,7 +153,7 @@ class Trajectory:
         self.container_file = None
         self.is_closed = True
 
-    def load(self):
+    def load(self, save_to_cache=True, return_h5=False):
         """
         Load the trajectory data.
 
@@ -163,20 +162,32 @@ class Trajectory:
             return_h5 (bool): If True, return h5py.File object instead of numpy arrays.
 
         Returns:
-            dict: A dictionary of numpy arrays 
+            dict: A dictionary of numpy arrays if return_h5 is False, otherwise an h5py.File object.
         """
 
-        if self.is_loaded:
-            logger.debug(f"[HIT] {self.path}")
-            # Combine in-memory and memmap features
-            combined_data = {**self.in_memory_features, **self.memmap_features}
-            return combined_data
+        return asyncio.get_event_loop().run_until_complete(
+            self.load_async(save_to_cache=save_to_cache, return_h5=return_h5)
+        )
+
+    async def load_async(self, save_to_cache=True, return_h5=False):
+        if os.path.exists(self.cache_file_name):
+            if return_h5:
+                return h5py.File(self.cache_file_name, "r")
+            else:
+                with h5py.File(self.cache_file_name, "r") as h5_cache:
+                    return recursively_read_hdf5_group(h5_cache)
         else:
-            logger.debug(f"[MISS] {self.path} ")
-            self._load_from_container()
-            combined_data = {**self.in_memory_features, **self.memmap_features}
-            return combined_data
-        
+            logger.debug(f"Loading the container file {self.path}, saving to cache {self.cache_file_name}")
+            np_cache = self._load_from_container()
+            if save_to_cache:
+                # await self._async_write_to_cache(np_cache)
+                self._write_to_cache(np_cache)
+            
+            if return_h5:
+                return h5py.File(self.cache_file_name, "r")
+            else:
+                return np_cache
+
     def init_feature_streams(self, feature_spec: Dict):
         """
         initialize the feature stream with the feature name and its type
@@ -352,7 +363,7 @@ class Trajectory:
 
     def _load_from_container(self):
         """
-        Load the container file with the entire VLA trajectory.
+        Load the container file with the entire VLA trajectory using multi-processing for image streams.
         
         args:
             save_to_cache: save the decoded data to the cache file
@@ -363,9 +374,11 @@ class Trajectory:
         Workflow:
         - Get schema of the container file.
         - Preallocate decoded streams.
-        - Decode all streams in the main process.
-        - Combine results.
+        - Use multi-processing to decode image streams separately.
+        - Decode non-image streams in the main process.
+        - Combine results from all processes.
         """
+
         def _get_length_of_stream(container, stream):
             """
             Get the length of the stream.
@@ -376,11 +389,7 @@ class Trajectory:
                     length += 1
             return length
         
-        try:
-            container_to_get_length = av.open(self.path, mode="r", format="matroska")
-        except Exception as e:
-            logger.error(f"Error opening container: {e}")
-            return {}
+        container_to_get_length = av.open(self.path, mode="r", format="matroska")
         streams = container_to_get_length.streams
         length = _get_length_of_stream(container_to_get_length, streams[0])
         logger.debug(f"Length of the stream is {length}")
@@ -388,8 +397,13 @@ class Trajectory:
         
         container = av.open(self.path, mode="r", format="matroska")
         streams = container.streams
+
+
+        # Dictionary to store preallocated numpy arrays
+        np_cache = {}
         feature_name_to_stream = {}
 
+        # Preallocate memory for the streams in numpy arrays
         for stream in streams:
             feature_name = stream.metadata.get("FEATURE_NAME")
             if feature_name is None:
@@ -399,40 +413,68 @@ class Trajectory:
             feature_name_to_stream[feature_name] = stream
             self.feature_name_to_feature_type[feature_name] = feature_type
 
-            if stream.codec_context.codec.name == "h264":
-                memmap_path = os.path.join(self.cache_base_dir, f"{feature_name.replace('/', '-')}.mmap")
-                self.memmap_features[feature_name] = np.memmap(memmap_path, dtype=feature_type.dtype, mode='w+', shape=(length,) + feature_type.shape)
-                feature_length = 0
-                for packet in container.demux([stream]):
-                    frames = packet.decode()
-                    for frame in frames:
-                        if feature_type.dtype == "float32":
-                            data = frame.to_ndarray(format="gray").reshape(feature_type.shape)
-                        else:
-                            data = frame.to_ndarray(format="rgb24").reshape(feature_type.shape)
-                        self.memmap_features[feature_name][feature_length] = data
-                        feature_length += 1
-            else:
-                if feature_type.dtype == "string":
-                    self.in_memory_features[feature_name] = np.empty((length,) + feature_type.shape, dtype=object)
-                else:
-                    self.in_memory_features[feature_name] = np.empty((length,) + feature_type.shape, dtype=feature_type.dtype)
-                feature_length = 0
-                for packet in container.demux([stream]):
-                    packet_in_bytes = bytes(packet)
-                    if packet_in_bytes:
-                        data = pickle.loads(packet_in_bytes)
-                        self.in_memory_features[feature_name][feature_length] = data
-                        feature_length += 1
-                    else:
-                        logger.debug(f"Skipping empty packet: {packet} for {feature_name}")
+            logger.debug(
+                f"Creating a cache for {feature_name} with shape {feature_type.shape}"
+            )
 
-        self.is_loaded = True
+            # Allocate numpy array with shape [None, X, Y, Z] where X, Y, Z are feature dimensions
+            if feature_type.dtype == "string":
+                np_cache[feature_name] = np.empty((length,) + feature_type.shape, dtype=object)
+            else:
+                np_cache[feature_name] = np.empty((length,) + feature_type.shape, dtype=feature_type.dtype)
+
+        # Decode the frames and store them in the preallocated numpy memory
+        d_feature_length = {feature: 0 for feature in feature_name_to_stream}
+        for packet in container.demux(list(streams)):
+            feature_name = packet.stream.metadata.get("FEATURE_NAME")
+            if feature_name is None:
+                logger.debug(f"Skipping stream without FEATURE_NAME: {packet.stream}")
+                continue
+            feature_type = FeatureType.from_str(packet.stream.metadata.get("FEATURE_TYPE"))
+
+            logger.debug(
+                f"Decoding {feature_name} with shape {feature_type.shape} and dtype {feature_type.dtype} with time {packet.dts}"
+            )
+
+            feature_codec = packet.stream.codec_context.codec.name
+            if feature_codec == "h264":
+                frames = packet.decode()
+                for frame in frames:
+                    if feature_type.dtype == "float32":
+                        data = frame.to_ndarray(format="gray").reshape(feature_type.shape)
+                    else:
+                        data = frame.to_ndarray(format="rgb24").reshape(feature_type.shape)
+
+                    # Append data to the numpy array
+                    np_cache[feature_name][d_feature_length[feature_name]] = data
+                    d_feature_length[feature_name] += 1
+            else:
+                packet_in_bytes = bytes(packet)
+                if packet_in_bytes:
+                    # Decode the packet
+                    data = pickle.loads(packet_in_bytes)
+
+                    # Append data to the numpy array
+                    np_cache[feature_name][d_feature_length[feature_name]] = data
+                    d_feature_length[feature_name] += 1
+                else:
+                    logger.debug(f"Skipping empty packet: {packet} for {feature_name}")
+        logger.debug(f"Length of the stream {feature_name} is {d_feature_length[feature_name]}")
         container.close()
 
-    def _write_to_hdf5(self, np_cache):
+        return np_cache
+
+    # async def _async_write_to_cache(self, np_cache):
+    #     async with self.cache_write_lock:
+    #         await asyncio.get_event_loop().run_in_executor(
+    #             self.executor,
+    #             self._write_to_cache,
+    #             np_cache
+    #         )
+
+    def _write_to_cache(self, np_cache):
         try:
-            h5_cache = h5py.File(self.cache_file_name + ".temp", "w")
+            h5_cache = h5py.File(self.cache_file_name, "w")
         except Exception as e:
             logger.error(f"Error creating cache file: {e}")
             return
@@ -451,8 +493,6 @@ class Trajectory:
             else:
                 h5_cache.create_dataset(feature_name, data=data)
         h5_cache.close()
-        
-        os.rename(self.cache_file_name + ".temp", self.cache_file_name)
                     
     def _transcode_pickled_images(self, ending_timestamp: Optional[int] = None):
         """
@@ -540,8 +580,8 @@ class Trajectory:
         convert the container file to hdf5 file
         """
 
-        data = self.load()
-        self._write_to_hdf5(data, path)
+        if not self.trajectory_data:
+            self.load()
 
         # directly copy the cache file to the hdf5 file
         os.rename(self.cache_file_name, path)

@@ -85,7 +85,8 @@ class DatasetHandler:
         
     def _recursively_load_data(self, data):
         logger.debug(f"Data summary for loader {self.dataset_type.upper()}")
-
+        if None in data:
+            logger.warning(f"None value found in data")
         def summarize_trajectory(trajectory):
             def summarize_value(value):
                 if isinstance(value, np.ndarray):
@@ -321,7 +322,7 @@ def evaluation(args):
     new_results = []
     for dataset_name in args.dataset_names:
         logger.debug(f"Evaluating dataset: {dataset_name}")
-
+        
         handlers = [
             VLAHandler(
                 args.exp_dir,
@@ -330,13 +331,13 @@ def evaluation(args):
                 args.batch_size,
                 args.log_frequency,
             ),
-            # HDF5Handler(
-            #     args.exp_dir,
-            #     dataset_name,
-            #     args.num_batches,
-            #     args.batch_size,
-            #     args.log_frequency,
-            # ),
+            HDF5Handler(
+                args.exp_dir,
+                dataset_name,
+                args.num_batches,
+                args.batch_size,
+                args.log_frequency,
+            ),
             LeRobotHandler(
                 args.exp_dir,
                 dataset_name,
@@ -344,13 +345,13 @@ def evaluation(args):
                 args.batch_size,
                 args.log_frequency,
             ),
-            # RLDSHandler(
-            #     args.exp_dir,
-            #     dataset_name,
-            #     args.num_batches,
-            #     args.batch_size,
-            #     args.log_frequency,
-            # ),
+            RLDSHandler(
+                args.exp_dir,
+                dataset_name,
+                args.num_batches,
+                args.batch_size,
+                args.log_frequency,
+            ),
         ]
 
         for handler in handlers:

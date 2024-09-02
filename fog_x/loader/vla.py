@@ -14,12 +14,13 @@ from multiprocessing import Manager
 logger = logging.getLogger(__name__)
 
 class VLALoader:
-    def __init__(self, path: Text, batch_size=1, cache_dir=None, buffer_size=100, num_workers=-1):
+    def __init__(self, path: Text, batch_size=1, cache_dir=None, buffer_size=50, num_workers=-1):
         self.files = self._get_files(path)
-        manager = Manager()
-        self.loaded_traj = manager.dict()  # Use a Manager to create a shared dictionary
         self.cache_dir = cache_dir
         self.batch_size = batch_size
+        # TODO: adjust buffer size
+        if "autolab" in path:
+            self.buffer_size = 4
         self.buffer_size = buffer_size
         self.buffer = mp.Queue(maxsize=buffer_size)
         if num_workers == -1:
@@ -39,24 +40,26 @@ class VLALoader:
             return [path]
 
     def _read_vla(self, data_path):
-        if data_path in self.loaded_traj:
-            logger.debug(f"[Path Hit] Data path {data_path} already loaded")
-            return self.loaded_traj[data_path].load()
-        else:
-            logger.debug(f"[Path Miss]Loading data path {data_path}")
-            traj = fog_x.Trajectory(data_path, cache_dir=self.cache_dir)
-            ret = traj.load()
-            self.loaded_traj[data_path] = traj
-            return ret
+        traj = fog_x.Trajectory(data_path, cache_dir=self.cache_dir)
+        ret = traj.load()
+        return ret
 
     def _worker(self):
+        max_retries = 3
         while True:
             if not self.files:
                 logger.info("Worker finished")
                 break
             file_path = random.choice(self.files)
-            data = self._read_vla(file_path)
-            self.buffer.put(data)
+            for attempt in range(max_retries):
+                try:
+                    data = self._read_vla(file_path)
+                    self.buffer.put(data)
+                    break  # Exit the retry loop if successful
+                except Exception as e:
+                    logger.error(f"Error reading {file_path} on attempt {attempt + 1}: {e}")
+                    if attempt + 1 == max_retries:
+                        logger.error(f"Failed to read {file_path} after {max_retries} attempts")
 
     def _start_workers(self):
         for _ in range(self.num_workers):

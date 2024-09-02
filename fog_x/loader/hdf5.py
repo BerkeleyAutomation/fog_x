@@ -12,7 +12,7 @@ import logging
 from fog_x.utils import _flatten, recursively_read_hdf5_group
 
 class HDF5Loader(BaseLoader):
-    def __init__(self, path, batch_size=1, buffer_size=100, num_workers=4):
+    def __init__(self, path, batch_size=1, buffer_size=50, num_workers=4):
         super(HDF5Loader, self).__init__(path)
         self.files = glob.glob(self.path, recursive=True)
         self.batch_size = batch_size
