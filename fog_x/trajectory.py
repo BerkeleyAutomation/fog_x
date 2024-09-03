@@ -153,7 +153,7 @@ class Trajectory:
         self.container_file = None
         self.is_closed = True
 
-    def load(self, save_to_cache=True, return_h5=False):
+    def load(self, save_to_cache=True, return_type="numpy"):
         """
         Load the trajectory data.
 
@@ -165,28 +165,54 @@ class Trajectory:
             dict: A dictionary of numpy arrays if return_h5 is False, otherwise an h5py.File object.
         """
 
-        return asyncio.get_event_loop().run_until_complete(
-            self.load_async(save_to_cache=save_to_cache, return_h5=return_h5)
-        )
-
-    async def load_async(self, save_to_cache=True, return_h5=False):
-        if os.path.exists(self.cache_file_name):
-            if return_h5:
-                return h5py.File(self.cache_file_name, "r")
-            else:
-                with h5py.File(self.cache_file_name, "r") as h5_cache:
-                    return recursively_read_hdf5_group(h5_cache)
-        else:
+        # uncomment the following line to use async
+        # return asyncio.get_event_loop().run_until_complete(
+        #     self.load_async(save_to_cache=save_to_cache, return_h5=return_h5)
+        # )
+        # async def load_async(self, save_to_cache=True, return_h5=False):
+        np_cache = None
+        if not os.path.exists(self.cache_file_name):
             logger.debug(f"Loading the container file {self.path}, saving to cache {self.cache_file_name}")
             np_cache = self._load_from_container()
             if save_to_cache:
                 # await self._async_write_to_cache(np_cache)
                 self._write_to_cache(np_cache)
-            
-            if return_h5:
-                return h5py.File(self.cache_file_name, "r")
-            else:
+        
+        if return_type =="hdf5":
+            return h5py.File(self.cache_file_name, "r")
+        elif return_type == "numpy":
+            if np_cache:
                 return np_cache
+            else:
+                with h5py.File(self.cache_file_name, "r") as h5_cache:
+                    return recursively_read_hdf5_group(h5_cache)
+        elif return_type == "cache_name":
+            return self.cache_file_name
+        elif return_type == "container":
+            return self.path
+        elif return_type == "tensor":
+            import tensorflow as tf
+            def _convert_h5_cache_to_tensor(h5_cache):
+                output_tf_traj = {}
+                for key in h5_cache:
+                    # hierarhical 
+                    if type(h5_cache[key]) == h5py._hl.group.Group:
+                        for sub_key in h5_cache[key]:
+                            if key not in output_tf_traj:
+                                output_tf_traj[key] = {}
+                            output_tf_traj[key][sub_key] = tf.convert_to_tensor(h5_cache[key][sub_key])
+                    elif type(h5_cache[key]) == h5py._hl.dataset.Dataset:
+                        output_tf_traj[key] = tf.convert_to_tensor(h5_cache[key])
+                return output_tf_traj
+            with h5py.File(self.cache_file_name, 'r') as h5_cache:
+                # Step 2: Access the dataset within the file
+                # Assume the dataset is named 'dataset_name'
+                output_traj = _convert_h5_cache_to_tensor(h5_cache)
+            return output_traj
+        else:
+            raise ValueError(f"Invalid return_type {return_type}")
+            
+            
 
     def init_feature_streams(self, feature_spec: Dict):
         """

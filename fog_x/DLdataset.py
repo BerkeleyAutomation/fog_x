@@ -180,61 +180,11 @@ class DLataset(tf.data.Dataset):
         step_spec = vla_dataset.get_tf_schema()
         # Generator function
         def generator():
-            for h5_cache in vla_dataset:
-
-
-                # convert cache to tensor
-                def _convert_h5_cache_to_tensor():
-                    output_tf_traj = {}
-                    for key in h5_cache:
-                        # hierarhical 
-                        if type(h5_cache[key]) == h5py._hl.group.Group:
-                            for sub_key in h5_cache[key]:
-                                if key not in output_tf_traj:
-                                    output_tf_traj[key] = {}
-                                output_tf_traj[key][sub_key] = tf.convert_to_tensor(h5_cache[key][sub_key])
-                        elif type(h5_cache[key]) == h5py._hl.dataset.Dataset:
-                            output_tf_traj[key] = tf.convert_to_tensor(h5_cache[key])
-                    return output_tf_traj
-                output = {"steps" : _convert_h5_cache_to_tensor()}
+            for ts in vla_dataset:
+                output = {"steps" : ts}
                 
                 yield output
                 
-                # def worker(key, sub_key, data, return_dict):
-                #     if data.dtype == object:
-                #         # strings are objects in numpy, need to convert to tf.string
-                #         return_dict[(key, sub_key)] = tf.stack([tf.convert_to_tensor(x, dtype=tf.string) for x in data])
-                #     else:
-                #         return_dict[(key, sub_key)] = tf.convert_to_tensor(data)
-
-                # manager = mp.Manager()
-                # return_dict = manager.dict()
-                # jobs = []
-
-                # for key in output_tf_traj:
-                #     if isinstance(output_tf_traj[key], dict):
-                #         for sub_key in output_tf_traj[key]:
-                #             p = mp.Process(target=worker, args=(key, sub_key, output_tf_traj[key][sub_key], return_dict))
-                #             jobs.append(p)
-                #             p.start()
-                #     else:
-                #         p = mp.Process(target=worker, args=(key, None, output_tf_traj[key], return_dict))
-                #         jobs.append(p)
-                #         p.start()
-
-                # for job in jobs:
-                #     job.join()
-
-                # for key, sub_key in return_dict:
-                #     if sub_key is None:
-                #         output_tf_traj[key] = return_dict[(key, sub_key)]
-                #     else:
-                #         output_tf_traj[key][sub_key] = return_dict[(key, sub_key)]
-
-                # output =  {"steps" : output_tf_traj} 
-                # print(f"{time()} after converting to tensor")
-                # yield output
-
 
         # Create dataset
         output_signature = {"steps" : tf.nest.map_structure(

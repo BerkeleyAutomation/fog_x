@@ -5,19 +5,21 @@ from fog_x.loader import RLDSLoader
 import fog_x
 
 def process_data(data_traj, dataset_name, index, destination_dir, lossless):
-    try:
-        if lossless:
-            fog_x.Trajectory.from_list_of_dicts(
-                data_traj, path=f"{destination_dir}/{dataset_name}/output_{index}.vla",
-                lossy_compression=False
-            )
-        else:
-            fog_x.Trajectory.from_list_of_dicts(
-                data_traj, path=f"{destination_dir}/{dataset_name}/output_{index}.vla", 
-                lossy_compression=True,
-            )
-    except Exception as e:
-        print(f"Failed to process data {index}: {e}")
+    data_traj = data_traj[0]
+    # try:
+    if lossless:
+        fog_x.Trajectory.from_list_of_dicts(
+            data_traj, path=f"{destination_dir}/{dataset_name}/output_{index}.vla",
+            lossy_compression=False
+        )
+    else:
+        fog_x.Trajectory.from_list_of_dicts(
+            data_traj, path=f"{destination_dir}/{dataset_name}/output_{index}.vla", 
+            lossy_compression=True,
+        )
+    print(f"Processed data {index}")
+    # except Exception as e:
+    #     print(f"Failed to process data {index}: {e}")
 
 def main():
     parser = argparse.ArgumentParser(description="Process RLDS data and convert to VLA format.")
@@ -54,6 +56,10 @@ def main():
 
         for future in futures:
             future.result()
+
+    # for index, data_traj in enumerate(loader):
+    #     index = index + split_starting_index
+    #     process_data(data_traj, args.dataset_name, index, args.destination_dir, args.lossless)
 
     print("All tasks completed.")
 

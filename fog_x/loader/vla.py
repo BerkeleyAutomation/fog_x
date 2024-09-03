@@ -14,10 +14,11 @@ from multiprocessing import Manager
 logger = logging.getLogger(__name__)
 
 class VLALoader:
-    def __init__(self, path: Text, batch_size=1, cache_dir=None, buffer_size=50, num_workers=-1):
+    def __init__(self, path: Text, batch_size=1, cache_dir="/tmp/fog_x/cache/", buffer_size=50, num_workers=-1, return_type = "numpy"):
         self.files = self._get_files(path)
         self.cache_dir = cache_dir
         self.batch_size = batch_size
+        self.return_type = return_type
         # TODO: adjust buffer size
         if "autolab" in path:
             self.buffer_size = 4
@@ -39,9 +40,11 @@ class VLALoader:
         else:
             return [path]
 
-    def _read_vla(self, data_path):
+    def _read_vla(self, data_path, return_type = None):
+        if return_type is None:
+            return_type = self.return_type
         traj = fog_x.Trajectory(data_path, cache_dir=self.cache_dir)
-        ret = traj.load()
+        ret = traj.load(return_type = return_type)
         return ret
 
     def _worker(self):
@@ -50,9 +53,10 @@ class VLALoader:
             if not self.files:
                 logger.info("Worker finished")
                 break
-            file_path = random.choice(self.files)
+            
             for attempt in range(max_retries):
                 try:
+                    file_path = random.choice(self.files)
                     data = self._read_vla(file_path)
                     self.buffer.put(data)
                     break  # Exit the retry loop if successful
@@ -105,9 +109,8 @@ class VLALoader:
         return len(self.files)
 
     def peek(self):
-        if self.buffer.empty():
-            return None
-        return self.buffer.get()
+        file = random.choice(self.files)
+        return self._read_vla(file, return_type = "numpy")
 
     def __del__(self):
         for p in self.processes:

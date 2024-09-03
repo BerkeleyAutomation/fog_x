@@ -32,13 +32,13 @@ class VLADataset:
         self.format = format
         self.shuffle = shuffle
         
-        self.loader = VLALoader(path) 
+        self.loader = VLALoader(path, batch_size=1, return_type="tensor")
     
     def __iter__(self):
         return self
 
     def __next__(self):
-        return self.get_next_trajectory()
+        return self.loader.get_batch()[0]
 
     def __len__(self):
         raise NotImplementedError
@@ -47,7 +47,7 @@ class VLADataset:
         raise NotImplementedError
 
     def get_tf_schema(self):
-        data = self.loader.peak(0).load(save_to_cache=False) # enforces no h5 cache
+        data = self.loader.peek()
         return data_to_tf_schema(data)
 
     def get_loader(self):

@@ -3,7 +3,7 @@ import numpy as np
 
 
 class RLDSLoader(BaseLoader):
-    def __init__(self, path, split, batch_size=1, shuffle_buffer=10):
+    def __init__(self, path, split, batch_size=1, shuffle_buffer=10, shuffling = True):
         super(RLDSLoader, self).__init__(path)
 
         try:
@@ -18,8 +18,10 @@ class RLDSLoader(BaseLoader):
         builder = tfds.builder_from_directory(path)
         self.ds = builder.as_dataset(split)
         self.length = len(self.ds)
-        self.ds = self.ds.repeat()
-        self.ds = self.ds.shuffle(shuffle_buffer)
+        self.shuffling = shuffling
+        if shuffling:
+            self.ds = self.ds.repeat()
+            self.ds = self.ds.shuffle(shuffle_buffer)
         self.iterator = iter(self.ds)
 
         self.split = split
@@ -39,6 +41,8 @@ class RLDSLoader(BaseLoader):
     def get_batch(self):
         batch = self.ds.take(self.batch_size)
         self.index += self.batch_size
+        if not self.shuffling and self.index >= self.length:
+            raise StopIteration
         data = []
         for b in batch:
             data.append(self._convert_traj_to_numpy(b))
