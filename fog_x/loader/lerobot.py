@@ -29,8 +29,12 @@ class LeRobotLoader(BaseLoader):
                     # repeat
                     if self.episode_index >= len(self.dataset):
                         self.episode_index = 0
-                    from_idx = self.dataset.episode_data_index["from"][self.episode_index].item()
-                    to_idx = self.dataset.episode_data_index["to"][self.episode_index].item()
+                    try:
+                        from_idx = self.dataset.episode_data_index["from"][self.episode_index].item()
+                        to_idx = self.dataset.episode_data_index["to"][self.episode_index].item()
+                    except Exception as e:
+                        self.episode_index = 0
+                        continue
                     frames = [_frame_to_numpy(self.dataset[idx]) for idx in range(from_idx, to_idx)]
                     episode.extend(frames)
                     self.episode_index += 1

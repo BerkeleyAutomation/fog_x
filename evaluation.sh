@@ -1,11 +1,9 @@
 # ask for sudo access
 sudo echo "Use sudo access for clearning cache"
 
-rm *.csv
-
 # Define a list of batch sizes to iterate through
-batch_sizes=(1 2 4 6 8)
-num_batches=200
+batch_sizes=(1)
+num_batches=20
 # batch_sizes=(1 2)
 
 # batch_sizes=(2)

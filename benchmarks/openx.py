@@ -60,16 +60,23 @@ class DatasetHandler:
     def measure_average_trajectory_size(self):
         """Calculates the average size of trajectory files in the dataset directory."""
         total_size = 0
-        file_count = 0
         for dirpath, dirnames, filenames in os.walk(self.dataset_dir):
             for f in filenames:
-                if f.endswith(self.file_extension):
-                    file_path = os.path.join(dirpath, f)
-                    total_size += os.path.getsize(file_path)
-                    file_count += 1
-        if file_count == 0:
-            return 0
-        return (total_size / file_count) / (1024 * 1024)  # Convert to MB
+                file_path = os.path.join(dirpath, f)
+                total_size += os.path.getsize(file_path)
+        
+        print(f"total_size: {total_size} of directory {self.dataset_dir}")
+        # trajectory number 
+        traj_num = 0
+        if self.dataset_name == "nyu_door_opening_surprising_effectiveness":
+            traj_num = 435
+        if self.dataset_name == "berkeley_cable_routing":
+            traj_num = 1482
+        if self.dataset_name == "bridge":
+            traj_num = 25460
+        if self.dataset_name == "berkeley_autolab_ur5":
+            traj_num = 896
+        return (total_size / traj_num) / (1024 * 1024)  # Convert to MB
 
     def clear_cache(self):
         """Clears the cache directory."""
@@ -274,7 +281,7 @@ class LeRobotHandler(DatasetHandler):
             exp_dir,
             dataset_name,
             num_batches,
-            dataset_type="lerobot",
+            dataset_type="hf",
             batch_size=batch_size,
             log_frequency=log_frequency,
         )
