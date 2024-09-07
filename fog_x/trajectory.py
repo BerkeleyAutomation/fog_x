@@ -181,11 +181,10 @@ class Trajectory:
         if return_type =="hdf5":
             return h5py.File(self.cache_file_name, "r")
         elif return_type == "numpy":
-            if np_cache:
-                return np_cache
-            else:
+            if not np_cache:
                 with h5py.File(self.cache_file_name, "r") as h5_cache:
-                    return recursively_read_hdf5_group(h5_cache)
+                    np_cache = recursively_read_hdf5_group(h5_cache)
+            return np_cache
         elif return_type == "cache_name":
             return self.cache_file_name
         elif return_type == "container":
@@ -463,14 +462,12 @@ class Trajectory:
             )
 
             feature_codec = packet.stream.codec_context.codec.name
-            if feature_codec == "h264":
+            if feature_codec == "h264" or feature_codec == "ffv1" or feature_codec == "hevc": 
                 frames = packet.decode()
                 for frame in frames:
-                    if feature_type.dtype == "float32":
-                        data = frame.to_ndarray(format="gray").reshape(feature_type.shape)
-                    else:
-                        data = frame.to_ndarray(format="rgb24").reshape(feature_type.shape)
-
+                    data = frame.to_ndarray(format="rgb24").reshape(feature_type.shape)
+                    # data = np.asarray(frame.to_image())#.reshape(feature_type.shape)
+                    # save the numpy to image folder
                     # Append data to the numpy array
                     np_cache[feature_name][d_feature_length[feature_name]] = data
                     d_feature_length[feature_name] += 1
@@ -728,20 +725,20 @@ class Trajectory:
     def _add_stream_to_container(self, container, feature_name, encoding, feature_type):
         stream = container.add_stream(encoding)
         if encoding == "ffv1":
-            stream.width = feature_type.shape[0]
-            stream.height = feature_type.shape[1]
+            stream.width = feature_type.shape[1]
+            stream.height = feature_type.shape[0]
             stream.codec_context.options = {
                 "preset": "fast",  # Set preset to 'fast' for quicker encoding
                 "tune": "zerolatency",  # Reduce latency
             }
         
         if encoding == "libx264":
-            stream.width = feature_type.shape[0]
-            stream.height = feature_type.shape[1]
+            stream.width = feature_type.shape[1]
+            stream.height = feature_type.shape[0]
             stream.codec_context.options = {
                 "preset": "ultrafast",  # Set preset to 'ultrafast' for quicker encoding
                 "tune": "zerolatency",  # Reduce latency
-                "profile": "baseline",  # no b frame
+                'crf': '30',  # Constant Rate Factor (quality)
             }
 
         stream.metadata["FEATURE_NAME"] = feature_name
