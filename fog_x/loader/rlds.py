@@ -67,8 +67,12 @@ class RLDSLoader(BaseLoader):
         return trajectory
 
     def __next__(self):
-        return self.get_batch()
+        data = [self._convert_traj_to_numpy(next(self.iterator))]
+        self.index += 1
+        if self.index >= self.length:
+            raise StopIteration
+        return data
 
     def __getitem__(self, idx):
         batch = next(iter(self.ds.skip(idx).take(1)))
-        return self._convert_batch_to_numpy(batch)
+        return self._convert_traj_to_numpy(batch)

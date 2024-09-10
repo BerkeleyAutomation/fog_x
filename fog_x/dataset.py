@@ -1,6 +1,6 @@
 import os
 from typing import Any, Dict, List, Optional, Text
-from fog_x.loader.vla import VLALoader
+from fog_x.loader.vla import VLALoader, NonShuffleVLALoader
 from fog_x.utils import data_to_tf_schema
 import numpy as np
 
@@ -12,7 +12,7 @@ class VLADataset:
     def __init__(self, 
                  path: Text,
                  split: Text, 
-                 shuffle: bool = False,
+                 shuffle: bool = True,
                  format: Optional[Text] = None):
         """
         init method for Dataset class
@@ -31,8 +31,10 @@ class VLADataset:
         self.split = split
         self.format = format
         self.shuffle = shuffle
-        
-        self.loader = VLALoader(path, batch_size=1, return_type="tensor")
+        if shuffle:
+            self.loader = VLALoader(path, batch_size=1, return_type="tensor")
+        else:
+            self.loader = NonShuffleVLALoader(path, batch_size=1, return_type="tensor")
     
     def __iter__(self):
         return self

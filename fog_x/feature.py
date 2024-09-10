@@ -127,7 +127,14 @@ class FeatureType:
         else:
             dtype = type(data).__name__
             shape = ()
-            feature_type._set(dtype, shape)
+            try:
+                feature_type._set(dtype, shape)
+            except ValueError as e:
+                print(f"Error: {e}")
+                print(f"dtype: {dtype}")
+                print(f"shape: {shape}")
+                print(f"data: {data}")
+                raise e
         return feature_type
 
     @classmethod
