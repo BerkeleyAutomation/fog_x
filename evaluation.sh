@@ -2,7 +2,8 @@
 sudo echo "Use sudo access for clearning cache"
 
 # Define a list of batch sizes to iterate through
-batch_sizes=(1 2 4 6 8)
+
+batch_sizes=(1 2 4 6 8 10 12 14 16)
 num_batches=200
 # batch_sizes=(1 2)
 
