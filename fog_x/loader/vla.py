@@ -14,8 +14,10 @@ from multiprocessing import Manager
 logger = logging.getLogger(__name__)
 
 class VLALoader:
-    def __init__(self, path: Text, batch_size=1, cache_dir="/tmp/fog_x/cache/", buffer_size=50, num_workers=-1, return_type = "numpy"):
-        self.files = self._get_files(path)
+    def __init__(self, path: Text, batch_size=1, cache_dir="/tmp/fog_x/cache/", buffer_size=50, num_workers=-1, return_type = "numpy", split = "all"):
+        self.files = self._get_files(path, split)
+        self.split = split
+        
         self.cache_dir = cache_dir
         self.batch_size = batch_size
         self.return_type = return_type
@@ -32,13 +34,26 @@ class VLALoader:
         self._start_workers()
         
 
-    def _get_files(self, path):
+    def _get_files(self, path, split):
+        ret = []
         if "*" in path:
-            return glob.glob(path)
+            ret = glob.glob(path)
         elif os.path.isdir(path):
-            return glob.glob(os.path.join(path, "*.vla"))
+            ret = glob.glob(os.path.join(path, "*.vla"))
         else:
-            return [path]
+            ret = [path]
+        if split == "train":
+            ret = ret[:int(len(ret)*0.9)]
+        elif split == "val":
+            ret = ret[int(len(ret)*0.9):]
+        elif split == "all":
+            pass
+        else:
+            raise ValueError(f"Invalid split: {split}")
+
+        print(f"{split} {ret}")
+        return ret
+    
 
     def _read_vla(self, data_path, return_type = None):
         if return_type is None:

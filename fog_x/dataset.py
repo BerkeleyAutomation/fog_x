@@ -31,10 +31,12 @@ class VLADataset:
         self.split = split
         self.format = format
         self.shuffle = shuffle
-        if shuffle:
-            self.loader = VLALoader(path, batch_size=1, return_type="tensor")
-        else:
+        print(f"creating dataset with path {path}, split {split} and shuffle {shuffle}")
+
+        if split == "all" and not shuffle: # some conversion 
             self.loader = NonShuffleVLALoader(path, batch_size=1, return_type="tensor")
+        else:
+            self.loader = VLALoader(path, batch_size=1, return_type="tensor", split = split)
     
     def __iter__(self):
         return self

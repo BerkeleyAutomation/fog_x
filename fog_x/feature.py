@@ -70,6 +70,8 @@ class FeatureType:
             dtype = "float32"
         if dtype == "object":
             dtype = "string" 
+        if dtype == "bytes_":
+            dtype = "binary"
         if dtype not in SUPPORTED_DTYPES:
             raise ValueError(f"Unsupported dtype: {dtype}")
         if shape is not None and not isinstance(shape, tuple):

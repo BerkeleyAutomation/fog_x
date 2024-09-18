@@ -7,7 +7,7 @@ import numpy as np
 import os
 from fog_x import FeatureType
 import pickle
-from fog_x.utils import recursively_read_hdf5_group
+from fog_x.utils import recursively_read_hdf5_group, _flatten
 import h5py
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
@@ -82,6 +82,8 @@ class Trajectory:
         self.is_closed = False
         self.lossy_compression = lossy_compression
         self.pending_write_tasks = []  # List to keep track of pending write tasks
+        from collections import defaultdict
+        self.d_counter = defaultdict(int)
         # self.cache_write_lock = asyncio.Lock()
         # self.cache_write_task = None
         # self.executor = ThreadPoolExecutor(max_workers=1)
@@ -177,13 +179,21 @@ class Trajectory:
             if save_to_cache:
                 # await self._async_write_to_cache(np_cache)
                 self._write_to_cache(np_cache)
-        
+        else:
+            logger.debug(f"Loading from cache {self.cache_file_name}")
+            try:
+                with h5py.File(self.cache_file_name, "r") as h5_cache:
+                    np_cache = _flatten(recursively_read_hdf5_group(h5_cache))
+            except Exception as e:
+                logger.error(f"Error loading from cache {self.cache_file_name}: {e}")
+                np_cache = self._load_from_container()
+                
         if return_type =="hdf5":
             return h5py.File(self.cache_file_name, "r")
         elif return_type == "numpy":
-            if not np_cache:
-                with h5py.File(self.cache_file_name, "r") as h5_cache:
-                    np_cache = recursively_read_hdf5_group(h5_cache)
+            # if not np_cache:
+            #     with h5py.File(self.cache_file_name, "r") as h5_cache:
+            #         np_cache = recursively_read_hdf5_group(h5_cache)
             return np_cache
         elif return_type == "cache_name":
             return self.cache_file_name
@@ -203,10 +213,37 @@ class Trajectory:
                     elif type(h5_cache[key]) == h5py._hl.dataset.Dataset:
                         output_tf_traj[key] = tf.convert_to_tensor(h5_cache[key])
                 return output_tf_traj
-            with h5py.File(self.cache_file_name, 'r') as h5_cache:
-                # Step 2: Access the dataset within the file
-                # Assume the dataset is named 'dataset_name'
-                output_traj = _convert_h5_cache_to_tensor(h5_cache)
+            
+            def _convert_np_cache_to_tensor(np_cache):
+                output_traj = {}
+                for key in np_cache:
+                    if "/" in key:
+                        main_key, subkey = key.split("/")
+                        if main_key not in output_traj:
+                            output_traj[main_key] = {}
+                        output_traj[main_key][subkey] = tf.convert_to_tensor(np_cache[key])
+                    else:
+                        output_traj[key] = tf.convert_to_tensor(np_cache[key])
+                return output_traj  
+            
+            if np_cache:
+                return _convert_np_cache_to_tensor(np_cache)
+            else:
+                try:
+                    with h5py.File(self.cache_file_name, 'r') as h5_cache:
+                        # Step 2: Access the dataset within the file
+                        # Assume the dataset is named 'dataset_name'
+                        output_traj = _convert_h5_cache_to_tensor(h5_cache)
+                    return output_traj
+                except Exception as e:
+                    logger.error(f"Error converting h5 cache to tensor: {e}")
+                    np_cache = self._load_from_container()
+                    return _convert_np_cache_to_tensor(np_cache)
+            
+            
+                # need to convert np_cache to nested dictionary of tensors 
+                
+                        
             return output_traj
         else:
             raise ValueError(f"Invalid return_type {return_type}")
@@ -283,8 +320,10 @@ class Trajectory:
 
         # write the packet to the container
         for packet in packets:
+            self.d_counter[packet.stream.index] += 1
+            
             self.container_file.mux(packet)
-
+        
     def add_by_dict(
         self,
         data: Dict[str, Any],
@@ -372,10 +411,12 @@ class Trajectory:
                 "All lists must have the same length",
                 [(k, len(v)) for k, v in _flatten_dict_data.items()],
             )
-
+        else:
+            logger.info(f"All lists have the same length {list_lengths[0]}")
         for i in range(list_lengths[0]):
             step = {k: v[i] for k, v in _flatten_dict_data.items()}
             traj.add_by_dict(step)
+        print("d_counter daf", traj.d_counter)
         traj.close()
         return traj
 
@@ -443,7 +484,7 @@ class Trajectory:
             )
 
             # Allocate numpy array with shape [None, X, Y, Z] where X, Y, Z are feature dimensions
-            if feature_type.dtype == "string":
+            if feature_type.dtype == "string" or feature_type.dtype == "binary":
                 np_cache[feature_name] = np.empty((length,) + feature_type.shape, dtype=object)
             else:
                 np_cache[feature_name] = np.empty((length,) + feature_type.shape, dtype=feature_type.dtype)
@@ -502,24 +543,25 @@ class Trajectory:
     def _write_to_cache(self, np_cache):
         try:
             h5_cache = h5py.File(self.cache_file_name, "w")
+            for feature_name, data in np_cache.items():
+                if data.dtype == object:
+                    for i in range(len(data)):
+                        data_type = type(data[i])
+                        if data_type in (str, bytes, np.ndarray):
+                            data[i] = str(data[i])
+                        else:
+                            data[i] = str(data[i])
+                    try:
+                        h5_cache.create_dataset(feature_name, data=data)
+                    except Exception as e:
+                        logger.error(f"Error saving {feature_name} to cache: {e} with data {data}")
+                else:
+                    h5_cache.create_dataset(feature_name, data=data)
         except Exception as e:
             logger.error(f"Error creating cache file: {e}")
-            return
-        for feature_name, data in np_cache.items():
-            if data.dtype == object:
-                for i in range(len(data)):
-                    data_type = type(data[i])
-                    if data_type in (str, bytes, np.ndarray):
-                        data[i] = str(data[i])
-                    else:
-                        data[i] = str(data[i])
-                try:
-                    h5_cache.create_dataset(feature_name, data=data)
-                except Exception as e:
-                    logger.error(f"Error saving {feature_name} to cache: {e} with data {data}")
-            else:
-                h5_cache.create_dataset(feature_name, data=data)
-        h5_cache.close()
+            raise
+        finally:
+            h5_cache.close()
                     
     def _transcode_pickled_images(self, ending_timestamp: Optional[int] = None):
         """
@@ -561,17 +603,28 @@ class Trajectory:
                 stream_in_updated_container
             )
 
+        d_counter = {stream.index: 0 for stream in original_streams}
+        
         # Initialize the number of packets per stream
         # Transcode pickled images and add them to the new container
         for packet in original_container.demux(original_streams):
+            stream_index = packet.stream.index
+            if d_counter[stream_index] == 0:
+                print(f"Processing stream {stream_index} at {packet.pts}")
 
             def is_packet_valid(packet):
-                return packet.pts is not None and packet.dts is not None
+                
+                return packet.pts is not None or packet.dts is not None
+            
+            if not is_packet_valid(packet):
+                print(packet)
+                
 
             if is_packet_valid(packet):
                 packet.stream = d_original_stream_id_to_new_container_stream[
                     packet.stream.index
                 ]
+                d_counter[stream_index] += 1
 
                 # Check if the stream is using rawvideo, meaning it's a pickled stream
                 if packet.stream.codec_context.codec.name == "ffv1" or packet.stream.codec_context.codec.name == "libaom-av1":
@@ -595,7 +648,7 @@ class Trajectory:
                 packet.pts = ending_timestamp
                 packet.dts = ending_timestamp
                 new_container.mux(packet)
-
+        print("d_counter", d_counter)
         original_container.close()
         os.remove(temp_path)
 
@@ -708,8 +761,10 @@ class Trajectory:
             for packet in original_container.demux(original_streams):
 
                 def is_packet_valid(packet):
-                    return packet.pts is not None and packet.dts is not None
-
+                    return packet.pts is not None or packet.dts is not None
+                if not is_packet_valid(packet):
+                    print(packet)
+                    
                 if is_packet_valid(packet):
                     packet.stream = d_original_stream_id_to_new_container_stream[
                         packet.stream.index
