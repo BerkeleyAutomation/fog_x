@@ -1,13 +1,9 @@
 import logging
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple, Dict
 
 import numpy as np
-from sqlalchemy import Float, Integer, LargeBinary, String
-
-from fog_x.database.utils import type_np2sql, type_py2sql
 
 logger = logging.getLogger(__name__)
-
 
 SUPPORTED_DTYPES = [
     "null",
@@ -58,11 +54,11 @@ class FeatureType:
             self.from_tf_feature_type(tf_feature_spec)
         elif dtype is not None:
             self._set(dtype, shape)
-        else:
-            raise ValueError("Either dtype or data must be provided")
+
+
 
     def __str__(self):
-        return f"dtype={self.dtype}, shape={self.shape})"
+        return f"dtype={self.dtype}; shape={self.shape})"
 
     def __repr__(self):
         return self.__str__()
@@ -72,6 +68,8 @@ class FeatureType:
             dtype = "float64"
         if dtype == "float":  # fix inferred type
             dtype = "float32"
+        if dtype == "object":
+            dtype = "string" 
         if dtype not in SUPPORTED_DTYPES:
             raise ValueError(f"Unsupported dtype: {dtype}")
         if shape is not None and not isinstance(shape, tuple):
@@ -112,23 +110,44 @@ class FeatureType:
         self._set(str(dtype), shape)
         return self
 
+    @classmethod
     def from_data(self, data: Any):
         """
         Infer feature type from the provided data.
         """
+        feature_type = FeatureType()
         if isinstance(data, np.ndarray):
-            self._set(data.dtype.name, data.shape)
+            feature_type._set(data.dtype.name, data.shape)
+        elif isinstance(data, np.bool_):
+            feature_type._set("bool", ())
         elif isinstance(data, list):
             dtype = type(data[0]).__name__
             shape = (len(data),)
-            self._set(dtype.name, shape)
+            feature_type._set(dtype.name, shape)
         else:
             dtype = type(data).__name__
             shape = ()
-            self._set(dtype, shape)
-        return self
+            try:
+                feature_type._set(dtype, shape)
+            except ValueError as e:
+                print(f"Error: {e}")
+                print(f"dtype: {dtype}")
+                print(f"shape: {shape}")
+                print(f"data: {data}")
+                raise e
+        return feature_type
 
-    def to_tf_feature_type(self):
+    @classmethod
+    def from_str(self, feature_str: str):
+        """
+        Parse a string representation of the feature type.
+        """
+        dtype, shape = feature_str.split(";")
+        dtype = dtype.split("=")[1]
+        shape = eval(shape.split("=")[1][:-1]) # strip brackets
+        return FeatureType(dtype=dtype, shape=shape)
+
+    def to_tf_feature_type(self, first_dim_none=False):
         """
         Convert to tf feature
         """
@@ -164,21 +183,13 @@ class FeatureType:
             else:
                 return Scalar(dtype=tf_detype)
         elif len(self.shape) >= 1:
-            return Tensor(shape=self.shape, dtype=tf_detype)
+            if first_dim_none:
+                tf_shape = [None] + list(self.shape[1:])
+                return Tensor(shape=tf_shape, dtype=tf_detype)
+            else:
+                return Tensor(shape=self.shape, dtype=tf_detype)
         else:
             raise ValueError(f"Unsupported conversion to tf feature: {self}")
-
-    def to_sql_type(self):
-        """
-        Convert to sql type
-        """
-        if self.is_np:
-            return LargeBinary
-        else:
-            try:
-                return type_np2sql(self.dtype)
-            except:
-                return LargeBinary
 
     def to_pld_storage_type(self):
         if len(self.shape) == 0:
@@ -188,3 +199,5 @@ class FeatureType:
                 return self.dtype
         else:
             return "large_binary"
+
+

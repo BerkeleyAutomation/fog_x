@@ -4,16 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fog_x"
-version = "0.1.0.beta.4"
+version = "0.2.0"
 dependencies = [
-    "pandas", 
     "numpy",
-    "polars",
     "pillow",
-    "pyarrow",
-    "opencv-python",
-    "sqlalchemy==1.4.51",
     "smart_open",
+    "av",
+    "requests",
+    "h5py",
 ]
 description = "An Efficient and Scalable Data Collection and Management Framework For Robotics Learning"
 readme = {file = "README.md", content-type = "text/markdown"}

@@ -3,10 +3,14 @@ import os
 __root_dir__ = os.path.dirname(os.path.abspath(__file__))
 
 
-from fog_x import dataset, episode, feature
-from fog_x.dataset import Dataset
+# from fog_x import dataset, episode, feature
+# from fog_x.dataset import Dataset
+# from fog_x import trajectory
 
-all = ["dataset", "feature", "episode", "Dataset"]
+from fog_x.feature import FeatureType
+from fog_x.trajectory import Trajectory
+
+all = ["trajectory"]
 
 import logging
 
