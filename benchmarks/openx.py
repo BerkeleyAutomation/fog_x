@@ -65,7 +65,7 @@ class DatasetHandler:
                 file_path = os.path.join(dirpath, f)
                 total_size += os.path.getsize(file_path)
         
-        print(f"total_size: {total_size} of directory {self.dataset_dir}")
+        logger.debug(f"total_size: {total_size} of directory {self.dataset_dir}")
         # trajectory number 
         traj_num = 0
         if self.dataset_name == "nyu_door_opening_surprising_effectiveness":
@@ -317,6 +317,15 @@ class LeRobotHandler(DatasetHandler):
                         log_func(f"    {key}: {type(value).__name__}")
         log_func(f"Total number of trajectories: {len(data)}")
 
+class FFV1Handler(DatasetHandler):
+    def __init__(self, exp_dir, dataset_name, num_batches, batch_size, log_frequency=DEFAULT_LOG_FREQUENCY):
+        super().__init__(exp_dir, dataset_name, num_batches, dataset_type="ffv1", batch_size=batch_size, log_frequency=log_frequency)
+        self.file_extension = ".vla"
+
+    def get_loader(self):
+        return VLALoader(self.dataset_dir, batch_size=self.batch_size)
+
+
 def evaluation(args):
 
     csv_file = "format_comparison_results.csv"
@@ -331,13 +340,13 @@ def evaluation(args):
         logger.debug(f"Evaluating dataset: {dataset_name}")
         
         handlers = [
-            VLAHandler(
-                args.exp_dir,
-                dataset_name,
-                args.num_batches,
-                args.batch_size,
-                args.log_frequency,
-            ),
+            # VLAHandler(
+            #     args.exp_dir,
+            #     dataset_name,
+            #     args.num_batches,
+            #     args.batch_size,
+            #     args.log_frequency,
+            # ),
             HDF5Handler(
                 args.exp_dir,
                 dataset_name,
@@ -345,20 +354,27 @@ def evaluation(args):
                 args.batch_size,
                 args.log_frequency,
             ),
-            LeRobotHandler(
-                args.exp_dir,
-                dataset_name,
-                args.num_batches,
-                args.batch_size,
-                args.log_frequency,
-            ),
-            RLDSHandler(
-                args.exp_dir,
-                dataset_name,
-                args.num_batches,
-                args.batch_size,
-                args.log_frequency,
-            ),
+            # LeRobotHandler(
+            #     args.exp_dir,
+            #     dataset_name,
+            #     args.num_batches,
+            #     args.batch_size,
+            #     args.log_frequency,
+            # ),
+            # RLDSHandler(
+            #     args.exp_dir,
+            #     dataset_name,
+            #     args.num_batches,
+            #     args.batch_size,
+            #     args.log_frequency,
+            # ),
+            # FFV1Handler(
+            #     args.exp_dir,
+            #     dataset_name,
+            #     args.num_batches,
+            #     args.batch_size,
+            #     args.log_frequency,
+            # ),
         ]
 
         for handler in handlers:

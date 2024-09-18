@@ -76,7 +76,7 @@ class HDF5Loader(BaseLoader):
     def _read_hdf5(self, data_path):
         with h5py.File(data_path, "r") as f:
             data_unflattened = recursively_read_hdf5_group(f)
-
+        print(data_unflattened.keys())
         data = {}
         data["observation"] = _flatten(data_unflattened["observation"])
         data["action"] = _flatten(data_unflattened["action"])

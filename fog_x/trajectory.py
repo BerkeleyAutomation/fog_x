@@ -176,14 +176,22 @@ class Trajectory:
             np_cache = self._load_from_container()
             if save_to_cache:
                 # await self._async_write_to_cache(np_cache)
-                self._write_to_cache(np_cache)
+                try:
+                    self._write_to_cache(np_cache)
+                except Exception as e:
+                    logger.error(f"Error writing to cache file {self.cache_file_name}: {e}")
+                    return np_cache
         
         if return_type =="hdf5":
             return h5py.File(self.cache_file_name, "r")
         elif return_type == "numpy":
             if not np_cache:
-                with h5py.File(self.cache_file_name, "r") as h5_cache:
-                    np_cache = recursively_read_hdf5_group(h5_cache)
+                try:
+                    with h5py.File(self.cache_file_name, "r") as h5_cache:
+                        np_cache = recursively_read_hdf5_group(h5_cache)
+                except Exception as e:
+                    logger.error(f"Error loading cache file {self.cache_file_name}: {e}, reading from container")
+                    np_cache = self._load_from_container()
             return np_cache
         elif return_type == "cache_name":
             return self.cache_file_name
@@ -462,16 +470,7 @@ class Trajectory:
             )
 
             feature_codec = packet.stream.codec_context.codec.name
-            if feature_codec == "h264" or feature_codec == "ffv1" or feature_codec == "hevc": 
-                frames = packet.decode()
-                for frame in frames:
-                    data = frame.to_ndarray(format="rgb24").reshape(feature_type.shape)
-                    # data = np.asarray(frame.to_image())#.reshape(feature_type.shape)
-                    # save the numpy to image folder
-                    # Append data to the numpy array
-                    np_cache[feature_name][d_feature_length[feature_name]] = data
-                    d_feature_length[feature_name] += 1
-            else:
+            if feature_codec == "rawvideo":
                 packet_in_bytes = bytes(packet)
                 if packet_in_bytes:
                     # Decode the packet
@@ -482,6 +481,19 @@ class Trajectory:
                     d_feature_length[feature_name] += 1
                 else:
                     logger.debug(f"Skipping empty packet: {packet} for {feature_name}")
+            else:
+                frames = packet.decode()
+                for frame in frames:
+                    if feature_type.dtype == "float32":
+                        data = frame.to_ndarray(format="gray").reshape(feature_type.shape)
+                    else:
+                        data = frame.to_ndarray(format="rgb24").reshape(feature_type.shape)
+                    # data = np.asarray(frame.to_image())#.reshape(feature_type.shape)
+                    # save the numpy to image folder
+                    # Append data to the numpy array
+                    np_cache[feature_name][d_feature_length[feature_name]] = data
+                    d_feature_length[feature_name] += 1
+
         logger.debug(f"Length of the stream {feature_name} is {d_feature_length[feature_name]}")
         container.close()
 
@@ -500,7 +512,7 @@ class Trajectory:
             h5_cache = h5py.File(self.cache_file_name, "w")
         except Exception as e:
             logger.error(f"Error creating cache file: {e}")
-            return
+            raise
         for feature_name, data in np_cache.items():
             if data.dtype == object:
                 for i in range(len(data)):
@@ -570,7 +582,7 @@ class Trajectory:
                 ]
 
                 # Check if the stream is using rawvideo, meaning it's a pickled stream
-                if packet.stream.codec_context.codec.name == "ffv1" or packet.stream.codec_context.codec.name == "libx264":
+                if packet.stream.codec_context.codec.name == "ffv1" or packet.stream.codec_context.codec.name == "libaom-av1":
                     data = pickle.loads(bytes(packet))
 
                     # Encode the image data as needed, example shown for raw images
@@ -622,7 +634,7 @@ class Trajectory:
         encoding = stream.codec_context.codec.name
         feature_type = FeatureType.from_data(data)
         logger.debug(f"Encoding {stream.metadata.get('FEATURE_NAME')} with {encoding}")
-        if encoding == "ffv1" or encoding == "libx264":
+        if encoding == "ffv1" or encoding == "libaom-av1":
             if feature_type.dtype == "float32":
                 frame = self._create_frame_depth(data, stream)
             else:
@@ -727,19 +739,23 @@ class Trajectory:
         if encoding == "ffv1":
             stream.width = feature_type.shape[1]
             stream.height = feature_type.shape[0]
-            stream.codec_context.options = {
-                "preset": "fast",  # Set preset to 'fast' for quicker encoding
-                "tune": "zerolatency",  # Reduce latency
-            }
+            # stream.codec_context.options = {
+            #     "preset": "fast",  # Set preset to 'fast' for quicker encoding
+            #     "tune": "zerolatency",  # Reduce latency
+            # }
         
-        if encoding == "libx264":
+        if encoding == "libaom-av1":
             stream.width = feature_type.shape[1]
             stream.height = feature_type.shape[0]
             stream.codec_context.options = {
-                "preset": "ultrafast",  # Set preset to 'ultrafast' for quicker encoding
-                "tune": "zerolatency",  # Reduce latency
+                "g": "2",
                 'crf': '30',  # Constant Rate Factor (quality)
             }
+            # stream.codec_context.options = {
+            #     "preset": "ultrafast",  # Set preset to 'ultrafast' for quicker encoding
+            #     "tune": "zerolatency",  # Reduce latency
+            #     'crf': '30',  # Constant Rate Factor (quality)
+            # }
 
         stream.metadata["FEATURE_NAME"] = feature_name
         stream.metadata["FEATURE_TYPE"] = str(feature_type)
@@ -781,7 +797,7 @@ class Trajectory:
         data_shape = feature_type.shape
         if len(data_shape) >= 2 and data_shape[0] >= 100 and data_shape[1] >= 100:
             if self.lossy_compression:
-                vid_coding = "libx264"
+                vid_coding = "libaom-av1"
             else:
                 vid_coding = "ffv1"
         else:

@@ -8,6 +8,7 @@ def data_to_tf_schema(data: Dict[str, Any]) -> Dict[str, FeatureType]:
     """
     Convert data to a tf schema
     """
+    data = _flatten(data)
     schema = {}
     for k, v in data.items():
         if "/" in k: # make the subkey to be within dict 

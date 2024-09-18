@@ -9,28 +9,17 @@ import time
 def process_data(data_traj, dataset_name, index, destination_dir, lossless):
     try:
         data_traj = data_traj[0]
-        if lossless:
-            fog_x.Trajectory.from_list_of_dicts(
-                data_traj, path=f"{destination_dir}/{dataset_name}/output_{index}.vla",
-                lossy_compression=False
-            )
-        else:
-            fog_x.Trajectory.from_list_of_dicts(
-                data_traj, path=f"{destination_dir}/{dataset_name}/output_{index}.vla", 
-                lossy_compression=True,
-            )
-        print(f"Processed data {index}")
-        return index, True
+        steps = len(data_traj)  # Count the number of steps in the trajectory
+        return index, True, steps
     except Exception as e:
         print(f"Failed to process data {index}: {e}")
-        return index, False
+        return index, False, 0
 
 def main():
     parser = argparse.ArgumentParser(description="Process RLDS data and convert to VLA format.")
     parser.add_argument("--data_dir", required=True, help="Path to the data directory")
     parser.add_argument("--dataset_name", required=True, help="Name of the dataset")
     parser.add_argument("--version", default="0.1.0", help="Dataset version")
-    parser.add_argument("--destination_dir", required=True, help="Destination directory for output files")
     parser.add_argument("--split", default="train", help="Data split to use")
     parser.add_argument("--max_workers", type=int, default=4, help="Maximum number of worker processes")
     parser.add_argument("--lossless", action="store_true", help="Enable lossless compression for VLA format")
@@ -52,6 +41,9 @@ def main():
     max_concurrent_tasks = args.max_workers
     semaphore = threading.Semaphore(max_concurrent_tasks)
 
+    total_steps = 0
+    total_trajectories = 0
+
     with ProcessPoolExecutor(max_workers=args.max_workers) as executor:
         futures = []
         retry_queue = []
@@ -61,7 +53,7 @@ def main():
                 if index < split_starting_index:
                     continue
                 semaphore.acquire()
-                future = executor.submit(process_data, data_traj, args.dataset_name, index, args.destination_dir, args.lossless)
+                future = executor.submit(process_data, data_traj, args.dataset_name, index, "", args.lossless)
                 future.add_done_callback(lambda x: semaphore.release())
                 futures.append(future)
         except Exception as e:
@@ -69,8 +61,11 @@ def main():
 
         for future in as_completed(futures):
             try:
-                index, success = future.result()
-                if not success:
+                index, success, steps = future.result()
+                if success:
+                    total_steps += steps
+                    total_trajectories += 1
+                else:
                     retry_queue.append((index, data_traj))
             except Exception as e:
                 print(f"Error processing future: {e}")
@@ -86,11 +81,17 @@ def main():
             
             for future in as_completed(retry_futures):
                 try:
-                    index, success = future.result()
+                    index, success, steps = future.result()
                     if not success:
                         print(f"Failed to process data {index} after retry")
                 except Exception as e:
                     print(f"Error processing retry future: {e}")
+
+    if total_trajectories > 0:
+        average_steps = total_steps / total_trajectories
+        print(f"Average steps per trajectory: {average_steps:.2f}")
+    else:
+        print("No trajectories were successfully processed.")
 
     print("All tasks completed.")
 

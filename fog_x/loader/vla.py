@@ -14,32 +14,43 @@ from multiprocessing import Manager
 logger = logging.getLogger(__name__)
 
 class VLALoader:
-    def __init__(self, path: Text, batch_size=1, cache_dir="/tmp/fog_x/cache/", buffer_size=50, num_workers=-1, return_type = "numpy"):
-        self.files = self._get_files(path)
+    def __init__(self, path: Text, batch_size=1, cache_dir="/tmp/fog_x/cache/", buffer_size=50, num_workers=-1, return_type = "numpy", split="all"):
+        self.files = self._get_files(path, split)
+        self.split = split
+        
         self.cache_dir = cache_dir
         self.batch_size = batch_size
         self.return_type = return_type
         # TODO: adjust buffer size
-        if "autolab" in path:
-            self.buffer_size = 4
+        # if "autolab" in path:
+        #     self.buffer_size = 4
         self.buffer_size = buffer_size
         self.buffer = mp.Queue(maxsize=buffer_size)
         if num_workers == -1:
-            num_workers = 4
+            num_workers = 2
         self.num_workers = num_workers
         self.processes = []
         random.shuffle(self.files)
         self._start_workers()
         
-
-    def _get_files(self, path):
+    def _get_files(self, path, split):
+        ret = []
         if "*" in path:
-            return glob.glob(path)
+            ret = glob.glob(path)
         elif os.path.isdir(path):
-            return glob.glob(os.path.join(path, "*.vla"))
+            ret = glob.glob(os.path.join(path, "*.vla"))
         else:
-            return [path]
-
+            ret = [path]
+        if split == "train":
+            ret = ret[:int(len(ret)*0.9)]
+        elif split == "val":
+            ret = ret[int(len(ret)*0.9):]
+        elif split == "all":
+            pass
+        else:
+            raise ValueError(f"Invalid split: {split}")
+        return ret
+    
     def _read_vla(self, data_path, return_type = None):
         if return_type is None:
             return_type = self.return_type
@@ -117,6 +128,74 @@ class VLALoader:
             p.terminate()
             p.join()
             
+            
+class NonShuffleVLALoader:
+    def __init__(self, path: Text, batch_size=1, cache_dir="/tmp/fog_x/cache/", num_workers=1, return_type = "numpy"):
+        self.files = self._get_files(path)
+        self.cache_dir = cache_dir
+        self.batch_size = batch_size
+        self.return_type = return_type
+        self.index = 0
+        
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.index >= len(self.files):
+            raise StopIteration
+        
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                print(self.index)
+                file_path = self.files[self.index]
+                self.index += 1
+                return self._read_vla(file_path, return_type = self.return_type)
+            except Exception as e:
+                logger.error(f"Error reading {file_path} on attempt {attempt + 1}: {e}")
+                if attempt + 1 == max_retries:
+                    logger.error(f"Failed to read {file_path} after {max_retries} attempts")
+                    return None
+
+    def _get_files(self, path):
+        ret = []
+        if "*" in path:
+            ret = glob.glob(path)
+        elif os.path.isdir(path):
+            ret = glob.glob(os.path.join(path, "*.vla"))
+        else:
+            ret = [path]
+        # for file in ret:
+        #     try:
+        #         self._read_vla(file, return_type = self.return_type)
+        #     except Exception as e:
+        #         logger.error(f"Error reading {file}: {e}, ")
+        #         ret.remove(file)
+        return ret
+    
+    def __len__(self):
+        return len(self.files)
+    
+    def __getitem__(self, index):
+        return self.files[index]
+    
+    def __del__(self):
+        pass
+    
+    def peek(self):
+        file = self.files[self.index]
+        return self._read_vla(file, return_type = "numpy")
+
+    def _read_vla(self, data_path, return_type = None):
+        if return_type is None:
+            return_type = self.return_type
+        traj = fog_x.Trajectory(data_path, cache_dir=self.cache_dir)
+        ret = traj.load(return_type = return_type)
+        return ret
+    
+    def get_batch(self):
+        return [self.__next__() for _ in range(self.batch_size)]
+
 import torch
 from torch.utils.data import IterableDataset, DataLoader
 from fog_x.loader.vla import VLALoader
