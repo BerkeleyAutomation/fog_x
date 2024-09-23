@@ -237,10 +237,17 @@ class VLAHandler(DatasetHandler):
         self.file_extension = ".vla"
 
     def get_loader(self):
-        return get_vla_dataloader(
-            self.dataset_dir, batch_size=self.batch_size, cache_dir=CACHE_DIR, 
-            unit = self.unit,
-        )
+        if self.unit == "frame":
+            return get_vla_dataloader(
+                self.dataset_dir, batch_size=1, cache_dir=CACHE_DIR, 
+                unit = self.unit,
+                slice_size=self.batch_size,
+            )
+        else:
+            return get_vla_dataloader(
+                self.dataset_dir, batch_size=self.batch_size, cache_dir=CACHE_DIR, 
+                unit = self.unit,
+            )
 
 
 class HDF5Handler(DatasetHandler):
@@ -352,13 +359,13 @@ def evaluation(args):
         logger.debug(f"Evaluating dataset: {dataset_name}")
         
         handlers = [
-            # VLAHandler(
-            #     args.exp_dir,
-            #     dataset_name,
-            #     args.num_batches,
-            #     args.batch_size,
-            #     args.log_frequency,
-            # ),
+            VLAHandler(
+                args.exp_dir,
+                dataset_name,
+                args.num_batches,
+                args.batch_size,
+                args.log_frequency,
+            ),
             HDF5Handler(
                 args.exp_dir,
                 dataset_name,
@@ -366,13 +373,13 @@ def evaluation(args):
                 args.batch_size,
                 args.log_frequency,
             ),
-            # LeRobotHandler(
-            #     args.exp_dir,
-            #     dataset_name,
-            #     args.num_batches,
-            #     args.batch_size,
-            #     args.log_frequency,
-            # ),
+            LeRobotHandler(
+                args.exp_dir,
+                dataset_name,
+                args.num_batches,
+                args.batch_size,
+                args.log_frequency,
+            ),
             # RLDSHandler(
             #     args.exp_dir,
             #     dataset_name,
