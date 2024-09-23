@@ -3,7 +3,7 @@ import subprocess
 import argparse
 import time
 import numpy as np
-from fog_x.loader import RLDSLoader, VLALoader, HDF5Loader
+from fog_x.loader import RLDSLoader, VLALoader, HDF5FrameLoader, HDF5EpisodeLoader
 import tensorflow as tf
 import pandas as pd
 import fog_x
@@ -263,12 +263,21 @@ class HDF5Handler(DatasetHandler):
         self.file_extension = ".h5"
 
     def get_loader(self):
-        return get_hdf5_dataloader(
-            path=os.path.join(self.dataset_dir, "*.h5"),
-            batch_size=self.batch_size,
-            num_workers=0,  # You can adjust this if needed
-            unit = self.unit,
-        )
+        if self.unit == "frame":
+            return get_hdf5_dataloader(
+                path=os.path.join(self.dataset_dir, "*.h5"),
+                batch_size=1,
+                num_workers=0,  # You can adjust this if needed
+                unit = self.unit,
+                slice_size=self.batch_size,
+            )
+        else:
+            return get_hdf5_dataloader(
+                path=os.path.join(self.dataset_dir, "*.h5"),
+                batch_size=self.batch_size,
+                num_workers=0,  # You can adjust this if needed
+                unit = self.unit,
+            )
 
 
 class LeRobotHandler(DatasetHandler):
