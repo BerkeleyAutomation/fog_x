@@ -56,6 +56,7 @@ class DatasetHandler:
         self.log_frequency = log_frequency
         self.results = []
         self.log_level = "debug"
+        self.unit = "frame"
 
     def measure_average_trajectory_size(self):
         """Calculates the average size of trajectory files in the dataset directory."""
@@ -237,7 +238,8 @@ class VLAHandler(DatasetHandler):
 
     def get_loader(self):
         return get_vla_dataloader(
-            self.dataset_dir, batch_size=self.batch_size, cache_dir=CACHE_DIR
+            self.dataset_dir, batch_size=self.batch_size, cache_dir=CACHE_DIR, 
+            unit = self.unit,
         )
 
 
@@ -265,6 +267,7 @@ class HDF5Handler(DatasetHandler):
             path=os.path.join(self.dataset_dir, "*.h5"),
             batch_size=self.batch_size,
             num_workers=0,  # You can adjust this if needed
+            unit = self.unit,
         )
 
 

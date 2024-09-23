@@ -100,7 +100,7 @@ class HDF5Loader(BaseLoader):
             p.join()
 
 
-class HDF5IterableDataset(IterableDataset):
+class HDF5IterableEpisodeDataset(IterableDataset):
     def __init__(self, path, batch_size=1):
         # Note: batch size = 1 is to bypass the dataloader without pytorch dataloader
         self.hdf5_loader = HDF5Loader(path, 1)
@@ -120,9 +120,26 @@ def hdf5_collate_fn(batch):
     # Convert data to PyTorch tensors
     return batch
 
+class HDF5IterableFrameDataset(IterableDataset):
+    def __init__(self, path, batch_size=1):
+        # Note: batch size = 1 is to bypass the dataloader without pytorch dataloader
+        self.hdf5_loader = HDF5Loader(path, 1)
 
-def get_hdf5_dataloader(path: str, batch_size: int = 1, num_workers: int = 0):
-    dataset = HDF5IterableDataset(path, batch_size)
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        try:
+            batch = next(self.hdf5_loader)
+            return batch[0]  # Return a single item, not a batch
+        except StopIteration:
+            raise StopIteration
+
+def get_hdf5_dataloader(path: str, batch_size: int = 1, num_workers: int = 0, unit: str = "trajectory"):
+    if unit == "trajectory":
+        dataset = HDF5IterableEpisodeDataset(path, batch_size)
+    elif unit == "frame":
+        dataset = HDF5IterableFrameDataset(path, batch_size)
     return DataLoader(
         dataset,
         batch_size=batch_size,
