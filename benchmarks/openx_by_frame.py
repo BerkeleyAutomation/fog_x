@@ -9,7 +9,7 @@ import pandas as pd
 import fog_x
 import csv
 import stat
-from fog_x.loader.lerobot import LeRobotLoader
+from fog_x.loader.lerobot import LeRobotLoader_ByFrame
 from fog_x.loader.vla import get_vla_dataloader
 from fog_x.loader.hdf5 import get_hdf5_dataloader
 
@@ -310,7 +310,7 @@ class LeRobotHandler(DatasetHandler):
 
     def get_loader(self):
         path = os.path.join(self.exp_dir, "hf")
-        return LeRobotLoader(path, self.dataset_name, batch_size=self.batch_size)
+        return LeRobotLoader_ByFrame(path, self.dataset_name, batch_size=1, slice_length=self.batch_size)
 
     def _recursively_load_data(self, data):
         import torch
