@@ -9,6 +9,7 @@ import pandas as pd
 import fog_x
 import csv
 import stat
+from fog_x.loader.rlds import RLDSLoader_ByFrame
 from fog_x.loader.lerobot import LeRobotLoader_ByFrame
 from fog_x.loader.vla import get_vla_dataloader
 from fog_x.loader.hdf5 import get_hdf5_dataloader
@@ -194,7 +195,7 @@ class RLDSHandler(DatasetHandler):
         self.file_extension = ".tfrecord"
 
     def get_loader(self):
-        return RLDSLoader(self.dataset_dir, split="train", batch_size=self.batch_size)
+        return RLDSLoader_ByFrame(self.dataset_dir, split="train", batch_size=1, slice_length=self.batch_size)
 
     def _recursively_load_data(self, data):
         log_level = self.log_level
@@ -359,34 +360,34 @@ def evaluation(args):
         logger.debug(f"Evaluating dataset: {dataset_name}")
         
         handlers = [
-            VLAHandler(
-                args.exp_dir,
-                dataset_name,
-                args.num_batches,
-                args.batch_size,
-                args.log_frequency,
-            ),
-            HDF5Handler(
-                args.exp_dir,
-                dataset_name,
-                args.num_batches,
-                args.batch_size,
-                args.log_frequency,
-            ),
-            LeRobotHandler(
-                args.exp_dir,
-                dataset_name,
-                args.num_batches,
-                args.batch_size,
-                args.log_frequency,
-            ),
-            # RLDSHandler(
+            # VLAHandler(
             #     args.exp_dir,
             #     dataset_name,
             #     args.num_batches,
             #     args.batch_size,
             #     args.log_frequency,
             # ),
+            # HDF5Handler(
+            #     args.exp_dir,
+            #     dataset_name,
+            #     args.num_batches,
+            #     args.batch_size,
+            #     args.log_frequency,
+            # ),
+            # LeRobotHandler(
+            #     args.exp_dir,
+            #     dataset_name,
+            #     args.num_batches,
+            #     args.batch_size,
+            #     args.log_frequency,
+            # ),
+            RLDSHandler(
+                args.exp_dir,
+                dataset_name,
+                args.num_batches,
+                args.batch_size,
+                args.log_frequency,
+            ),
             # FFV1Handler(
             #     args.exp_dir,
             #     dataset_name,
