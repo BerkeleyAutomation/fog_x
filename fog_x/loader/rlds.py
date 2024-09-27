@@ -142,8 +142,11 @@ class RLDSLoader_ByFrame(BaseLoader):
         num_frames = len(traj["steps"])
         if num_frames >= self.slice_length:
             random_from = np.random.randint(0, num_frames - self.slice_length + 1)
+            # random_to = random_from + self.slice_length
             trajs = traj["steps"].skip(random_from).take(self.slice_length)
         else:
+            # random_from = 0
+            # random_to = num_frames
             trajs = traj["steps"]
         for step in trajs:
             trajectory.append(to_numpy(step))
