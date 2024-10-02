@@ -27,7 +27,7 @@ class VLALoader:
         self.buffer_size = buffer_size
         self.buffer = mp.Queue(maxsize=buffer_size)
         if num_workers == -1:
-            num_workers = 2
+            num_workers = 10
         self.num_workers = num_workers
         self.processes = []
         random.shuffle(self.files)
@@ -196,6 +196,123 @@ class NonShuffleVLALoader:
     def get_batch(self):
         return [self.__next__() for _ in range(self.batch_size)]
 
+class VLAFrameLoader:
+    def __init__(self, path: Text, batch_size=1, cache_dir="/tmp/fog_x/cache/", buffer_size=100, num_workers=-1, return_type="numpy", split="all", slice_size=1):
+        self.files = self._get_files(path, split)
+        self.split = split
+        
+        self.cache_dir = cache_dir
+        self.batch_size = batch_size
+        self.return_type = return_type
+        self.buffer_size = buffer_size
+        self.buffer = mp.Queue(maxsize=buffer_size)
+        if num_workers == -1:
+            num_workers = 10
+        self.num_workers = num_workers
+        self.processes = []
+        self.slice_size = slice_size
+        random.shuffle(self.files)
+        self._start_workers()
+
+    def _get_files(self, path, split):
+        ret = []
+        if "*" in path:
+            ret = glob.glob(path)
+        elif os.path.isdir(path):
+            ret = glob.glob(os.path.join(path, "*.vla"))
+        else:
+            ret = [path]
+        if split == "train":
+            ret = ret[:int(len(ret)*0.9)]
+        elif split == "val":
+            ret = ret[int(len(ret)*0.9):]
+        elif split == "all":
+            pass
+        else:
+            raise ValueError(f"Invalid split: {split}")
+        return ret
+    
+    def _read_vla_slice(self, data_path):
+        traj = fog_x.Trajectory(data_path, cache_dir=self.cache_dir)
+        total_frames = len(traj)
+        if self.slice_size > total_frames:
+            start_idx = 0
+            end_idx = total_frames
+        else:
+            start_idx = random.randint(0, total_frames - self.slice_size)
+            end_idx = start_idx + self.slice_size
+        
+        slice_data = traj.load_slice(start_idx, end_idx)
+        return slice_data
+
+    def _worker(self):
+        max_retries = 3
+        while True:
+            if not self.files:
+                logger.info("Worker finished")
+                break
+            
+            for attempt in range(max_retries):
+                try:
+                    file_path = random.choice(self.files)
+                    # logger.info(f"trying {file_path}")
+                    data = self._read_vla_slice(file_path)
+                    self.buffer.put(data)
+                    break  # Exit the retry loop if successful
+                except Exception as e:
+                    logger.error(f"Error reading {file_path} on attempt {attempt + 1}: {e}")
+                    if attempt + 1 == max_retries:
+                        logger.error(f"Failed to read {file_path} after {max_retries} attempts")
+                        
+
+    def _start_workers(self):
+        for _ in range(self.num_workers):
+            p = mp.Process(target=self._worker)
+            p.start()
+            logger.debug(f"Started worker {p.pid}")
+            self.processes.append(p)
+
+    def get_batch_by_slice(self):
+        batch = []
+        timeout = 10  # Adjust based on your needs
+
+        start_time = time.time()
+        while len(batch) < self.batch_size:
+            if time.time() - start_time > timeout:
+                logger.warning(f"Timeout reached. Returning partial batch of size {len(batch)}")
+                break
+
+            try:
+                item = self.buffer.get(timeout=1)
+                batch.append(item)
+            except mp.queues.Empty:
+                continue
+
+        return batch if batch else None
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        batch = self.get_batch_by_slice()
+        if batch is None:
+            random.shuffle(self.files)
+            self._start_workers()
+            raise StopIteration
+        return batch
+
+    def __len__(self):
+        return len(self.files)
+
+    def peek(self):
+        file = random.choice(self.files)
+        return self._read_vla_slice(file)
+
+    def __del__(self):
+        for p in self.processes:
+            p.terminate()
+            p.join()
+
 import torch
 from torch.utils.data import IterableDataset, DataLoader
 from fog_x.loader.vla import VLALoader
@@ -216,6 +333,19 @@ class VLAIterableDataset(IterableDataset):
             raise StopIteration
         return batch[0]  # Return a single item, not a batch
 
+class VLAIterableFrameDataset(IterableDataset):
+    def __init__(self, path: Text, cache_dir: Optional[Text] = None, buffer_size: int = 1000, slice_size: int = 1):
+        self.vla_loader = VLAFrameLoader(path, batch_size=1, cache_dir=cache_dir, buffer_size=buffer_size, slice_size=slice_size)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        batch = self.vla_loader.get_batch_by_slice()
+        if batch is None:
+            raise StopIteration
+        return batch[0]  # Return a single item, not a batch
+
 def vla_collate_fn(batch):
     # Convert data to PyTorch tensors
     # You may need to adjust this based on the structure of your VLA data
@@ -226,9 +356,17 @@ def get_vla_dataloader(
     batch_size: int = 1,
     cache_dir: Optional[Text] = None,
     buffer_size: int = 1000,
-    num_workers: int = 0
+    num_workers: int = 0,
+    unit: str = "trajectory",
+    slice_size: int = 1
 ):
-    dataset = VLAIterableDataset(path, cache_dir, buffer_size)
+    if unit == "trajectory":
+        dataset = VLAIterableDataset(path, cache_dir, buffer_size)
+    elif unit == "frame":
+        dataset = VLAIterableFrameDataset(path, cache_dir, buffer_size, slice_size)
+    else:
+        raise ValueError(f"Invalid unit: {unit}. Choose 'trajectory' or 'frame'.")
+    
     return DataLoader(
         dataset,
         batch_size=batch_size,

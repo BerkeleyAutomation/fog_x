@@ -107,7 +107,22 @@ class Trajectory:
         return current_time
 
     def __len__(self):
-        raise NotImplementedError
+        def _get_length_of_stream(container, stream):
+            """
+            Get the length of the stream.
+            """
+            length = 0
+            for packet in container.demux([stream]):
+                if packet.dts is not None:
+                    length += 1
+            return length
+        
+        container_to_get_length = av.open(self.path, mode="r", format="matroska")
+        streams = container_to_get_length.streams
+        length = _get_length_of_stream(container_to_get_length, streams[0])
+        logger.debug(f"Length of the stream is {length}")
+        container_to_get_length.close()
+        return length
 
     def __getitem__(self, key):
         """
@@ -219,7 +234,26 @@ class Trajectory:
         else:
             raise ValueError(f"Invalid return_type {return_type}")
             
-            
+    def load_slice(self, start, end):
+        
+        np_cache = None
+        if not os.path.exists(self.cache_file_name):
+            logger.debug(f"Loading the container file {self.path}, saving to cache {self.cache_file_name}")
+            np_cache = self._load_from_container()
+            try:
+                self._write_to_cache(np_cache)
+            except Exception as e:
+                logger.error(f"Error writing to cache file {self.cache_file_name}: {e}")
+                return np_cache[start:end]
+        
+        # TODO: currently keys are hardcoded to observation and action
+        np_cache = {}
+        with h5py.File(self.cache_file_name, "r") as h5_cache:
+            for key in h5_cache['observation'].keys():
+                np_cache[f'observation/{key}'] = h5_cache[f'observation/{key}'][start:end]
+            for key in h5_cache['action'].keys():
+                np_cache[f'action/{key}'] = h5_cache[f'action/{key}'][start:end]
+        return np_cache
 
     def init_feature_streams(self, feature_spec: Dict):
         """

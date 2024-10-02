@@ -3,7 +3,7 @@ import subprocess
 import argparse
 import time
 import numpy as np
-from fog_x.loader import RLDSLoader, VLALoader, HDF5Loader
+from fog_x.loader import RLDSLoader, VLALoader
 import tensorflow as tf
 import pandas as pd
 import fog_x
@@ -340,13 +340,13 @@ def evaluation(args):
         logger.debug(f"Evaluating dataset: {dataset_name}")
         
         handlers = [
-            # VLAHandler(
-            #     args.exp_dir,
-            #     dataset_name,
-            #     args.num_batches,
-            #     args.batch_size,
-            #     args.log_frequency,
-            # ),
+            VLAHandler(
+                args.exp_dir,
+                dataset_name,
+                args.num_batches,
+                args.batch_size,
+                args.log_frequency,
+            ),
             HDF5Handler(
                 args.exp_dir,
                 dataset_name,
@@ -354,20 +354,20 @@ def evaluation(args):
                 args.batch_size,
                 args.log_frequency,
             ),
-            # LeRobotHandler(
-            #     args.exp_dir,
-            #     dataset_name,
-            #     args.num_batches,
-            #     args.batch_size,
-            #     args.log_frequency,
-            # ),
-            # RLDSHandler(
-            #     args.exp_dir,
-            #     dataset_name,
-            #     args.num_batches,
-            #     args.batch_size,
-            #     args.log_frequency,
-            # ),
+            LeRobotHandler(
+                args.exp_dir,
+                dataset_name,
+                args.num_batches,
+                args.batch_size,
+                args.log_frequency,
+            ),
+            RLDSHandler(
+                args.exp_dir,
+                dataset_name,
+                args.num_batches,
+                args.batch_size,
+                args.log_frequency,
+            ),
             # FFV1Handler(
             #     args.exp_dir,
             #     dataset_name,
