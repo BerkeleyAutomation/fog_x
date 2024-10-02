@@ -423,8 +423,12 @@ def evaluation(args):
 
         # Write all results to CSV
         results_df = pd.DataFrame(all_results)
-        results_df.to_csv(csv_file, index=False)
+        results_df.to_csv(csv_file, index = False)
         logger.debug(f"Results appended to {csv_file}")
+
+        # if os.path.exists(csv_file):
+        #     print("exist in", os.path.abspath(csv_file))
+        #     print(pd.read_csv(csv_file))
 
 
 if __name__ == "__main__":
