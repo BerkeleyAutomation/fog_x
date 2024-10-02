@@ -101,7 +101,7 @@ class HDF5EpisodeLoader(BaseLoader):
 
 
 class HDF5FrameLoader(BaseLoader):
-    def __init__(self, path, batch_size=1, buffer_size=50, num_workers=4, slice_size=1):
+    def __init__(self, path, batch_size=1, buffer_size=100, num_workers=10, slice_size=1):
         super(HDF5FrameLoader, self).__init__(path)
         self.files = glob.glob(self.path, recursive=True)
         self.batch_size = batch_size

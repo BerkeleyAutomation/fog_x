@@ -360,13 +360,13 @@ def evaluation(args):
         logger.debug(f"Evaluating dataset: {dataset_name}")
         
         handlers = [
-            # VLAHandler(
-            #     args.exp_dir,
-            #     dataset_name,
-            #     args.num_batches,
-            #     args.batch_size,
-            #     args.log_frequency,
-            # ),
+            VLAHandler(
+                args.exp_dir,
+                dataset_name,
+                args.num_batches,
+                args.batch_size,
+                args.log_frequency,
+            ),
             # HDF5Handler(
             #     args.exp_dir,
             #     dataset_name,
@@ -381,13 +381,13 @@ def evaluation(args):
             #     args.batch_size,
             #     args.log_frequency,
             # ),
-            RLDSHandler(
-                args.exp_dir,
-                dataset_name,
-                args.num_batches,
-                args.batch_size,
-                args.log_frequency,
-            ),
+            # RLDSHandler(
+            #     args.exp_dir,
+            #     dataset_name,
+            #     args.num_batches,
+            #     args.batch_size,
+            #     args.log_frequency,
+            # ),
             # FFV1Handler(
             #     args.exp_dir,
             #     dataset_name,

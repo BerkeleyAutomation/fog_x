@@ -68,7 +68,7 @@ class LeRobotLoader_ByFrame(BaseLoader):
         return self
 
     def __next__(self):
-        max_retries = 3
+        max_retries = 10
         batch_of_episodes = []
 
         def _frame_to_numpy(frame):
@@ -93,12 +93,12 @@ class LeRobotLoader_ByFrame(BaseLoader):
                     else:
                         random_from = np.random.randint(from_idx, to_idx - self.slice_length)
                         random_to = random_from + self.slice_length
-                    frames = [self.dataset[idx] for idx in range(random_from, random_to)]
+                    frames = [_frame_to_numpy(self.dataset[idx]) for idx in range(random_from, random_to)]
                     episode.extend(frames)
                     break
                 except Exception as e:
                     if attempt == max_retries - 1:
-                        raise e
+                        continue
 
             batch_of_episodes.append((episode))
             

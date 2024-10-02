@@ -27,7 +27,7 @@ class VLALoader:
         self.buffer_size = buffer_size
         self.buffer = mp.Queue(maxsize=buffer_size)
         if num_workers == -1:
-            num_workers = 2
+            num_workers = 10
         self.num_workers = num_workers
         self.processes = []
         random.shuffle(self.files)
@@ -197,7 +197,7 @@ class NonShuffleVLALoader:
         return [self.__next__() for _ in range(self.batch_size)]
 
 class VLAFrameLoader:
-    def __init__(self, path: Text, batch_size=1, cache_dir="/tmp/fog_x/cache/", buffer_size=50, num_workers=-1, return_type="numpy", split="all", slice_size=1):
+    def __init__(self, path: Text, batch_size=1, cache_dir="/tmp/fog_x/cache/", buffer_size=100, num_workers=-1, return_type="numpy", split="all", slice_size=1):
         self.files = self._get_files(path, split)
         self.split = split
         
@@ -207,7 +207,7 @@ class VLAFrameLoader:
         self.buffer_size = buffer_size
         self.buffer = mp.Queue(maxsize=buffer_size)
         if num_workers == -1:
-            num_workers = 2
+            num_workers = 10
         self.num_workers = num_workers
         self.processes = []
         self.slice_size = slice_size
@@ -255,6 +255,7 @@ class VLAFrameLoader:
             for attempt in range(max_retries):
                 try:
                     file_path = random.choice(self.files)
+                    # logger.info(f"trying {file_path}")
                     data = self._read_vla_slice(file_path)
                     self.buffer.put(data)
                     break  # Exit the retry loop if successful
@@ -262,6 +263,7 @@ class VLAFrameLoader:
                     logger.error(f"Error reading {file_path} on attempt {attempt + 1}: {e}")
                     if attempt + 1 == max_retries:
                         logger.error(f"Failed to read {file_path} after {max_retries} attempts")
+                        
 
     def _start_workers(self):
         for _ in range(self.num_workers):
@@ -272,25 +274,21 @@ class VLAFrameLoader:
 
     def get_batch_by_slice(self):
         batch = []
-        timeout = 5  # Adjust this value based on your needs
-        start_time = time.time()
+        timeout = 10  # Adjust based on your needs
 
+        start_time = time.time()
         while len(batch) < self.batch_size:
             if time.time() - start_time > timeout:
-                logger.warning(f"Timeout reached while getting batch. Batch size: {len(batch)}")
+                logger.warning(f"Timeout reached. Returning partial batch of size {len(batch)}")
                 break
 
             try:
                 item = self.buffer.get(timeout=1)
                 batch.append(item)
             except mp.queues.Empty:
-                if all(not p.is_alive() for p in self.processes) and self.buffer.empty():
-                    if len(batch) == 0:
-                        return None  # No more data available
-                    else:
-                        break  # Return partial batch
+                continue
 
-        return batch
+        return batch if batch else None
 
     def __iter__(self):
         return self
