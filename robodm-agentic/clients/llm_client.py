@@ -1,4 +1,4 @@
-"""LLM client for code generation using various models."""
+"""LLM client for function calling using various models."""
 
 import json
 import asyncio
@@ -21,7 +21,7 @@ except ImportError:
 
 
 class LLMClient:
-    """Client for interacting with Language Models for code generation."""
+    """Client for interacting with Language Models for tool calling."""
     
     def __init__(self, 
                  model: str = "qwen2.5:7b", 
@@ -56,10 +56,10 @@ class LLMClient:
         else:
             raise ValueError(f"Unsupported provider: {provider}")
     
-    async def generate_query_code(self, user_query: str, available_functions: Dict[str, str]) -> str:
-        """Generate RoboDM query code based on user query."""
+    async def generate_tool_call(self, user_query: str, tools: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Generate a tool call based on the user query and available tools."""
         
-        system_prompt = self._build_system_prompt(available_functions)
+        system_prompt = self._build_tool_prompt(tools)
         
         try:
             if self.provider == "ollama":
@@ -69,99 +69,48 @@ class LLMClient:
             else:
                 raise ValueError(f"Unsupported provider: {self.provider}")
                 
-            return self._extract_code(response)
+            return self._extract_json(response)
             
         except Exception as e:
-            logger.error(f"Error generating code: {e}")
-            return f"# Error generating code: {e}\\nprint('Query failed to generate code')"
+            logger.error(f"Error generating tool call: {e}")
+            return {
+                "tool_name": "error",
+                "arguments": {"message": f"Failed to generate tool call: {e}"}
+            }
     
-    def _build_system_prompt(self, available_functions: Dict[str, str]) -> str:
-        """Build system prompt with available functions and examples."""
+    def _build_tool_prompt(self, tools: List[Dict[str, Any]]) -> str:
+        """Build system prompt with available tools and instructions."""
         
-        functions_doc = "\\n".join([f"- {name}: {desc}" for name, desc in available_functions.items()])
+        tools_doc = json.dumps(tools, indent=2)
         
-        return f"""You are a code generator for RoboDM trajectory queries. Generate Python code that uses the robodm interface to answer user queries about robotics trajectories.
+        return f"""You are an expert at calling functions to answer user questions.
+Given a user query, select the best function from the following list and return a JSON object with the function name and arguments.
 
-Available RoboDM Interface Functions:
-{functions_doc}
+Available Functions:
+{tools_doc}
 
 IMPORTANT RULES:
-1. Use the variable name 'robodm' to access the interface (it's already initialized)
-2. Return executable Python code only, no explanations or markdown
-3. Always return a result that can be displayed to the user
-4. Handle errors gracefully with try/except blocks
-5. Use print() statements to show results to the user
+1. Respond with a single JSON object in the format: {{"tool_name": "<function_name>", "arguments": {{...}}}}
+2. Do not include any other text, explanations, or markdown formatting.
+3. If the user query doesn't seem to map to any function, you can use the "error" tool with a message.
 
-Example queries and their corresponding code:
+Example Query: "how many trajectories failed?"
+Example Response:
+{{
+  "tool_name": "count_trajectories",
+  "arguments": {{
+    "filter_query": {{"metadata.status": "failed"}}
+  }}
+}}
 
-Query: "find failed trajectories"
-Code:
-```python
-try:
-    failed_trajs = []
-    for traj_id in robodm.get_all_trajectories():
-        if robodm.get_trajectory_status(traj_id) == 'failed':
-            failed_trajs.append(traj_id)
-    print(f"Found {len(failed_trajs)} failed trajectories:")
-    for traj_id in failed_trajs:
-        print(f"  - {traj_id}")
-    result = failed_trajs
-except Exception as e:
-    print(f"Error finding failed trajectories: {e}")
-    result = []
-```
-
-Query: "find trajectories with hidden views"
-Code:
-```python
-try:
-    hidden_view_trajs = []
-    for traj_id in robodm.get_all_trajectories():
-        try:
-            data = robodm.get_trajectory_data(traj_id)
-            # Look for features that might indicate hidden views
-            features = list(data.keys())
-            if any('hidden' in feat.lower() or 'occlud' in feat.lower() for feat in features):
-                hidden_view_trajs.append(traj_id)
-        except Exception:
-            continue
-    print(f"Found {len(hidden_view_trajs)} trajectories with potential hidden views:")
-    for traj_id in hidden_view_trajs:
-        print(f"  - {traj_id}")
-    result = hidden_view_trajs
-except Exception as e:
-    print(f"Error searching for hidden views: {e}")
-    result = []
-```
-
-Query: "count successful trajectories"
-Code:
-```python
-try:
-    success_count = robodm.count_trajectories({"status": "success"})
-    total_count = robodm.count_trajectories()
-    print(f"Successful trajectories: {success_count} out of {total_count}")
-    result = success_count
-except Exception as e:
-    print(f"Error counting trajectories: {e}")
-    result = 0
-```
-
-Query: "show me 5 random trajectories"
-Code:
-```python
-try:
-    sample_trajs = robodm.sample_trajectories(5)
-    print(f"Random sample of {len(sample_trajs)} trajectories:")
-    for traj_id in sample_trajs:
-        metadata = robodm.get_trajectory_metadata(traj_id)
-        length = metadata.get('length', 'unknown')
-        print(f"  - {traj_id}: {length} timesteps")
-    result = sample_trajs
-except Exception as e:
-    print(f"Error sampling trajectories: {e}")
-    result = []
-```
+Example Query: "show me one trajectory"
+Example Response:
+{{
+  "tool_name": "sample_trajectories",
+  "arguments": {{
+    "n": 1
+  }}
+}}
 """
     
     async def _call_ollama(self, system_prompt: str, user_query: str) -> str:
@@ -173,7 +122,8 @@ except Exception as e:
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_query}
-                ]
+                ],
+                options={"temperature": 0.0} # For reproducibility
             )
             return response['message']['content']
         except Exception as e:
@@ -188,46 +138,41 @@ except Exception as e:
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_query}
-                ]
+                ],
+                temperature=0.0,
+                response_format={"type": "json_object"} # Use JSON mode if available
             )
             return response.choices[0].message.content
         except Exception as e:
             logger.error(f"OpenAI API error: {e}")
             raise
     
-    def _extract_code(self, response: str) -> str:
-        """Extract Python code from LLM response."""
-        # Remove markdown code blocks if present
-        lines = response.strip().split('\\n')
-        code_lines = []
-        in_code_block = False
-        
-        for line in lines:
-            if line.strip().startswith('```python'):
-                in_code_block = True
-                continue
-            elif line.strip() == '```' and in_code_block:
-                in_code_block = False
-                continue
-            elif in_code_block or not any(line.strip().startswith(marker) for marker in ['```', '#', '*', '-'] if not line.strip().startswith('#')):
-                code_lines.append(line)
-        
-        code = '\\n'.join(code_lines).strip()
-        
-        # If no code was extracted, return the original response
-        if not code:
-            code = response.strip()
-            
-        return code
+    def _extract_json(self, response: str) -> Dict[str, Any]:
+        """Extract JSON object from LLM response."""
+        try:
+            # Find the start and end of the JSON object
+            start = response.find('{')
+            end = response.rfind('}') + 1
+            if start != -1 and end != 0:
+                json_str = response[start:end]
+                return json.loads(json_str)
+            else:
+                raise ValueError("No JSON object found in response")
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error(f"Failed to parse JSON from LLM response: {response}. Error: {e}")
+            return {
+                "tool_name": "error",
+                "arguments": {"message": "Failed to parse JSON response from LLM."}
+            }
     
     async def test_connection(self) -> bool:
         """Test if the LLM connection is working."""
         try:
-            test_response = await self.generate_query_code(
+            test_response = await self.generate_tool_call(
                 "test connection", 
-                {"test": "test function"}
+                [{"name": "test_function", "description": "A test function", "parameters": {}}]
             )
-            return len(test_response) > 0
+            return "tool_name" in test_response
         except Exception as e:
             logger.error(f"Connection test failed: {e}")
             return False

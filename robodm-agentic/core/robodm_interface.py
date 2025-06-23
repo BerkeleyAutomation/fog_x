@@ -71,6 +71,119 @@ class RoboDMInterface:
             "sample_trajectories": "Randomly sample N trajectories from the database"
         }
     
+    def get_tool_schemas(self) -> List[Dict[str, Any]]:
+        """Return schemas for all available tools for LLM function calling."""
+        return [
+            {
+                "name": "get_all_trajectories",
+                "description": "Get a list of all available trajectory IDs.",
+                "parameters": {"type": "object", "properties": {}, "required": []},
+            },
+            {
+                "name": "get_trajectory_metadata",
+                "description": "Get detailed metadata for a specific trajectory by its ID.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "traj_id": {"type": "string", "description": "The unique identifier for the trajectory."}
+                    },
+                    "required": ["traj_id"],
+                },
+            },
+            {
+                "name": "get_trajectory_data",
+                "description": "Load complete data for a trajectory, optionally filtering by feature names.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "traj_id": {"type": "string", "description": "The unique identifier for the trajectory."},
+                        "features": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Optional list of feature names to load.",
+                        },
+                    },
+                    "required": ["traj_id"],
+                },
+            },
+            {
+                "name": "filter_trajectories_by_metadata",
+                "description": "Filter trajectories based on specific metadata criteria.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "criteria": {
+                            "type": "object",
+                            "description": "A dictionary of metadata keys and values to filter by. Example: {'status': 'failed', 'length': {'min': 100}}",
+                        }
+                    },
+                    "required": ["criteria"],
+                },
+            },
+            {
+                "name": "search_trajectories",
+                "description": "Search for trajectories using a text query against their metadata.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "description": "The text string to search for in trajectory metadata."}
+                    },
+                    "required": ["query"],
+                },
+            },
+            {
+                "name": "count_trajectories",
+                "description": "Count the number of trajectories, optionally filtering by criteria.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "criteria": {
+                            "type": "object",
+                            "description": "Optional. A dictionary of metadata keys and values to filter by before counting.",
+                        }
+                    },
+                    "required": [],
+                },
+            },
+            {
+                "name": "sample_trajectories",
+                "description": "Get a random sample of N trajectory IDs.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "n": {"type": "integer", "description": "The number of random trajectories to sample."},
+                        "seed": {"type": "integer", "description": "Optional random seed for reproducibility."},
+                    },
+                    "required": ["n"],
+                },
+            },
+            {
+                "name": "get_trajectory_frames",
+                "description": "Extract visual frames (e.g., images) from a specific trajectory.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "traj_id": {"type": "string", "description": "The unique identifier for the trajectory."}
+                    },
+                    "required": ["traj_id"],
+                },
+            },
+            {
+                "name": "slice_trajectory",
+                "description": "Get a time-based slice of a trajectory's data.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "traj_id": {"type": "string", "description": "The unique identifier for the trajectory."},
+                        "start": {"type": "integer", "description": "The starting timestep of the slice."},
+                        "end": {"type": "integer", "description": "The ending timestep of the slice."},
+                        "step": {"type": "integer", "description": "The step/stride of the slice."},
+                    },
+                    "required": ["traj_id"],
+                },
+            },
+        ]
+
     def get_all_trajectories(self) -> List[str]:
         """Get all trajectory IDs."""
         return list(self.trajectory_files.keys())
