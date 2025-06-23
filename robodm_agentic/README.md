@@ -38,11 +38,11 @@ async def main():
     # Initialize with your trajectory data
     robodm_interface = RoboDMInterface("/path/to/your/trajectories")
     agent = RoboDMAgent(robodm_interface)
-    
+
     # Ask natural language questions
     result = await agent.query("find me all failed trajectories")
     print(result.answer)
-    
+
     # Visual analysis
     result = await agent.query("show me trajectories with hidden views")
     print(result.answer)
@@ -175,7 +175,7 @@ class CustomRoboDMInterface(RoboDMInterface):
     def custom_analysis(self, trajectory_id: str):
         # Your custom analysis logic
         pass
-    
+
     def get_available_functions(self):
         functions = super().get_available_functions()
         functions["custom_analysis"] = "Perform custom trajectory analysis"

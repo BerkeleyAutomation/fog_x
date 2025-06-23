@@ -7,7 +7,7 @@ import time
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
-# fractions.Fraction imported where needed
+from fractions import Fraction
 from typing import Any, Dict, List, Optional, Text, Tuple, Union, cast
 
 import av
@@ -702,14 +702,14 @@ class Trajectory(TrajectoryInterface):
             # Flush all streams using backend abstraction
             buffered_packets = self.backend.flush_all_streams()
             logger.debug(f"Flushed {len(buffered_packets)} buffered packets")
-            
+
             # Mux all buffered packets
             for packet_info in buffered_packets:
                 if packet_info.pts is None:
                     raise ValueError(f"Packet {packet_info} has no pts")
                 self.backend.mux_packet_info(packet_info)
                 logger.debug(f"Muxed flush packet from stream {packet_info.stream_index}")
-                
+
             logger.debug("Flushing completed")
         except Exception as e:
             logger.error(f"Error during flush: {e}")
@@ -913,7 +913,7 @@ class Trajectory(TrajectoryInterface):
         # Build stream index mapping and initialize cache
         stream_idx_to_feature: Dict[int, str] = {}
         stream_count = 0
-        
+
         for i, stream_metadata in enumerate(stream_metadata_list):
             fname = stream_metadata.feature_name
             ftype = stream_metadata.feature_type
@@ -922,7 +922,7 @@ class Trajectory(TrajectoryInterface):
                     f"Skipping stream {i} without valid FEATURE_NAME or FEATURE_TYPE"
                 )
                 continue
-                
+
             cache[fname] = []
             # Inform the resampler so it can initialise internal bookkeeping
             resampler.register_feature(fname)
@@ -956,10 +956,10 @@ class Trajectory(TrajectoryInterface):
 
         # Get stream indices for demuxing
         valid_stream_indices = list(stream_idx_to_feature.keys())
-        
+
         for packet in self.backend.demux_streams(valid_stream_indices):
             packet_count += 1
-            
+
             # Get feature name from stream index
             stream_idx = packet.stream.index
             fname = stream_idx_to_feature.get(stream_idx)
@@ -1060,7 +1060,7 @@ class Trajectory(TrajectoryInterface):
         for stream_idx, fname in stream_idx_to_feature.items():
             if not fname or fname not in cache:
                 continue
-            
+
             codec = self.backend.get_stream_codec_name(stream_idx)
             if codec == "rawvideo":
                 continue  # pickled streams have no buffer
@@ -1185,7 +1185,7 @@ class Trajectory(TrajectoryInterface):
             else:
                 # Use rawvideo for intermediate encoding (legacy behavior)
                 encoding = "rawvideo"
-            
+
             self._on_new_stream(feature, encoding, feature_type)
             stream_idx = self.backend.stream_exists_by_feature(feature)
             if stream_idx is None:
@@ -1201,7 +1201,7 @@ class Trajectory(TrajectoryInterface):
 
         logger.debug(
             f"Encoding frame with validated timestamp: {validated_timestamp}")
-        
+
         # encode the frame using backend
         packet_infos = self.backend.encode_data_to_packets(
             data=data,
@@ -1292,16 +1292,16 @@ class Trajectory(TrajectoryInterface):
         """
         if not data:
             raise ValueError("Data list cannot be empty")
-        
+
         traj = cls(path,
                    mode="w",
                    video_codec=video_codec,
                    codec_options=codec_options,
                    visualization_feature=visualization_feature,
                    raw_codec=raw_codec)
-        
+
         logger.info(f"Creating a new trajectory file at {path} with {len(data)} steps using direct encoding")
-        
+
         # Use the new backend method for efficient batch processing
         sample_data = data[0]  # Use first sample to determine feature types and optimal codecs
         feature_to_stream_idx = traj.backend.create_streams_for_batch_data(
@@ -1310,14 +1310,14 @@ class Trajectory(TrajectoryInterface):
             feature_name_separator=traj.feature_name_separator,
             visualization_feature=visualization_feature
         )
-        
+
         # Update feature type tracking for consistency
         from robodm.utils.flatten import _flatten_dict
         flattened_sample = _flatten_dict(sample_data, sep=traj.feature_name_separator)
         for feature_name, sample_value in flattened_sample.items():
             feature_type = FeatureType.from_data(sample_value)
             traj.feature_name_to_feature_type[feature_name] = feature_type
-        
+
         # Encode all data directly to target codecs
         traj.backend.encode_batch_data_directly(
             data_batch=data,
@@ -1326,7 +1326,7 @@ class Trajectory(TrajectoryInterface):
             feature_name_separator=traj.feature_name_separator,
             fps=fps
         )
-        
+
         # Close without transcoding since we encoded directly to target formats
         traj.close(compact=False)
         return traj
@@ -1368,10 +1368,10 @@ class Trajectory(TrajectoryInterface):
         trajectory = Trajectory.from_dict_of_lists(original_trajectory, path="/tmp/robodm/output.vla")
         """
         from robodm.utils.flatten import _flatten_dict
-        
+
         # Flatten the data and validate
         flattened_dict_data = _flatten_dict(data, sep=feature_name_separator)
-        
+
         # Check if all lists have the same length
         list_lengths = [len(v) for v in flattened_dict_data.values()]
         if len(set(list_lengths)) != 1:
@@ -1379,10 +1379,10 @@ class Trajectory(TrajectoryInterface):
                 "All lists must have the same length",
                 [(k, len(v)) for k, v in flattened_dict_data.items()],
             )
-        
+
         if not list_lengths or list_lengths[0] == 0:
             raise ValueError("Data lists cannot be empty")
-        
+
         # Convert dict of lists to list of dicts for batch processing
         num_steps = list_lengths[0]
         list_of_dicts = []
@@ -1392,7 +1392,7 @@ class Trajectory(TrajectoryInterface):
                 # Reconstruct nested structure if needed
                 step = cls._set_nested_value(step, feature_name, feature_values[i], feature_name_separator)
             list_of_dicts.append(step)
-        
+
         # Use the optimized from_list_of_dicts method
         return cls.from_list_of_dicts(
             data=list_of_dicts,
@@ -1409,13 +1409,13 @@ class Trajectory(TrajectoryInterface):
         """Helper method to set a nested value in a dictionary using a key path."""
         keys = key_path.split(separator)
         current = data_dict
-        
+
         # Navigate to the parent of the target key
         for key in keys[:-1]:
             if key not in current:
                 current[key] = {}
             current = current[key]
-        
+
         # Set the final value
         current[keys[-1]] = value
         return data_dict
@@ -1428,16 +1428,16 @@ class Trajectory(TrajectoryInterface):
         # Analyze feature types to determine transcoding strategy
         has_image_features = False
         has_raw_data_features = False
-        
+
         for feature_name, feature_type in self.feature_name_to_feature_type.items():
             # Check if this is image data (RGB with shape HxWx3)
             is_image_data = (
-                hasattr(feature_type, 'shape') and 
-                feature_type.shape and 
-                len(feature_type.shape) == 3 and 
+                hasattr(feature_type, 'shape') and
+                feature_type.shape and
+                len(feature_type.shape) == 3 and
                 feature_type.shape[2] == 3
             )
-            
+
             if is_image_data:
                 # Check if this image feature should be transcoded to video codec
                 target_encoding = self._get_encoding_of_feature(None, feature_type, feature_name)
@@ -1450,20 +1450,20 @@ class Trajectory(TrajectoryInterface):
                 if target_encoding != "rawvideo":
                     has_raw_data_features = True
                     logger.debug(f"Feature '{feature_name}' identified as raw data for compression")
-        
+
         # Decide transcoding strategy based on feature analysis
         transcoding_performed = False
-        
+
         if has_image_features:
             logger.debug("Performing image transcoding for video features")
             self._transcode_pickled_images()
             transcoding_performed = True
-        
+
         if has_raw_data_features:
             logger.debug("Performing raw data transcoding for compression")
             self._transcode_pickled_bytes()
             transcoding_performed = True
-        
+
         if not transcoding_performed:
             logger.debug("No transcoding performed - no features require transcoding")
 
@@ -1481,25 +1481,25 @@ class Trajectory(TrajectoryInterface):
 
         # Build stream configurations for transcoding
         stream_configs = {}
-        
+
         # Open original container temporarily to get stream info
         temp_backend = PyAVBackend()
         temp_backend.open(temp_path, "r")
         original_streams = temp_backend.get_streams()
         temp_backend.close()
-        
+
         for i, stream_metadata in enumerate(original_streams):
             feature_name = stream_metadata.feature_name
             if feature_name == "unknown" or not feature_name:
                 continue
-                
+
             feature_type = self.feature_name_to_feature_type.get(feature_name)
             if feature_type is None:
                 continue
-            
+
             # Determine target encoding
             target_encoding = self._get_encoding_of_feature(None, feature_type, feature_name)
-            
+
             # Only handle video container codecs, skip rawvideo variants
             if target_encoding in {"ffv1", "libaom-av1", "libx264", "libx265"}:
                 # Create stream config for video codec
@@ -1510,7 +1510,7 @@ class Trajectory(TrajectoryInterface):
                     codec_options=self.codec_config.get_codec_options(target_encoding),
                     pixel_format=self.codec_config.get_pixel_format(target_encoding, feature_type),
                 )
-                
+
                 # Use the actual stream index from the original container
                 stream_configs[i] = config
 
@@ -1541,39 +1541,39 @@ class Trajectory(TrajectoryInterface):
 
         # Build stream configurations for transcoding
         stream_configs = {}
-        
+
         # Open original container temporarily to get stream info
         temp_backend = PyAVBackend()
         temp_backend.open(temp_path, "r")
         original_streams = temp_backend.get_streams()
         temp_backend.close()
-        
+
         for i, stream_metadata in enumerate(original_streams):
             feature_name = stream_metadata.feature_name
             if feature_name == "unknown" or not feature_name:
                 continue
-                
+
             feature_type = self.feature_name_to_feature_type.get(feature_name)
             if feature_type is None:
                 continue
-            
+
             # Check if this is non-image raw data
             is_image_data = (
-                hasattr(feature_type, 'shape') and 
-                feature_type.shape and 
-                len(feature_type.shape) == 3 and 
+                hasattr(feature_type, 'shape') and
+                feature_type.shape and
+                len(feature_type.shape) == 3 and
                 feature_type.shape[2] == 3
             )
-            
+
             if not is_image_data:
                 # For non-image data, determine if we should compress
                 target_encoding = self._get_encoding_for_raw_data(feature_type, feature_name)
-                
+
                 if target_encoding != "rawvideo":  # Only transcode if compression is desired
                     # Separate container codec from internal codec
                     container_encoding = "rawvideo"  # Always use rawvideo for container
                     internal_codec = self.codec_config.get_raw_codec_name(target_encoding)
-                    
+
                     # Create stream config for compressed format
                     config = StreamConfig(
                         feature_name=feature_name,
@@ -1583,7 +1583,7 @@ class Trajectory(TrajectoryInterface):
                         pixel_format=None,  # Raw codecs don't use pixel format
                         internal_codec=internal_codec,  # Internal codec implementation
                     )
-                    
+
                     # Use the actual stream index from the original container
                     stream_configs[i] = config
 
@@ -1603,7 +1603,7 @@ class Trajectory(TrajectoryInterface):
             self._rename(temp_path, self.path)
             logger.debug("No raw data streams need transcoding")
             return
-            
+
         self._remove(temp_path)
 
 
@@ -1611,11 +1611,11 @@ class Trajectory(TrajectoryInterface):
     def _get_encoding_for_raw_data(self, feature_type: FeatureType, feature_name: Optional[str] = None) -> str:
         """
         Determine appropriate encoding for raw (non-image) data.
-        
+
         Args:
             feature_type: The FeatureType of the data
             feature_name: Optional feature name for feature-specific decisions
-            
+
         Returns:
             Encoding string (e.g., "rawvideo_pyarrow", "rawvideo_pickle")
         """
@@ -1624,14 +1624,14 @@ class Trajectory(TrajectoryInterface):
 
     def _on_new_stream(self, new_feature, new_encoding, new_feature_type):
         from robodm.backend.base import StreamConfig
-        
+
         # Check if stream already exists for this feature
         if self.backend.stream_exists_by_feature(new_feature) is not None:
             return
 
         # Get current streams from backend
         current_streams = self.backend.get_streams()
-        
+
         if not current_streams:
             logger.debug(
                 f"Creating a new stream for the first feature {new_feature}")
@@ -1687,7 +1687,7 @@ class Trajectory(TrajectoryInterface):
 
             # Update our tracking structures using backend information
             self.container_file = self.backend.container
-            
+
             # Update feature_name_to_stream mapping using backend
             new_feature_name_to_stream = {}
             updated_streams = self.backend.get_streams()
@@ -1697,9 +1697,9 @@ class Trajectory(TrajectoryInterface):
                     stream = self.backend._idx_to_stream.get(i)
                     if stream:
                         new_feature_name_to_stream[feature_name] = stream
-                    
+
             self.feature_name_to_stream = new_feature_name_to_stream
-            
+
             self._remove(temp_path)
             self.is_closed = False
 
@@ -1721,7 +1721,7 @@ class Trajectory(TrajectoryInterface):
         # transient containers (e.g. during transcoding).
         # Import PyAV locally since it's only needed for legacy paths
         from fractions import Fraction
-        
+
         stream = container.add_stream(encoding)
 
         if encoding in ["ffv1", "libaom-av1", "libx264", "libx265"]:

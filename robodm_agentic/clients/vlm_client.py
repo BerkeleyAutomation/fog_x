@@ -1,10 +1,10 @@
 """Vision-Language Model client for analyzing trajectory frames."""
 
+import asyncio
 import base64
 import io
-import asyncio
-from typing import List, Any, Optional
 import logging
+from typing import Any, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -35,17 +35,17 @@ except ImportError:
 
 class VLMClient:
     """Client for vision-language model analysis of trajectory frames."""
-    
-    def __init__(self, 
-                 model: str = "llava:7b", 
+
+    def __init__(self,
+                 model: str = "llava:7b",
                  provider: str = "ollama",
                  api_key: Optional[str] = None,
                  base_url: Optional[str] = None):
         """Initialize VLM client.
-        
+
         Args:
             model: Vision-language model name
-            provider: "ollama" or "openai" 
+            provider: "ollama" or "openai"
             api_key: API key for hosted providers
             base_url: Base URL for API
         """
@@ -53,7 +53,7 @@ class VLMClient:
         self.provider = provider.lower()
         self.api_key = api_key
         self.base_url = base_url
-        
+
         # Initialize client based on provider
         if self.provider == "ollama":
             if not HAS_OLLAMA:
@@ -68,48 +68,48 @@ class VLMClient:
             )
         else:
             raise ValueError(f"Unsupported provider: {provider}")
-        
+
         if not HAS_PIL:
             logger.warning("PIL not available. Image processing will be limited.")
         if not HAS_NUMPY:
             logger.warning("NumPy not available. Array processing will be limited.")
-    
-    async def analyze_and_answer(self, 
-                                query: str, 
-                                frames: List[Any], 
+
+    async def analyze_and_answer(self,
+                                query: str,
+                                frames: List[Any],
                                 execution_result: Any,
                                 max_frames: int = 5) -> str:
         """Analyze frames and answer the original query."""
-        
+
         if not frames:
             return f"Query executed successfully. Result: {execution_result}"
-        
+
         # Limit number of frames to analyze
         frames_to_analyze = frames[:max_frames]
         logger.info(f"Analyzing {len(frames_to_analyze)} frames for query: {query}")
-        
+
         try:
             # Convert frames to base64 for vision model
             encoded_frames = self._encode_frames(frames_to_analyze)
-            
+
             if not encoded_frames:
                 return f"Could not process frames. Execution result: {execution_result}"
-            
+
             prompt = self._build_analysis_prompt(query, execution_result, len(frames_to_analyze))
-            
+
             if self.provider == "ollama":
                 response = await self._call_ollama_vision(prompt, encoded_frames)
             elif self.provider == "openai":
                 response = await self._call_openai_vision(prompt, encoded_frames)
             else:
                 raise ValueError(f"Unsupported provider: {self.provider}")
-                
+
             return response
-            
+
         except Exception as e:
             logger.error(f"Error in vision analysis: {e}")
             return f"Vision analysis failed: {e}. Execution result: {execution_result}"
-    
+
     def _build_analysis_prompt(self, query: str, execution_result: Any, num_frames: int) -> str:
         """Build prompt for vision analysis."""
         return f"""You are analyzing robotics trajectory data to answer a user's question.
@@ -118,7 +118,7 @@ Original Query: {query}
 Code Execution Result: {execution_result}
 Number of frames provided: {num_frames}
 
-Please analyze the provided images/frames and give a comprehensive answer to the original query. 
+Please analyze the provided images/frames and give a comprehensive answer to the original query.
 
 Instructions:
 1. Examine the visual content of the frames carefully
@@ -129,7 +129,7 @@ Instructions:
 6. Be specific about what you observe in the images
 
 Provide a clear, detailed response that combines the execution results with your visual analysis."""
-    
+
     async def _call_ollama_vision(self, prompt: str, encoded_frames: List[str]) -> str:
         """Call Ollama vision model."""
         try:
@@ -146,13 +146,13 @@ Provide a clear, detailed response that combines the execution results with your
         except Exception as e:
             logger.error(f"Ollama vision API error: {e}")
             raise
-    
+
     async def _call_openai_vision(self, prompt: str, encoded_frames: List[str]) -> str:
         """Call OpenAI vision model."""
         try:
             # Build content with images for OpenAI format
             content = [{"type": "text", "text": prompt}]
-            
+
             for frame_b64 in encoded_frames:
                 content.append({
                     "type": "image_url",
@@ -160,24 +160,24 @@ Provide a clear, detailed response that combines the execution results with your
                         "url": f"data:image/jpeg;base64,{frame_b64}"
                     }
                 })
-            
+
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=[{
-                    "role": "user", 
+                    "role": "user",
                     "content": content
                 }]
             )
-            
+
             return response.choices[0].message.content
         except Exception as e:
             logger.error(f"OpenAI vision API error: {e}")
             raise
-    
+
     def _encode_frames(self, frames: List[Any]) -> List[str]:
         """Encode frames as base64 strings."""
         encoded = []
-        
+
         for i, frame in enumerate(frames):
             try:
                 encoded_frame = self._frame_to_base64(frame)
@@ -186,9 +186,9 @@ Provide a clear, detailed response that combines the execution results with your
             except Exception as e:
                 logger.warning(f"Failed to encode frame {i}: {e}")
                 continue
-                
+
         return encoded
-    
+
     def _frame_to_base64(self, frame: Any) -> Optional[str]:
         """Convert frame to base64 string."""
         try:
@@ -211,24 +211,24 @@ Provide a clear, detailed response that combines the execution results with your
                             return self._pil_to_base64(img)
                     except Exception:
                         pass
-                        
+
                 logger.warning(f"Unsupported frame type: {type(frame)}")
                 return None
-                
+
         except Exception as e:
             logger.error(f"Error converting frame to base64: {e}")
             return None
-    
+
     def _numpy_to_base64(self, array: 'np.ndarray') -> str:
         """Convert numpy array to base64."""
         if not HAS_PIL:
             raise ImportError("PIL required for numpy array conversion")
-            
+
         # Ensure array is in correct format for PIL
         if array.dtype != np.uint8:
             # Normalize to 0-255 range
             array = ((array - array.min()) / (array.max() - array.min()) * 255).astype(np.uint8)
-        
+
         # Handle different array shapes
         if len(array.shape) == 3 and array.shape[2] in [1, 3, 4]:
             # RGB/RGBA image
@@ -243,23 +243,23 @@ Provide a clear, detailed response that combines the execution results with your
             img = Image.fromarray(array, mode='L')
         else:
             raise ValueError(f"Unsupported array shape: {array.shape}")
-        
+
         return self._pil_to_base64(img)
-    
+
     def _pil_to_base64(self, img: 'Image.Image') -> str:
         """Convert PIL Image to base64."""
         buffer = io.BytesIO()
-        
+
         # Convert to RGB if necessary
         if img.mode in ['RGBA', 'LA']:
             img = img.convert('RGB')
         elif img.mode not in ['RGB', 'L']:
             img = img.convert('RGB')
-            
+
         img.save(buffer, format='JPEG', quality=85)
         img_bytes = buffer.getvalue()
         return base64.b64encode(img_bytes).decode('utf-8')
-    
+
     async def test_connection(self) -> bool:
         """Test if the VLM connection is working."""
         try:
@@ -267,7 +267,7 @@ Provide a clear, detailed response that combines the execution results with your
             if HAS_PIL and HAS_NUMPY:
                 test_array = np.zeros((64, 64, 3), dtype=np.uint8)
                 test_array[20:40, 20:40] = [255, 0, 0]  # Red square
-                
+
                 test_response = await self.analyze_and_answer(
                     "What do you see in this test image?",
                     [test_array],

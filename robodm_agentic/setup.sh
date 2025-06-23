@@ -34,7 +34,7 @@ $PIP_CMD install -r requirements.txt
 if ! command -v ollama &> /dev/null; then
     echo "Ollama not found. Installing Ollama..."
     curl -fsSL https://ollama.ai/install.sh | sh
-    
+
     if [ $? -eq 0 ]; then
         echo "Ollama installed successfully."
     else

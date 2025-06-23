@@ -263,7 +263,7 @@ RoboDMInterface adapts the core RoboDM API for agentic use:
 class RoboDMInterface:
     def __init__(self, data_path):
         self._trajectories = self._discover_trajectories(data_path)
-    
+
     def get_trajectory_frames(self, traj_id):
         # Adapts robodm.Trajectory.load() for frame extraction
 ```
@@ -301,7 +301,7 @@ class ExtendedRoboDMInterface(RoboDMInterface):
     def custom_analysis_function(self, trajectory_id):
         # Your custom logic here
         pass
-    
+
     def get_available_functions(self):
         functions = super().get_available_functions()
         functions["custom_analysis_function"] = "Description of function"

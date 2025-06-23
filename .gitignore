@@ -100,6 +100,10 @@ __pypackages__/
 celerybeat-schedule
 celerybeat.pid
 
+# RoboDM data
+oxe_trajectories/
+droid_100/
+
 # SageMath parsed files
 *.sage.py
 

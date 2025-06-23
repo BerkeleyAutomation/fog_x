@@ -1,9 +1,9 @@
 """LLM client for function calling using various models."""
 
-import json
 import asyncio
-from typing import Dict, List, Optional, Any
+import json
 import logging
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -22,14 +22,14 @@ except ImportError:
 
 class LLMClient:
     """Client for interacting with Language Models for tool calling."""
-    
-    def __init__(self, 
-                 model: str = "qwen2.5:7b", 
+
+    def __init__(self,
+                 model: str = "qwen2.5:7b",
                  provider: str = "ollama",
                  api_key: Optional[str] = None,
                  base_url: Optional[str] = None):
         """Initialize LLM client.
-        
+
         Args:
             model: Model name/identifier
             provider: "ollama", "openai", or "anthropic"
@@ -40,7 +40,7 @@ class LLMClient:
         self.provider = provider.lower()
         self.api_key = api_key
         self.base_url = base_url
-        
+
         # Initialize client based on provider
         if self.provider == "ollama":
             if not HAS_OLLAMA:
@@ -55,12 +55,12 @@ class LLMClient:
             )
         else:
             raise ValueError(f"Unsupported provider: {provider}")
-    
+
     async def generate_tool_call(self, user_query: str, tools: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Generate a tool call based on the user query and available tools."""
-        
+
         system_prompt = self._build_tool_prompt(tools)
-        
+
         try:
             if self.provider == "ollama":
                 response = await self._call_ollama(system_prompt, user_query)
@@ -68,21 +68,21 @@ class LLMClient:
                 response = await self._call_openai(system_prompt, user_query)
             else:
                 raise ValueError(f"Unsupported provider: {self.provider}")
-                
+
             return self._extract_json(response)
-            
+
         except Exception as e:
             logger.error(f"Error generating tool call: {e}")
             return {
                 "tool_name": "error",
                 "arguments": {"message": f"Failed to generate tool call: {e}"}
             }
-    
+
     def _build_tool_prompt(self, tools: List[Dict[str, Any]]) -> str:
         """Build system prompt with available tools and instructions."""
-        
+
         tools_doc = json.dumps(tools, indent=2)
-        
+
         return f"""You are an expert at calling functions to answer user questions.
 Given a user query, select the best function from the following list and return a JSON object with the function name and arguments.
 
@@ -112,7 +112,7 @@ Example Response:
   }}
 }}
 """
-    
+
     async def _call_ollama(self, system_prompt: str, user_query: str) -> str:
         """Call Ollama API."""
         try:
@@ -129,7 +129,7 @@ Example Response:
         except Exception as e:
             logger.error(f"Ollama API error: {e}")
             raise
-    
+
     async def _call_openai(self, system_prompt: str, user_query: str) -> str:
         """Call OpenAI-compatible API."""
         try:
@@ -146,7 +146,7 @@ Example Response:
         except Exception as e:
             logger.error(f"OpenAI API error: {e}")
             raise
-    
+
     def _extract_json(self, response: str) -> Dict[str, Any]:
         """Extract JSON object from LLM response."""
         try:
@@ -164,12 +164,12 @@ Example Response:
                 "tool_name": "error",
                 "arguments": {"message": "Failed to parse JSON response from LLM."}
             }
-    
+
     async def test_connection(self) -> bool:
         """Test if the LLM connection is working."""
         try:
             test_response = await self.generate_tool_call(
-                "test connection", 
+                "test connection",
                 [{"name": "test_function", "description": "A test function", "parameters": {}}]
             )
             return "tool_name" in test_response
