@@ -25,12 +25,17 @@ from robodm_agentic.core.robodm_interface import RoboDMInterface
 logger = logging.getLogger(__name__)
 
 
-async def ingest_oxe_data(output_dir: str = "./oxe_trajectories", num_trajectories: int = 100):
+async def ingest_oxe_data(
+    output_dir: str = "./oxe_trajectories",
+    num_trajectories: int = 100,
+    source_data_dir: str = "~/Repos/droid_100/1.0.0/"
+):
     """Ingest Open-X Embodiment data for agentic querying.
 
     Args:
         output_dir: Directory to store converted trajectories
         num_trajectories: Number of trajectories to ingest
+        source_data_dir: Path to the downloaded dataset (e.g., droid_100)
     """
     try:
         import tensorflow as tf
@@ -46,12 +51,17 @@ async def ingest_oxe_data(output_dir: str = "./oxe_trajectories", num_trajectori
     # Create output directory
     os.makedirs(output_dir, exist_ok=True)
 
-    print(f"Ingesting {num_trajectories} Open-X Embodiment trajectories...")
+    print(f"Ingesting {num_trajectories} trajectories from {source_data_dir}...")
 
     try:
-        # Load dataset
+        # Load dataset from local directory
+        if not os.path.exists(source_data_dir):
+            print(f"Error: Source data directory not found at '{source_data_dir}'")
+            print("Please ensure you have downloaded the dataset and the path is correct.")
+            return False
+
         builder = tfds.builder_from_directory(
-            builder_dir="gs://gresearch/robotics/fractal20220817_data/0.1.0"
+            builder_dir=source_data_dir
         )
 
         # Get dataset
@@ -76,8 +86,7 @@ async def ingest_oxe_data(output_dir: str = "./oxe_trajectories", num_trajectori
 
                 robodm.Trajectory.from_dict_of_lists(
                     data=episode_steps,
-                    path=output_path,
-                    video_codec="libx264"
+                    path=output_path
                 )
 
                 converted_count += 1
@@ -194,30 +203,35 @@ async def main():
     print("=" * 50)
 
     # Configuration
-    output_dir = "./oxe_trajectories"
+    output_dir = os.path.join(str(current_dir), "oxe_trajectories")
+    # Point to the DROID dataset, assuming it's in the user's home directory
+    source_data_dir = os.path.expanduser("~/Repos/droid_100/1.0.0")
     num_trajectories = 10  # Start small for demo
 
     # Check if data already exists
+    ingest_new_data = True
     if os.path.exists(output_dir) and len(os.listdir(output_dir)) > 0:
         print(f"Found existing data in {output_dir}")
         use_existing = input("Use existing data? (y/n): ").lower().startswith('y')
 
-        if not use_existing:
+        if use_existing:
+            ingest_new_data = False
+        else:
             import shutil
             shutil.rmtree(output_dir)
-            success = await ingest_oxe_data(output_dir, num_trajectories)
-            if not success:
-                return
-    else:
-        # Ingest new data
-        success = await ingest_oxe_data(output_dir, num_trajectories)
+
+    if ingest_new_data:
+        success = await ingest_oxe_data(output_dir, num_trajectories, source_data_dir)
         if not success:
             return
 
-    # Demo agentic queries
-    await demo_agentic_queries(output_dir)
+    # Demo agentic queries, but only if there's data to query
+    if os.path.exists(output_dir) and len(os.listdir(output_dir)) > 0:
+        await demo_agentic_queries(output_dir)
+    else:
+        print("\nNo trajectories found. Skipping agentic queries.")
 
-    print("\\nDemo complete!")
+    print("\nDemo complete!")
 
 
 if __name__ == "__main__":

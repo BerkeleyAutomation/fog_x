@@ -244,6 +244,15 @@ class RoboDMInterface:
 
     def get_trajectory_frames(self, traj_id: str) -> List[Any]:
         """Get visual frames from a trajectory."""
+        # Handle 'random' trajectory selection or empty traj_id
+        if not traj_id or traj_id.lower() == 'random':
+            import random
+            all_traj_ids = self.get_all_trajectories()
+            if not all_traj_ids:
+                raise ValueError("No trajectories available to select randomly")
+            traj_id = random.choice(all_traj_ids)
+            print(f"Selected random trajectory: {traj_id}")
+
         data = self.get_trajectory_data(traj_id)
         frames = []
 
