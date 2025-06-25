@@ -32,9 +32,30 @@ try:
 
     # Prevent tensorflow from allocating GPU memory
     tf.config.set_visible_devices([], "GPU")
+    
+    # Suppress Google Cloud authentication warnings
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+    
+    # Try to set up Google Cloud authentication
+    try:
+        from google.auth import default
+        from google.auth.transport.requests import Request
+        from google.oauth2 import service_account
+        
+        # Check if we have credentials
+        credentials, project = default()
+        if credentials:
+            print("✓ Google Cloud authentication available")
+        else:
+            print("⚠️  No Google Cloud credentials found - will try anonymous access")
+    except ImportError:
+        print("⚠️  google-auth not installed - will try anonymous access")
+    except Exception as e:
+        print(f"⚠️  Google Cloud authentication failed: {e} - will try anonymous access")
+        
 except ImportError as e:
     print(f"Required dependencies not found: {e}")
-    print("Please install: pip install tensorflow tensorflow-datasets numpy")
+    print("Please install: pip install tensorflow tensorflow-datasets numpy google-auth")
     sys.exit(1)
 
 import robodm
@@ -178,16 +199,52 @@ class DROIDBenchmark:
         trajectory_paths = []
         
         try:
-            # Load DROID dataset
+            # Load DROID dataset with error handling
             logger.info("Loading DROID dataset from tensorflow_datasets...")
-            builder = tfds.builder_from_directory(builder_dir=
-                "gs://gresearch/robotics/fractal20220817_data/0.1.0"
-            )
             
-            # Load episodes from training split
-            ds = builder.as_dataset(split=f"train[:{self.num_trajectories}]")
+            # Try different approaches to access the dataset
+            ds = None
+            
+            # Method 1: Try direct access
+            try:
+                builder = tfds.builder_from_directory(builder_dir=
+                    "gs://gresearch/robotics/fractal20220817_data/0.1.0"
+                )
+                ds = builder.as_dataset(split=f"train[:{self.num_trajectories}]")
+                logger.info("✓ Successfully accessed DROID dataset directly")
+            except Exception as e:
+                logger.warning(f"Direct access failed: {e}")
+                
+                # Method 2: Try with anonymous access
+                try:
+                    logger.info("Trying anonymous access...")
+                    # Set up anonymous access
+                    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = ''
+                    
+                    builder = tfds.builder_from_directory(builder_dir=
+                        "gs://gresearch/robotics/fractal20220817_data/0.1.0"
+                    )
+                    ds = builder.as_dataset(split=f"train[:{self.num_trajectories}]")
+                    logger.info("✓ Successfully accessed DROID dataset with anonymous access")
+                except Exception as e2:
+                    logger.error(f"Anonymous access also failed: {e2}")
+                    
+                    # Method 3: Try downloading the dataset first
+                    try:
+                        logger.info("Trying to download dataset first...")
+                        builder = tfds.builder("fractal20220817_data")
+                        builder.download_and_prepare()
+                        ds = builder.as_dataset(split=f"train[:{self.num_trajectories}]")
+                        logger.info("✓ Successfully downloaded and accessed DROID dataset")
+                    except Exception as e3:
+                        logger.error(f"All access methods failed: {e3}")
+                        raise Exception("Could not access DROID dataset. Please check your internet connection and try again.")
+            
+            if ds is None:
+                raise Exception("Failed to create dataset")
             
             # Convert to list for parallel processing
+            logger.info("Converting dataset to list for parallel processing...")
             episodes = list(tfds.as_numpy(ds))
             logger.info(f"Loaded {len(episodes)} episodes for processing")
             
@@ -230,6 +287,12 @@ class DROIDBenchmark:
             
         except Exception as e:
             logger.error(f"Failed to ingest DROID trajectories: {e}")
+            logger.error("Troubleshooting tips:")
+            logger.error("1. Check your internet connection")
+            logger.error("2. Try setting up Google Cloud authentication:")
+            logger.error("   gcloud auth application-default login")
+            logger.error("3. Or install google-auth: pip install google-auth")
+            logger.error("4. Try with a smaller number of trajectories first")
             return []
     
     async def setup_agent(self, trajectory_paths: List[str]) -> Optional[RoboDMAgent]:

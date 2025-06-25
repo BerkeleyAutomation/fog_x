@@ -18,22 +18,56 @@ The `droid_benchmark.py` script benchmarks the performance of robodm-agentic wit
 
 1. **Install Dependencies**:
    ```bash
-   pip install tensorflow tensorflow-datasets numpy
+   pip install tensorflow tensorflow-datasets numpy google-auth
    ```
 
-2. **Install Ollama** (for local model inference):
+2. **Install Google Cloud SDK** (for authentication):
+   ```bash
+   # macOS
+   brew install google-cloud-sdk
+   
+   # Linux
+   curl https://sdk.cloud.google.com | bash
+   exec -l $SHELL
+   
+   # Windows
+   # Download from https://cloud.google.com/sdk/docs/install
+   ```
+
+3. **Set up Google Cloud Authentication**:
+   ```bash
+   # Run the setup script
+   python robodm_agentic/benchmarking/setup_droid_access.py
+   
+   # Or manually authenticate
+   gcloud auth application-default login
+   ```
+
+4. **Install Ollama** (for local model inference):
    ```bash
    # Install ollama from https://ollama.ai
    ollama pull qwen2.5:7b
    ollama pull llava:7b
    ```
 
-3. **Alternative: OpenAI** (if you prefer cloud models):
+5. **Alternative: OpenAI** (if you prefer cloud models):
    ```bash
    export OPENAI_API_KEY="your-api-key-here"
    ```
 
 ### Usage
+
+#### Setup First
+```bash
+# Run the setup script to configure authentication
+python robodm_agentic/benchmarking/setup_droid_access.py
+```
+
+#### Test Setup
+```bash
+# Test the setup without requiring tensorflow
+python robodm_agentic/benchmarking/test_benchmark.py
+```
 
 #### Basic Usage
 ```bash
@@ -50,10 +84,10 @@ python robodm_agentic/benchmarking/droid_benchmark.py \
     --max-workers 8
 ```
 
-#### Test Setup First
+#### Start Small
 ```bash
-# Test the setup without requiring tensorflow
-python robodm_agentic/benchmarking/test_benchmark.py
+# Test with a small number of trajectories first
+python robodm_agentic/benchmarking/droid_benchmark.py --num-trajectories 10
 ```
 
 ### Command Line Options
@@ -61,6 +95,56 @@ python robodm_agentic/benchmarking/test_benchmark.py
 - `--num-trajectories`: Number of DROID trajectories to ingest (default: 1000)
 - `--output-dir`: Directory to save trajectories and reports (default: temp directory)
 - `--max-workers`: Number of parallel workers for ingestion (default: 4)
+
+### Troubleshooting
+
+#### Google Cloud Authentication Issues
+
+If you see errors like:
+```
+All attempts to get a Google authentication bearer token failed
+```
+
+**Solution 1: Use the setup script**
+```bash
+python robodm_agentic/benchmarking/setup_droid_access.py
+```
+
+**Solution 2: Manual authentication**
+```bash
+# Install Google Cloud SDK
+gcloud auth application-default login
+```
+
+**Solution 3: Install missing dependencies**
+```bash
+pip install google-auth google-auth-oauthlib google-auth-httplib2
+```
+
+#### TensorFlow Import Errors
+```bash
+pip install tensorflow tensorflow-datasets numpy
+```
+
+#### Ollama Connection Issues
+```bash
+# Ensure ollama is running
+ollama serve
+
+# Pull required models
+ollama pull qwen2.5:7b
+ollama pull llava:7b
+```
+
+#### Memory Issues
+- Reduce `--num-trajectories` (start with 10-100)
+- Reduce `--max-workers` (try 2-4)
+- Close other applications to free memory
+
+#### Slow Performance
+- Increase `--max-workers` for faster ingestion
+- Use SSD storage for better I/O performance
+- Ensure good internet connection for dataset download
 
 ### Output
 
@@ -124,13 +208,6 @@ QUERY SUCCESS RATES:
   Successful queries: 14/15
   Success rate: 93.3%
 ```
-
-### Troubleshooting
-
-1. **TensorFlow Import Errors**: Install tensorflow and tensorflow-datasets
-2. **Ollama Connection Issues**: Ensure ollama is running and models are downloaded
-3. **Memory Issues**: Reduce `--num-trajectories` or `--max-workers`
-4. **Slow Performance**: Increase `--max-workers` for faster ingestion
 
 ### Integration with RoboDM Features
 
