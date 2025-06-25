@@ -18,7 +18,6 @@ logging.basicConfig(
 )
 
 # Import from local modules with proper path handling
-sys.path.insert(0, str(current_dir.parent))
 from robodm_agentic.clients.llm_client import LLMClient
 from robodm_agentic.clients.vlm_client import VLMClient
 from robodm_agentic.core.agent import RoboDMAgent
@@ -81,7 +80,7 @@ async def main():
     )
 
     # 4. Test the setup
-    print("\\n=== Testing Setup ===")
+    print("\n=== Testing Setup ===")
     test_results = await agent.test_setup()
     for component, status in test_results.items():
         status_str = "✓" if status else "✗"
@@ -107,18 +106,18 @@ async def main():
             "Find trajectories with interesting visual content",
         ])
 
-    print("\\n=== Running Example Queries ===")
+    print("\n=== Running Example Queries ===")
 
     for i, query in enumerate(example_queries, 1):
-        print(f"\\n--- Query {i}: {query} ---")
+        print(f"\n--- Query {i}: {query} ---")
 
         try:
             result = await agent.query(query)
 
             if result.success:
                 print("✓ Query successful")
-                print(f"Generated code:\\n{result.generated_code}")
-                print(f"\\nAnswer: {result.answer}")
+                print(f"Tool call:\n{result.tool_call}")
+                print(f"\nAnswer: {result.answer}")
 
                 if result.frames:
                     print(f"Analyzed {len(result.frames)} frames")
@@ -130,12 +129,12 @@ async def main():
             print(f"✗ Query exception: {e}")
 
     # 6. Interactive mode (optional)
-    print("\\n=== Interactive Mode ===")
+    print("\n=== Interactive Mode ===")
     print("Enter queries (or 'quit' to exit):")
 
     while True:
         try:
-            user_query = input("\\n> ").strip()
+            user_query = input("\n> ").strip()
 
             if user_query.lower() in ['quit', 'exit', 'q']:
                 break
@@ -146,26 +145,26 @@ async def main():
             result = await agent.query(user_query)
 
             if result.success:
-                print(f"\\nAnswer: {result.answer}")
+                print(f"\nAnswer: {result.answer}")
             else:
-                print(f"\\nError: {result.error}")
+                print(f"\nError: {result.error}")
 
         except KeyboardInterrupt:
-            print("\\nExiting...")
+            print("\nExiting...")
             break
         except Exception as e:
             print(f"Error: {e}")
 
     # 7. Cleanup
     agent.close()
-    print("\\nCleaned up resources.")
+    print("\nCleaned up resources.")
 
 
 async def demo_mcp_server():
     """Demonstrate the MCP server functionality."""
-    from mcp.server import RoboDMMCPServer
+    from robodm_agentic.mcp.server import RoboDMMCPServer
 
-    print("\\n=== MCP Server Demo ===")
+    print("\n=== MCP Server Demo ===")
 
     # Initialize interface and server
     data_path = "/path/to/your/data"  # Update as needed
