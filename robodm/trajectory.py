@@ -8,6 +8,7 @@ import warnings
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 # fractions.Fraction imported where needed
+from fractions import Fraction
 from typing import Any, Dict, List, Optional, Text, Tuple, Union, cast
 
 import av
@@ -319,8 +320,8 @@ class StreamInfo:
     def __repr__(self):
         return self.__str__()
 
-
-class CodecConfig:
+# Disable this class for now
+class CodecConfigDisabled:
     """Configuration class for video codec settings."""
 
     @staticmethod
