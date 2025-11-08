@@ -310,7 +310,8 @@ class VLAIterableDataset(IterableDataset):
         path: Text,
         cache_dir: Optional[Text] = None,
         buffer_size: int = 1000,
-        split: str = "train"
+        split: str = "train",
+        batch_size: int = 1
     ):
         """Initialize VLA dataset.
 
@@ -318,12 +319,14 @@ class VLAIterableDataset(IterableDataset):
             path: Path to VLA files
             cache_dir: Cache directory (optional)
             buffer_size: Buffer size for the shuffling loader
+            split: Dataset split ("all", "train", or "val")
+            batch_size: Number of trajectories per batch
         """
         # Use shuffling VLALoader with batch_size=1
         # The DataLoader will handle batching
         self.vla_loader = VLALoader(
             path,
-            batch_size=1,
+            batch_size=batch_size,
             cache_dir=cache_dir,
             buffer_size=buffer_size,
             split=split
@@ -338,7 +341,7 @@ class VLAIterableDataset(IterableDataset):
         batch = self.vla_loader.get_batch()
         if batch is None:
             raise StopIteration
-        return batch[0]  # Return a single item, not a batch
+        return batch
 
 
 def vla_collate_fn(batch):
@@ -366,7 +369,7 @@ def get_vla_dataloader(
     Returns:
         PyTorch DataLoader for VLA data
     """
-    dataset = VLAIterableDataset(path, cache_dir, buffer_size, split)
+    dataset = VLAIterableDataset(path, cache_dir, buffer_size, split, batch_size)
     return DataLoader(
         dataset,
         batch_size=batch_size,

@@ -152,7 +152,7 @@ class DatasetHandler:
         for batch_num, data in enumerate(loader):
             if batch_num >= self.num_batches:
                 break
-            self._recursively_load_data(data)
+            # self._recursively_load_data(data)
             current_batch_time = time.time()
             elapsed_time = current_batch_time - last_batch_time
             last_batch_time = current_batch_time
