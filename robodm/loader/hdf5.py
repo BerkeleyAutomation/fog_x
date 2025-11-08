@@ -310,9 +310,19 @@ if __name__ == "__main__":
 
 class HDF5Loader(BaseLoader):
 
-    def __init__(self, path, batch_size=1):
+    def __init__(self, path, batch_size=1, split: Optional[Text] = None):
         super(HDF5Loader, self).__init__(path)
-        self.files = glob.glob(self.path, recursive=True)
+
+        # Handle split parameter similar to VLA loader
+        if split and os.path.isdir(path):
+            split_path = os.path.join(path, split)
+            if os.path.isdir(split_path):
+                path = os.path.join(split_path, "*.h5")
+                logging.info(f"Using split directory: {split_path}")
+            else:
+                logging.warning(f"Split directory not found: {split_path}, using original path")
+
+        self.files = glob.glob(path, recursive=True)
         self.batch_size = batch_size
         self.index = 0
         random.shuffle(self.files)
@@ -373,9 +383,9 @@ class HDF5Loader(BaseLoader):
 
 class HDF5IterableDataset(IterableDataset):
 
-    def __init__(self, path):
+    def __init__(self, path, split: Optional[Text] = None):
         # Note: batch size = 1 is to bypass the dataloader without pytorch dataloader
-        self.hdf5_loader = HDF5Loader(path, batch_size=1)
+        self.hdf5_loader = HDF5Loader(path, batch_size=1, split=split)
 
     def __iter__(self):
         return self
@@ -393,8 +403,21 @@ def hdf5_collate_fn(batch):
     return batch
 
 
-def get_hdf5_dataloader(path: str, batch_size: int = 1, num_workers: int = 0):
-    dataset = HDF5IterableDataset(path)
+def get_hdf5_dataloader(
+    path: str, batch_size: int = 1, num_workers: int = 0, split: Optional[Text] = None
+):
+    """Create a PyTorch DataLoader for HDF5 data.
+
+    Args:
+        path: Path to HDF5 files (directory or glob pattern)
+        batch_size: Batch size for loading
+        num_workers: Number of worker processes for DataLoader
+        split: Dataset split to load (e.g., "train", "test")
+
+    Returns:
+        PyTorch DataLoader for HDF5 data
+    """
+    dataset = HDF5IterableDataset(path, split=split)
     return DataLoader(
         dataset,
         batch_size=batch_size,
