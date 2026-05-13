@@ -1,0 +1,94 @@
+{
+  "dataset": "flatten_box",
+  "source_lerobot_root": "/Users/pfb30/lute/quality_processor/flatten_box",
+  "robodm_root": "/Users/pfb30/lute/robodm/flatten_box_robodm",
+  "environment": {
+    "lerobot_version": "0.5.1",
+    "robodm_repo": "/Users/pfb30/lute/robodm",
+    "fastwam_repo": "https://github.com/yuantianyuan01/FastWAM",
+    "fastwam_commit": "45d8e1458921d83f8ad6cf9ce993d371208dabd0"
+  },
+  "conversion": {
+    "episodes": 10,
+    "frames": 35451,
+    "codec": "libx264",
+    "compact": true,
+    "write_s": 1433.887994544115,
+    "write_fps": 24.723688415615168,
+    "validate_load_s": 539.2086997488514,
+    "validate_load_fps": 65.74634277323808,
+    "robodm_vla_mb_sum": 885.5274477005005
+  },
+  "sequential_materialization": {
+    "lerobot": {
+      "seconds": 619.2838910003193,
+      "frames": 35451,
+      "fps": 57.24515123869373,
+      "camera_frames_per_s": 171.7354537160812,
+      "decoded_gb_float_tensors": 392.0596992
+    },
+    "robodm": {
+      "seconds": 546.746655125171,
+      "frames": 35451,
+      "episodes_loaded": 10,
+      "fps": 64.83990284656416,
+      "camera_frames_per_s": 194.51970853969246
+    },
+    "robodm_speedup_vs_lerobot": 1.132669018587371
+  },
+  "fastwam_window_materialization": {
+    "reference": {
+      "num_frames": 33,
+      "action_frames": 32,
+      "action_video_freq_ratio": 4,
+      "video_frames_after_subsample": 9,
+      "cameras": [
+        "observation.images.top",
+        "observation.images.wrist_left",
+        "observation.images.wrist_right"
+      ],
+      "robotwin_canvas": [
+        384,
+        320
+      ]
+    },
+    "mode": "episode0",
+    "windows": 200,
+    "lerobot": {
+      "seconds": 20.436106583103538,
+      "windows_per_s": 9.786599966422123,
+      "raw_camera_frames_per_s": 968.8733966757901,
+      "output_video_frames_per_s": 88.0793996977991
+    },
+    "robodm_cold": {
+      "cache_load_s": 2.828775249887258,
+      "window_seconds": 5.266841916367412,
+      "total_seconds": 8.09561716625467,
+      "windows_per_s_with_cache": 24.704725519095582,
+      "windows_per_s_hot": 37.9734199688951,
+      "episodes_cached": 1
+    },
+    "robodm_hot": {
+      "window_seconds": 5.316242208238691,
+      "windows_per_s_hot": 37.620558312797684,
+      "raw_camera_frames_per_s_hot": 3724.4352729669704,
+      "output_video_frames_per_s_hot": 338.58502481517917,
+      "episodes_cached": 1
+    },
+    "robodm_cold_speedup_vs_lerobot": 2.5243425469437283,
+    "robodm_hot_speedup_vs_lerobot": 3.844091853052096
+  },
+  "size": {
+    "lerobot_total_du": "1.4G",
+    "lerobot_videos_du": "1.4G",
+    "lerobot_data_du": "12M",
+    "robodm_du": "915M",
+    "robodm_current_du": "902M"
+  },
+  "notes": [
+    "The local LeRobot install used for these runs reports version 0.5.1.",
+    "RoboDM direct encoding dropped one video frame in smoke tests, so the full conversion used non-direct libx264 encoding with compact=True.",
+    "The FastWAM benchmark mirrors RobotVideoDataset on the RobotWin path: request 33 consecutive frames per camera, then keep indices 0,4,...,32 for the model video.",
+    "A 100-window round-robin cold-cache run was started but exited before writing final JSON while materializing all ten RoboDM episodes; the committed FastWAM result is the completed single-episode timing."
+  ]
+}
